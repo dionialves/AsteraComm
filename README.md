@@ -65,4 +65,4 @@ Este projeto está licenciado sob a [MIT License](LICENSE).
 
 ---
 
-*Desenvolvido por [Dioni Alves](https://github.com/dionialves)*
+*Desenvolvido por [Dioni A. Oliveira](https://github.com/dionialves)*
