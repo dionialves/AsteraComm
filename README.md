@@ -54,6 +54,24 @@ AsteraComm/
 └── README.md           # Documentação do projeto
 ```
 
+## 🚧 Roadmap
+
+Você pode acompanhar o progresso e o planejamento completo do projeto no arquivo [ROADMAP.md](./ROADMAP.md).
+
+Principais etapas:
+
+- [x] **Consulta de endpoints registrados** (v0.1.0)
+- [ ] **Dashboard inicial + autenticação** (v0.2.0)
+- [ ] **Criação e gerenciamento de endpoints** (v0.3.0)
+- [ ] **Gerenciamento de contextos e dialplans** (v0.4.0)
+- [ ] **Canais e chamadas em tempo real** (v0.5.0)
+- [ ] **Gravações e CDRs** (v0.6.0)
+- [ ] **Gerenciamento de filas (queues)** (v0.7.0)
+- [ ] **Conferências** (v0.8.0)
+- [ ] **Ferramentas administrativas** (v0.9.0)
+- [ ] **Primeira versão estável** (v1.0.0)
+- [ ] **Futuro** (WebRTC, multi-tenant, CRM, IA, etc)
+
 ## 📌 Observações
 
 * O projeto está em desenvolvimento e pode sofrer alterações.
