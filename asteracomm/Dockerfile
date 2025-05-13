@@ -19,10 +19,10 @@ RUN mkdir -p /opt/java && \
 
 WORKDIR /app
 
-COPY AsteraComm-current.jar .
+COPY AsteraComm-*.jar .
 COPY .env .
 
 EXPOSE 8090
 
-CMD ["java", "-jar", "AsteraComm-current.jar"]
+CMD ["java", "-jar", "AsteraComm-*.jar"]
 
