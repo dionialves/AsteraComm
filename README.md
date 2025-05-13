@@ -80,7 +80,3 @@ Principais etapas:
 ## 📄 Licença
 
 Este projeto está licenciado sob a [MIT License](LICENSE).
-
----
-
-*Desenvolvido por [Dioni A. Oliveira](https://github.com/dionialves)*
