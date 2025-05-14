@@ -38,15 +38,6 @@ Siga os comandos abaixo para instalar automaticamenter
    * Backend: [http://localhost:8090](http://localhost:8090)  
 <br>
 
-#### ⚠️ Considerações para ambientes de produção
-
-Para ambientes de **produção**, é altamente recomendável seguir as boas práticas de segurança:
-
--  **Altere a senha padrão do PostgreSQL** definida no arquivo `docker-compose.yml`.
--  **Ajuste a configuração do Asterisk** para se conectar com as novas credenciais do PostgreSQL.
--  **Atualize o backend Java** para refletir as novas credenciais e host do banco, editando o arquivo `.env`.
--  **Nunca exponha variáveis sensíveis em repositórios públicos**, como senhas, tokens ou strings de conexão.
-<br>
 
 ## 📁 Estrutura do Projeto
 
