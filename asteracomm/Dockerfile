@@ -17,7 +17,6 @@ RUN mkdir -p /opt/java && \
     rm openjdk-21.0.2_linux-x64_bin.tar.gz && \
     mv /opt/java/jdk-$JAVA_VERSION $JAVA_HOME
 
-<<<<<<< HEAD
 EXPOSE 8090
 
 WORKDIR /app
