@@ -1,6 +1,7 @@
 # AsteraComm
 
 **AsteraComm** é uma plataforma de gerenciamento e monitoramento do [Asterisk](https://www.asterisk.org/), desenvolvida como parte do meu portfólio. O objetivo é fornecer uma interface moderna e intuitiva para administrar sistemas de telefonia, facilitando a integração e o controle de operações.
+<br>
 
 ## 🚀 Tecnologias Utilizadas
 
@@ -9,6 +10,7 @@
 * **Servidor Web:** NGINX
 * **Banco de Dados:** PostgreSQL
 * **Containerização:** Docker
+<br>
 
 ## 🐳 Arquitetura Baseada em Docker
 
@@ -18,30 +20,24 @@ Todo o projeto é containerizado utilizando o Docker, o que simplifica a configu
 * `nginx/`: Configurações do servidor NGINX para servir o frontend.
 * `postgres/`: Configurações do banco de dados PostgreSQL.
 * `docker-compose.yml`: Orquestra todos os serviços para facilitar o desenvolvimento e a produção.
+<br>
 
-## ⚙️ Instalação e Execução
+### 🚀 Instalação automática
 
-> *Nota: Em breve, será disponibilizado um script automatizado para facilitar a instalação e configuração do projeto.*
+Siga os comandos abaixo para instalar automaticamenter
 
-Enquanto isso, você pode iniciar o projeto manualmente seguindo os passos abaixo:
-
-1. Clone o repositório:
-
-   ```bash
-   git clone https://github.com/dionialves/AsteraComm.git
-   cd AsteraComm
-   ```
-
-2. Construa e inicie os containers:
+1. Executar script:
 
    ```bash
-   docker-compose up --build
+   bash <(curl -s https://raw.githubusercontent.com/dionialves/AsteraComm/main/install.sh)
    ```
 
-3. Acesse a aplicação:
+2. Acesse a aplicação:
 
    * Frontend: [http://localhost](http://localhost)
-   * Backend: [http://localhost:8090](http://localhost:8090)
+   * Backend: [http://localhost:8090](http://localhost:8090)  
+<br>
+     
 
 ## 📁 Estrutura do Projeto
 
