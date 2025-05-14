@@ -21,7 +21,7 @@ EXPOSE 8090
 
 WORKDIR /app
 CMD ["java", "-jar", "AsteraComm.jar"]
-=======
+
 WORKDIR /app
 
 COPY AsteraComm-*.jar .
@@ -30,5 +30,4 @@ COPY .env .
 EXPOSE 8090
 
 CMD ["java", "-jar", "AsteraComm-*.jar"]
->>>>>>> 4c1212c67eacaee8f690b20e86c76a124945b38c
 
