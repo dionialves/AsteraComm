@@ -20,7 +20,7 @@ cd ../../
 echo "Baixando o backend..."
 mkdir -p asteracomm/app
 cd asteracomm/app
-wget https://github.com/dionialves/AsteraComm-backend/releases/download/v0.1.0/AsteraComm-0.1.0.jar
+wget https://github.com/dionialves/AsteraComm-backend/releases/download/v0.1.1/AsteraComm-0.1.1.jar
 mv AsteraComm-*.jar AsteraComm.jar
 cd ../..
 
