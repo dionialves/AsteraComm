@@ -26,7 +26,7 @@ cd ../..
 
 # Build e up do Docker
 echo "Construindo e subindo os containers Docker..."
-docker-compose build --no-cache
-docker-compose up -d
+docker compose build --no-cache
+docker compose up -d
 
 echo "✅ Instalação e inicialização concluídas com sucesso!"
