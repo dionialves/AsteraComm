@@ -4,7 +4,7 @@ set -e # Encerra o script se qualquer comando falhar
 
 # Clonar o repositório principal
 echo "Clonando o repositório AsteraComm..."
-git clone git@github.com:dionialves/AsteraComm.git
+git clone https://github.com/dionialves/AsteraComm.git
 cd AsteraComm
 
 # Baixar e extrair o frontend
