@@ -12,8 +12,8 @@ echo "Baixando o frontend..."
 mkdir -p nginx/www
 cd nginx/www
 wget https://github.com/dionialves/AsteraComm-frontend/releases/download/v0.1.1/AsteraComm-0.1.1.zip
-unzip AsteraComm-0.1.0.zip
-rm -f AsteraComm-0.1.0.zip
+unzip AsteraComm-0.1.1.zip
+rm -f AsteraComm-0.1.1.zip
 cd ../../
 
 # Baixar o backend
