@@ -20,13 +20,23 @@ services:
   asterisk:
     build: ./asterisk
     container_name: asterisk
+    ports:
+      - "5060:5060/udp"
+      - "5061:5061/tcp"
+      - "5060:5060/udp"
+      - "5061:5061/tcp"
+      - "5038:5038/tcp"
+      - "10000-10010:10000-10010/udp"
     volumes:
       - ./asterisk/config:/etc/asterisk
       - ./asterisk/odbc.ini:/etc/odbc.ini
       - ./asterisk/odbcinst.ini:/etc/odbcinst.ini
-    network_mode: host
     depends_on:
       - postgres
+    networks:
+      asteracomm-network:
+        ipv4_address: 172.18.0.3
+
 
   asteracomm:
     build: ./asteracomm
@@ -37,7 +47,7 @@ services:
       - ./asteracomm/app:/app
     networks:
       asteracomm-network:
-        ipv4_address: 172.18.0.3
+        ipv4_address: 172.18.0.4
     depends_on:
       - postgres
 
@@ -51,7 +61,7 @@ services:
       - "80:80"
     networks:
       asteracomm-network:
-        ipv4_address: 172.18.0.4
+        ipv4_address: 172.18.0.5
     depends_on:
       - asteracomm
 
