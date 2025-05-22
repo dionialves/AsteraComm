@@ -15,21 +15,14 @@ services:
       - asteracomm-network
 
 
-  asterisk:
+ asterisk:
     build: ./asterisk
     container_name: asterisk
     volumes:
       - ./asterisk/config:/etc/asterisk
       - ./asterisk/odbc.ini:/etc/odbc.ini
       - ./asterisk/odbcinst.ini:/etc/odbcinst.ini
-    ports:
-      - "5060:5060/udp"
-      - "5060:5060/tcp"
-      - "5061:5061/udp"
-      - "5061:5061/tcp"
-      - "10000:20000/udp"
-    networks:
-      - asteracomm-network
+    network_mode: host
     depends_on:
       - postgres
 
