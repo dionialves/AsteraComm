@@ -1,3 +1,5 @@
+version: '3.9'
+
 services:
   postgres:
     image: postgres:15
@@ -12,10 +14,10 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - asteracomm-network
+      asteracomm-network:
+        ipv4_address: 172.18.0.2
 
-
- asterisk:
+  asterisk:
     build: ./asterisk
     container_name: asterisk
     volumes:
@@ -26,7 +28,6 @@ services:
     depends_on:
       - postgres
 
-
   asteracomm:
     build: ./asteracomm
     container_name: asteracomm-backend
@@ -35,10 +36,10 @@ services:
     volumes:
       - ./asteracomm/app:/app
     networks:
-      - asteracomm-network
+      asteracomm-network:
+        ipv4_address: 172.18.0.3
     depends_on:
       - postgres
-
 
   nginx:
     image: nginx:stable
@@ -49,10 +50,10 @@ services:
     ports:
       - "80:80"
     networks:
-      - asteracomm-network
+      asteracomm-network:
+        ipv4_address: 172.18.0.4
     depends_on:
       - asteracomm
-
 
 volumes:
   postgres-data:
@@ -60,3 +61,6 @@ volumes:
 networks:
   asteracomm-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/24
