@@ -11,7 +11,7 @@ cd AsteraComm
 echo "Baixando o frontend..."
 mkdir -p nginx/www
 cd nginx/www
-wget https://github.com/dionialves/AsteraComm-frontend/releases/download/v0.1.1/AsteraComm-0.1.2.zip
+wget https://github.com/dionialves/AsteraComm-frontend/releases/download/v0.1.2/AsteraComm-0.1.2.zip
 unzip AsteraComm-0.1.2.zip
 rm -f AsteraComm-0.1.2.zip
 cd ../../
@@ -20,7 +20,7 @@ cd ../../
 echo "Baixando o backend..."
 mkdir -p asteracomm/app
 cd asteracomm/app
-wget https://github.com/dionialves/AsteraComm-backend/releases/download/v0.1.2/AsteraComm-0.1.3.jar
+wget https://github.com/dionialves/AsteraComm-backend/releases/download/v0.1.3/AsteraComm-0.1.3.jar
 mv AsteraComm-*.jar AsteraComm.jar
 cd ../..
 
