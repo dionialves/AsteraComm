@@ -17,7 +17,6 @@ CREATE TABLE cdr (
   userfield VARCHAR(255)
 );
 
-
 CREATE TABLE cel (
   id SERIAL PRIMARY KEY,
   eventtime TIMESTAMP NOT NULL,
@@ -41,7 +40,6 @@ CREATE TABLE cel (
   extra TEXT
 );
 
-
 CREATE TABLE extensions (
   id SERIAL PRIMARY KEY,
   context VARCHAR(20) NOT NULL,
@@ -50,7 +48,6 @@ CREATE TABLE extensions (
   app VARCHAR(20),
   appdata VARCHAR(128)
 );
-
 
 CREATE TABLE ps_endpoints (
   id VARCHAR(255) PRIMARY KEY,
@@ -69,7 +66,6 @@ CREATE TABLE ps_endpoints (
   callerid VARCHAR(40)
 );
 
-
 CREATE TABLE ps_aors (
   id VARCHAR(40) PRIMARY KEY,
   contact TEXT,
@@ -86,7 +82,6 @@ CREATE TABLE ps_aors (
   qualify_2xx_only VARCHAR(40)
 );
 
-
 CREATE TABLE ps_auths (
   id VARCHAR(40) PRIMARY KEY,
   auth_type VARCHAR(40),
@@ -96,7 +91,6 @@ CREATE TABLE ps_auths (
   realm VARCHAR(80),
   username VARCHAR(80)
 );
-
 
 CREATE TABLE ps_contacts (
   id VARCHAR(255),
@@ -117,37 +111,33 @@ CREATE TABLE ps_contacts (
   qualify_2xx_only VARCHAR(40)
 );
 
-
 CREATE TABLE ps_endpoint_id_ips (
   id VARCHAR(40) PRIMARY KEY,
   endpoint VARCHAR(40),
   match TEXT
 );
 
-
 CREATE TABLE ps_registrations (
-    id SERIAL PRIMARY KEY,
-    auth_rejection_permanent BOOLEAN DEFAULT FALSE,
-    client_uri VARCHAR(255) NOT NULL,
-    contact_user VARCHAR(40),
-    expiration INTEGER,
-    max_retries INTEGER DEFAULT 0,
-    outbound_auth VARCHAR(40),
-    outbound_proxy VARCHAR(40),
-    retry_interval INTEGER DEFAULT 30,
-    forbidden_retry_interval INTEGER DEFAULT 60,
-    server_uri VARCHAR(255) NOT NULL,
-    transport VARCHAR(40),
-    support_path BOOLEAN DEFAULT FALSE,
-    line_identifier VARCHAR(40)
+  id SERIAL PRIMARY KEY,
+  auth_rejection_permanent BOOLEAN DEFAULT FALSE,
+  client_uri VARCHAR(255) NOT NULL,
+  contact_user VARCHAR(40),
+  expiration INTEGER,
+  max_retries INTEGER DEFAULT 0,
+  outbound_auth VARCHAR(40),
+  outbound_proxy VARCHAR(40),
+  retry_interval INTEGER DEFAULT 30,
+  forbidden_retry_interval INTEGER DEFAULT 60,
+  server_uri VARCHAR(255) NOT NULL,
+  transport VARCHAR(40),
+  support_path BOOLEAN DEFAULT FALSE,
+  line_identifier VARCHAR(40)
 );
-
 
 CREATE TABLE ps_domain_aliases (
   id VARCHAR(40) PRIMARY KEY,
   domain VARCHAR(80)
 );
-
 
 CREATE TABLE ps_systems (
   id VARCHAR(40) PRIMARY KEY,
@@ -158,11 +148,11 @@ CREATE TABLE ps_systems (
   disable_tcp_switch VARCHAR(40)
 );
 
-
 CREATE TABLE asteracomm_endpoint_status_history (
-    id INTEGER PRIMARY KEY,
-    online BOOLEAN NOT NULL,
-    ip VARCHAR(255),
-    rtt VARCHAR(255),
-    checked_at TIMESTAMP
+  id INTEGER PRIMARY KEY,
+  online BOOLEAN NOT NULL,
+  ip VARCHAR(255),
+  rtt VARCHAR(255),
+  checked_at TIMESTAMP,
+  endpoint VARCHAR(255)
 );
