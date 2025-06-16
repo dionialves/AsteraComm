@@ -1,2 +1,3 @@
-asteracomm/app/*.jar
+asteracomm/app/*
 nginx/www/*
+frontend/app/*
