@@ -81,6 +81,7 @@ services:
     container_name: frontend
     volumes:
       - ./frontend/app:/app
+      - /etc/localtime:/etc/localtime:ro
     ports:
       - "4321:4321"
     networks:
