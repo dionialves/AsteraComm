@@ -4,10 +4,8 @@ WORKDIR /app
 
 COPY app/package*.json ./
 RUN npm install
-
-COPY app ./
-RUN npm run build
+RUN npm install @astrojs/node
 
 EXPOSE 4321
 
-CMD ["node", "dist/server/entry.mjs"]
+CMD ["sh", "-c", "npm install && npm run build && node dist/server/entry.mjs"]
