@@ -56,7 +56,12 @@ services:
         ipv4_address: 172.18.0.4
     depends_on:
       - postgres
-
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+      
   nginx:
     image: nginx:stable
     container_name: nginx
