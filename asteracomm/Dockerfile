@@ -20,4 +20,4 @@ RUN mkdir -p /opt/java && \
 EXPOSE 8090
 
 WORKDIR /app
-CMD ["java", "-jar", "AsteraComm.jar"]
+CMD ["sh", "-c", "mvn clean package && java -jar target/AsteraComm.jar"]
