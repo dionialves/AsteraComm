@@ -40,7 +40,6 @@ services:
       asteracomm-network:
         ipv4_address: 172.18.0.3
 
-
   backend:
     build: ./asteracomm
     container_name: backend
@@ -77,7 +76,7 @@ services:
       asteracomm-network:
         ipv4_address: 172.18.0.5
     depends_on:
-      - asteracomm
+      - backend
 
   frontend:
     build:
@@ -92,6 +91,8 @@ services:
     networks:
       asteracomm-network:
         ipv4_address: 172.18.0.6
+    depends_on:
+      - nginx
 
 volumes:
   postgres-data:
