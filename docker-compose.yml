@@ -16,7 +16,12 @@ services:
     networks:
       asteracomm-network:
         ipv4_address: 172.18.0.2
-
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        
   asterisk:
     build: ./asterisk
     container_name: asterisk
@@ -39,7 +44,12 @@ services:
     networks:
       asteracomm-network:
         ipv4_address: 172.18.0.3
-
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        
   backend:
     build: ./asteracomm
     container_name: backend
@@ -77,6 +87,11 @@ services:
         ipv4_address: 172.18.0.5
     depends_on:
       - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   frontend:
     build:
@@ -93,7 +108,12 @@ services:
         ipv4_address: 172.18.0.6
     depends_on:
       - nginx
-
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        
 volumes:
   postgres-data:
 
