@@ -1,3 +1,5 @@
-asteracomm/app/*
-frontend/app/*
-frontend/app/*
+backend/*
+frontend/*
+
+backend/.*
+frontend/.*
