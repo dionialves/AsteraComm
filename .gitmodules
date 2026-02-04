@@ -1,3 +1,6 @@
 [submodule "backend"]
 	path = backend
 	url = git@github.com:dionialves/AsteraComm-backend.git
+[submodule "frontend"]
+	path = frontend
+	url = git@github.com:dionialves/AsteraComm-frontend.git
