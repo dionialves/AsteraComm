@@ -160,7 +160,8 @@ CREATE TABLE ps_systems (
 
 
 CREATE TABLE asteracomm_endpoint_status_history (
-    id INTEGER PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
+    endpoint VARCHAR(255) REFERENCES ps_endpoints(id),
     online BOOLEAN NOT NULL,
     ip VARCHAR(255),
     rtt VARCHAR(255),

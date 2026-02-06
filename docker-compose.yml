@@ -51,7 +51,7 @@ services:
         max-file: "3"
         
   backend:
-    build: ./asteracomm
+    build: ./backend
     container_name: backend
     ports:
       - "8090:8090"
