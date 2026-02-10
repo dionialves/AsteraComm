@@ -52,65 +52,19 @@ CREATE TABLE extensions (
 );
 
 
-CREATE TABLE ps_endpoints (
-  id VARCHAR(255) PRIMARY KEY,
-  transport VARCHAR(40),
-  aors VARCHAR(2048),
-  auth VARCHAR(255),
-  context VARCHAR(40),
-  disallow VARCHAR(200),
-  allow VARCHAR(200),
-  direct_media VARCHAR(200),
-  force_rport VARCHAR(200),
-  ice_support VARCHAR(200),
-  identify_by VARCHAR(80),
-  rewrite_contact VARCHAR(80),
-  rtp_symmetric VARCHAR(80),
-  callerid VARCHAR(40)
-);
-
-
-CREATE TABLE ps_aors (
-  id VARCHAR(40) PRIMARY KEY,
-  contact TEXT,
-  default_expiration INTEGER,
-  max_contacts INTEGER,
-  minimum_expiration INTEGER,
-  remove_existing VARCHAR(40),
-  qualify_frequency INTEGER,
-  authenticate_qualify VARCHAR(40),
-  maximum_expiration INTEGER,
-  outbound_proxy TEXT,
-  support_path VARCHAR(40),
-  remove_unavailable VARCHAR(40),
-  qualify_2xx_only VARCHAR(40)
-);
-
-
-CREATE TABLE ps_auths (
-  id VARCHAR(40) PRIMARY KEY,
-  auth_type VARCHAR(40),
-  nonce_lifetime INTEGER,
-  md5_cred VARCHAR(80),
-  password VARCHAR(80),
-  realm VARCHAR(80),
-  username VARCHAR(80)
-);
-
-
 CREATE TABLE ps_contacts (
   id VARCHAR(255),
   uri VARCHAR(511),
-  expiration_time BIGINT,
-  qualify_frequency INTEGER,
+  expiration_time VARCHAR(20),
+  qualify_frequency VARCHAR(10),
   outbound_proxy VARCHAR(255),
   path TEXT,
   user_agent VARCHAR(255),
-  qualify_timeout REAL,
+  qualify_timeout VARCHAR(10),
   reg_server VARCHAR(255),
   authenticate_qualify VARCHAR(40),
   via_addr VARCHAR(40),
-  via_port INTEGER,
+  via_port VARCHAR(10),
   call_id VARCHAR(255),
   endpoint VARCHAR(255),
   prune_on_boot VARCHAR(40),
@@ -126,16 +80,16 @@ CREATE TABLE ps_endpoint_id_ips (
 
 
 CREATE TABLE ps_registrations (
-    id SERIAL PRIMARY KEY,
+    id VARCHAR(40) PRIMARY KEY,
     auth_rejection_permanent BOOLEAN DEFAULT FALSE,
     client_uri VARCHAR(255) NOT NULL,
     contact_user VARCHAR(40),
-    expiration INTEGER,
-    max_retries INTEGER DEFAULT 0,
+    expiration VARCHAR(10),
+    max_retries VARCHAR(10),
     outbound_auth VARCHAR(40),
     outbound_proxy VARCHAR(40),
-    retry_interval INTEGER DEFAULT 30,
-    forbidden_retry_interval INTEGER DEFAULT 60,
+    retry_interval VARCHAR(10),
+    forbidden_retry_interval VARCHAR(10),
     server_uri VARCHAR(255) NOT NULL,
     transport VARCHAR(40),
     support_path BOOLEAN DEFAULT FALSE,
@@ -151,19 +105,9 @@ CREATE TABLE ps_domain_aliases (
 
 CREATE TABLE ps_systems (
   id VARCHAR(40) PRIMARY KEY,
-  timer_t1 INTEGER,
-  timer_b INTEGER,
+  timer_t1 VARCHAR(10),
+  timer_b VARCHAR(10),
   compact_headers VARCHAR(40),
-  threadpool_threads INTEGER,
+  threadpool_threads VARCHAR(10),
   disable_tcp_switch VARCHAR(40)
-);
-
-
-CREATE TABLE asteracomm_endpoint_status_history (
-    id SERIAL PRIMARY KEY,
-    endpoint VARCHAR(255) REFERENCES ps_endpoints(id),
-    online BOOLEAN NOT NULL,
-    ip VARCHAR(255),
-    rtt VARCHAR(255),
-    checked_at TIMESTAMP
 );
