@@ -1,0 +1,100 @@
+# Docker Compose para ambiente de DESENVOLVIMENTO
+# Uso: docker compose -f docker-compose.dev.yml up -d
+#
+# Características:
+# - Hot reload no frontend (Astro/Vite)
+# - Reinício automático no backend com spring-boot-devtools
+# - Volumes montando código fonte para edição em tempo real
+# - Cache do Maven para builds mais rápidas
+
+services:
+  postgres:
+    image: postgres:18
+    container_name: postgres
+    environment:
+      - POSTGRES_DB=asteracomm
+      - POSTGRES_USER=asteracomm
+      - POSTGRES_PASSWORD=asteracomm
+      - TZ=America/Sao_Paulo
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./postgres/init:/docker-entrypoint-initdb.d
+    networks:
+      asteracomm-network-dev:
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U asteracomm"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  asterisk:
+    network_mode: host
+    platform: linux/amd64
+    build: ./asterisk
+    container_name: asterisk
+    volumes:
+      - ./asterisk/config:/etc/asterisk
+      - ./asterisk/odbc.ini:/etc/odbc.ini
+      - ./asterisk/odbcinst.ini:/etc/odbcinst.ini
+    environment:
+      - TZ=America/Sao_Paulo
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: backend
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./backend:/app
+      - maven-cache:/root/.m2
+    environment:
+      - TZ=America/Sao_Paulo
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/asteracomm
+      - ASTERISK_HOSTNAME=127.0.0.1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      asteracomm-network-dev:
+    stdin_open: true
+    tty: true
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: frontend
+    ports:
+      - "4321:4321"
+    volumes:
+      - ./frontend:/app                   # Código fonte montado
+      - frontend-node-modules:/app/node_modules  # Preserva node_modules do container
+    environment:
+      - TZ=America/Sao_Paulo
+    depends_on:
+      - backend
+    networks:
+      asteracomm-network-dev:
+    # Hot reload ativo por padrão com npm run dev
+
+  # NGINX não é necessário em dev - acessa frontend diretamente na porta 4321
+
+volumes:
+  pgdata:
+  maven-cache:
+  frontend-node-modules:
+
+networks:
+  asteracomm-network-dev:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/24
