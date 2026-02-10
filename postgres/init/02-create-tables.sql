@@ -1,4 +1,4 @@
-CREATE TABLE cdr (
+CREATE TABLE asterisk.cdr (
   calldate TIMESTAMP NOT NULL,
   clid VARCHAR(80) NOT NULL,
   src VARCHAR(80) NOT NULL,
@@ -18,7 +18,7 @@ CREATE TABLE cdr (
 );
 
 
-CREATE TABLE cel (
+CREATE TABLE asterisk.cel (
   id SERIAL PRIMARY KEY,
   eventtime TIMESTAMP NOT NULL,
   eventtype VARCHAR(30) NOT NULL,
@@ -42,7 +42,7 @@ CREATE TABLE cel (
 );
 
 
-CREATE TABLE extensions (
+CREATE TABLE asterisk.extensions (
   id SERIAL PRIMARY KEY,
   context VARCHAR(20) NOT NULL,
   exten VARCHAR(20) NOT NULL,
@@ -52,7 +52,7 @@ CREATE TABLE extensions (
 );
 
 
-CREATE TABLE ps_contacts (
+CREATE TABLE asterisk.ps_contacts (
   id VARCHAR(255),
   uri VARCHAR(511),
   expiration_time VARCHAR(20),
@@ -72,14 +72,14 @@ CREATE TABLE ps_contacts (
 );
 
 
-CREATE TABLE ps_endpoint_id_ips (
+CREATE TABLE asterisk.ps_endpoint_id_ips (
   id VARCHAR(40) PRIMARY KEY,
   endpoint VARCHAR(40),
   match TEXT
 );
 
 
-CREATE TABLE ps_registrations (
+CREATE TABLE asterisk.ps_registrations (
     id VARCHAR(40) PRIMARY KEY,
     auth_rejection_permanent BOOLEAN DEFAULT FALSE,
     client_uri VARCHAR(255) NOT NULL,
@@ -97,13 +97,13 @@ CREATE TABLE ps_registrations (
 );
 
 
-CREATE TABLE ps_domain_aliases (
+CREATE TABLE asterisk.ps_domain_aliases (
   id VARCHAR(40) PRIMARY KEY,
   domain VARCHAR(80)
 );
 
 
-CREATE TABLE ps_systems (
+CREATE TABLE asterisk.ps_systems (
   id VARCHAR(40) PRIMARY KEY,
   timer_t1 VARCHAR(10),
   timer_b VARCHAR(10),
