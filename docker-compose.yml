@@ -23,7 +23,8 @@ services:
       - ./postgres/init:/docker-entrypoint-initdb.d
       - /etc/localtime:/etc/localtime:ro
     networks:
-      - asteracomm-network
+      asteracomm-network:
+        ipv4_address: 172.18.0.2
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U asteracomm"]
@@ -37,13 +38,10 @@ services:
         max-file: "3"
 
   asterisk:
+    network_mode: host
+    platform: linux/amd64
     build: ./asterisk
     container_name: asterisk
-    ports:
-      - "5060:5060/udp"
-      - "5061:5061/tcp"
-      - "5038:5038/tcp"
-      - "10000-10010:10000-10010/udp"
     volumes:
       - ./asterisk/config:/etc/asterisk
       - ./asterisk/odbc.ini:/etc/odbc.ini
@@ -54,8 +52,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    networks:
-      - asteracomm-network
     restart: unless-stopped
     logging:
       driver: "json-file"
@@ -78,6 +74,8 @@ services:
         condition: service_healthy
     networks:
       - asteracomm-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8090/api/circuits?size=1 || exit 1"]
@@ -128,6 +126,8 @@ services:
       - backend
     networks:
       - asteracomm-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:4321/ || exit 1"]
@@ -147,3 +147,6 @@ volumes:
 networks:
   asteracomm-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/24
