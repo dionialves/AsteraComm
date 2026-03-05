@@ -1,3 +1,9 @@
+CREATE TABLE asteracomm_circuits (
+    number VARCHAR(50) PRIMARY KEY,
+    password VARCHAR(100) NOT NULL
+);
+
+
 CREATE TABLE cdr (
   calldate TIMESTAMP NOT NULL,
   clid VARCHAR(80) NOT NULL,
