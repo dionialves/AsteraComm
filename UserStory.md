@@ -4,9 +4,11 @@
 
 1. [US-005 — Refatoração: Modelo de Circuito SIP (softphone/ATA)](#us-005)
 2. [US-001 — Cadastro de provedores VoIP para troncos de saída](#us-001)
-3. [US-002 — Pesquisa e visualização de ligações realizadas](#us-002)
-4. [US-003 — Cadastro de minutagem (tarifas por tipo de ligação)](#us-003)
-5. [US-004 — Cadastro de planos de minutagem](#us-004)
+3. [US-006 — Cadastro de DID (pool de números)](#us-006)
+4. [US-007 — Vinculação DID-Circuito com provisionamento automático de Extensions](#us-007)
+5. [US-002 — Pesquisa e visualização de ligações realizadas](#us-002)
+6. [US-003 — Cadastro de minutagem (tarifas por tipo de ligação)](#us-003)
+7. [US-004 — Cadastro de planos de minutagem](#us-004)
 
 ---
 
@@ -114,3 +116,42 @@ Como administrador, quero cadastrar planos de minutagem associando uma tabela de
 3. **Edição:** Permite alterar qualquer campo do plano.
 4. **Exclusão:** Permite excluir plano não vinculado a troncos/clientes.
 5. **Validações:** Minutagem obrigatória; minutos gratuitos >= 0; nome único.
+
+---
+
+## US-006
+
+**Titulo:** Cadastro de DID (pool de números)
+
+**Descrição:**
+Como administrador, quero cadastrar DIDs (números de telefone) no sistema, formando um pool de números disponíveis para comercialização e uso, independentemente de estarem associados a um circuito.
+
+**Estimativa:** 3 story points
+
+**Critérios de Aceite:**
+
+1. **Listagem:** Exibe DIDs cadastrados com: número, descrição, status (`LIVRE` | `EM USO`) e circuito vinculado (quando houver).
+2. **Criação:** Cadastro com número (obrigatório) e descrição (opcional).
+3. **Edição:** Permite editar número e descrição de um DID.
+4. **Exclusão:** Impede exclusão de DID vinculado a um circuito.
+5. **Validações:** Número único no sistema; formato válido; campos obrigatórios.
+
+---
+
+## US-007
+
+**Titulo:** Vinculação DID-Circuito com provisionamento automático de Extensions
+
+**Descrição:**
+Como administrador, quero vincular um ou mais DIDs a um circuito, para que o Asterisk provisione automaticamente as Extensions correspondentes, habilitando o circuito a receber e realizar chamadas por aquele número.
+
+**Estimativa:** 5 story points
+
+**Critérios de Aceite:**
+
+1. **Vinculação:** Na tela do circuito (ou do DID), é possível associar um DID livre ao circuito. Um circuito pode ter 1 ou mais DIDs.
+2. **Provisionamento automático:** Ao vincular, a Extension correspondente ao número do DID é criada nas tabelas do Asterisk e um `dialplan reload` é disparado via AMI.
+3. **Desvinculação:** É possível desvincular um DID de um circuito. Ao desvincular, a Extension é removida do Asterisk e o `dialplan reload` é disparado.
+4. **Status do DID:** DID vinculado muda status para `EM USO`; ao desvincular volta para `LIVRE`.
+5. **Restrição:** Um DID só pode estar vinculado a um circuito por vez.
+6. **Exibição:** Na listagem de circuitos e na listagem de DIDs, o vínculo é exibido claramente.
