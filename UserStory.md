@@ -3,11 +3,13 @@
 ## Indice
 
 1. [US-001 — Cadastro de provedores VoIP para troncos de saída](#us-001)
-2. [US-006 — Cadastro de DID (pool de números)](#us-006)
-3. [US-007 — Vinculação DID-Circuito com provisionamento automático de Extensions](#us-007)
-4. [US-002 — Pesquisa e visualização de ligações realizadas](#us-002)
-5. [US-003 — Cadastro de minutagem (tarifas por tipo de ligação)](#us-003)
-6. [US-004 — Cadastro de planos de minutagem](#us-004)
+2. [US-009 — Cadastro de rotas de saída](#us-009)
+3. [US-006 — Cadastro de DID (pool de números)](#us-006)
+4. [US-007 — Vinculação DID-Circuito com provisionamento automático de Extensions](#us-007)
+5. [US-002 — Pesquisa e visualização de ligações realizadas](#us-002)
+6. [US-003 — Cadastro de minutagem (tarifas por tipo de ligação)](#us-003)
+7. [US-004 — Cadastro de planos de minutagem](#us-004)
+8. [US-008 — Refatoração: EndpointStatusService usar AmiService](#us-008)
 
 ---
 
@@ -134,3 +136,43 @@ Como administrador, quero vincular um ou mais DIDs a um circuito, para que o Ast
 4. **Status do DID:** DID vinculado muda status para `EM USO`; ao desvincular volta para `LIVRE`.
 5. **Restrição:** Um DID só pode estar vinculado a um circuito por vez.
 6. **Exibição:** Na listagem de circuitos e na listagem de DIDs, o vínculo é exibido claramente.
+
+---
+
+## US-008
+
+**Titulo:** Refatoração: EndpointStatusService usar AmiService
+
+**Descrição:**
+Como desenvolvedor, quero que o `EndpointStatusService` utilize o `AmiService` para se conectar ao Asterisk via AMI, eliminando a duplicação de lógica de conexão que hoje existe entre os dois serviços.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **AmiService estendido:** `AmiService` expõe um método `sendCommandWithResponse(String command) → CommandResponse` para comandos que necessitam retorno.
+2. **EndpointStatusService refatorado:** Injeta `AmiService` e delega a conexão AMI ao novo método, removendo o código inline de `ManagerConnectionFactory`/`ManagerConnection`.
+3. **Comportamento preservado:** O polling de status (`pjsip show contacts`) continua funcionando da mesma forma.
+4. **Testes atualizados:** `EndpointStatusServiceTest` passa a mockar `AmiService` em vez de usar `ReflectionTestUtils` para os parâmetros de conexão.
+
+---
+
+## US-009
+
+**Titulo:** Cadastro de rotas de saída
+
+**Descrição:**
+Como administrador do sistema, quero cadastrar rotas de saída associando padrões de discagem a troncos VoIP, para que o Asterisk direcione automaticamente as chamadas originadas nos circuitos pelo tronco correto de acordo com o número discado.
+
+**Estimativa:** 5 story points
+
+**Critérios de Aceite:**
+
+1. **Listagem:** A interface exibe as rotas cadastradas com: nome, padrão de discagem, tronco associado e prioridade.
+2. **Criação:** Cadastro com nome (identificador interno), padrão de discagem (ex: `_0.`, `_011.`, `_49XXXXXXXX`), tronco (dropdown dos trunks cadastrados) e prioridade (ordem de tentativa).
+3. **Edição:** Permite alterar qualquer campo da rota.
+4. **Exclusão:** Remove a rota e atualiza o dialplan do Asterisk.
+5. **Provisionamento automático:** Ao criar/editar/excluir uma rota, as entradas correspondentes na tabela `extensions` (contexto `from-internal`) são atualizadas e um `dialplan reload` é disparado via AMI.
+6. **Prioridade:** Quando múltiplas rotas existem, o Asterisk as tenta em ordem de prioridade (menor número = maior prioridade). Se uma rota falhar, tenta a próxima.
+7. **Dependência:** Só é possível excluir um tronco que não esteja associado a nenhuma rota ativa.
+8. **Validações:** Padrão de discagem obrigatório e único por rota; tronco obrigatório; nome único.

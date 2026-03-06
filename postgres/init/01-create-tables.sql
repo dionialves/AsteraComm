@@ -4,6 +4,22 @@ CREATE TABLE asteracomm_circuits (
 );
 
 
+CREATE TABLE asteracomm_trunks (
+    name VARCHAR(50) PRIMARY KEY,
+    host VARCHAR(255) NOT NULL,
+    username VARCHAR(100) NOT NULL,
+    password VARCHAR(100) NOT NULL
+);
+
+
+CREATE TABLE asteracomm_trunk_registration_status (
+    id BIGSERIAL PRIMARY KEY,
+    trunk_name VARCHAR(50) NOT NULL,
+    registered BOOLEAN NOT NULL,
+    checked_at TIMESTAMP NOT NULL
+);
+
+
 CREATE TABLE cdr (
   calldate TIMESTAMP NOT NULL,
   clid VARCHAR(80) NOT NULL,
