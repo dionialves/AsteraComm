@@ -2,33 +2,12 @@
 
 ## Indice
 
-1. [US-005 — Refatoração: Modelo de Circuito SIP (softphone/ATA)](#us-005)
-2. [US-001 — Cadastro de provedores VoIP para troncos de saída](#us-001)
-3. [US-006 — Cadastro de DID (pool de números)](#us-006)
-4. [US-007 — Vinculação DID-Circuito com provisionamento automático de Extensions](#us-007)
-5. [US-002 — Pesquisa e visualização de ligações realizadas](#us-002)
-6. [US-003 — Cadastro de minutagem (tarifas por tipo de ligação)](#us-003)
-7. [US-004 — Cadastro de planos de minutagem](#us-004)
-
----
-
-## US-005
-
-**Titulo:** Refatoração: Modelo de Circuito SIP (softphone/ATA)
-
-**Descrição:**
-Como desenvolvedor, preciso refatorar o backend para que o conceito de **Circuito** seja a entidade central do domínio — representando um ramal SIP configurável para uso com softphone ou ATA — e que toda a interação com o Asterisk (ps_endpoints, ps_auths, ps_aors, extensions) seja encapsulada em uma camada de serviço, sem que entidades JPA do Asterisk vazem para o restante da aplicação.
-
-**Estimativa:** 8 story points
-
-**Critérios de Aceite:**
-
-1. **Entidade `Circuito`:** Existe uma entidade de domínio própria (`Circuit`) com campos: número, senha, tipo (`SOFTPHONE` | `ATA`), e demais atributos necessários. Essa entidade é persistida em tabela própria da aplicação, não nas tabelas do Asterisk.
-2. **Camada de integração Asterisk:** Um serviço dedicado (`AsteriskProvisioningService` ou similar) é responsável por traduzir o estado de um `Circuit` para as tabelas PJSIP (`ps_endpoints`, `ps_auths`, `ps_aors`) e para `extensions`, emitindo `pjsip reload` / `dialplan reload` via AMI após cada operação.
-3. **Entidades Asterisk internas:** As entidades JPA das tabelas do Asterisk (`AorEntity`, `AuthEntity`, `EndpointEntity`, `ExtensionEntity`) existem apenas dentro da camada de provisionamento, sem exposição via controllers, DTOs públicos ou serviços de domínio.
-4. **Comportamento preservado:** O CRUD de circuitos existente (`/api/circuits`) continua funcionando com o mesmo contrato de API — sem breaking change para o frontend.
-5. **Testes atualizados:** Testes existentes de circuito continuam passando; a nova camada de provisionamento tem testes unitários próprios (mockando AMI/repositórios Asterisk).
-6. **Base para troncos:** A arquitetura resultante é extensível para acomodar a US-001 (provedores VoIP/troncos de saída) sem duplicar a lógica de provisionamento Asterisk.
+1. [US-001 — Cadastro de provedores VoIP para troncos de saída](#us-001)
+2. [US-006 — Cadastro de DID (pool de números)](#us-006)
+3. [US-007 — Vinculação DID-Circuito com provisionamento automático de Extensions](#us-007)
+4. [US-002 — Pesquisa e visualização de ligações realizadas](#us-002)
+5. [US-003 — Cadastro de minutagem (tarifas por tipo de ligação)](#us-003)
+6. [US-004 — Cadastro de planos de minutagem](#us-004)
 
 ---
 
