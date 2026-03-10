@@ -4,6 +4,27 @@
 
 ---
 
+### US-010 — Geração dinâmica de `extensions_trunks.conf` para contextos de tronco
+
+**Titulo:** Geração dinâmica de `extensions_trunks.conf` para contextos de tronco
+
+**Descrição:**
+Como administrador, quero que ao cadastrar ou remover um tronco o Asterisk reconheça automaticamente os contextos de dialplan correspondentes (`internal-<tronco>` e `pstn-<tronco>`), sem necessidade de edição manual de arquivos de configuração.
+
+**Estimativa:** 5 story points
+
+**Critérios de Aceite:**
+
+1. Volume nomeado `dialplan-generated` compartilhado entre `backend` (`/dialplan-generated`) e `asterisk` (`/etc/asterisk/generated`) em `docker-compose.dev.yml` e `docker-compose.yml`.
+2. `extensions.conf` simplificado para apenas `#tryinclude generated/extensions_trunks.conf`.
+3. `DialplanGeneratorService` gera o arquivo com stubs `switch => Realtime/@` para cada par `[internal-<tronco>]`/`[pstn-<tronco>]` e dispara `dialplan reload` via AMI.
+4. Geração automática na inicialização via `@EventListener(ApplicationReadyEvent.class)`.
+5. `provisionTrunk` e `deprovisionTrunk` invocam `generateAndReload()`; `reprovisionTrunk` não.
+6. Propriedade `asterisk.dialplan.generated-path=/dialplan-generated` nos dois perfis.
+7. 125 testes, 0 falhas.
+
+---
+
 ### US-001 — Cadastro de provedores VoIP para troncos de saída
 
 **Titulo:** Cadastro de provedores VoIP para troncos de saída com autenticação usuário/senha
