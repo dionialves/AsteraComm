@@ -2,12 +2,11 @@
 
 ## Indice
 
-1. [US-006 — Cadastro de DID (pool de números)](#us-006)
-2. [US-007 — Vinculação DID-Circuito com provisionamento automático de Extensions](#us-007)
-3. [US-002 — Pesquisa e visualização de ligações realizadas](#us-002)
-4. [US-003 — Cadastro de minutagem (tarifas por tipo de ligação)](#us-003)
-5. [US-004 — Cadastro de planos de minutagem](#us-004)
-6. [US-008 — Refatoração: EndpointStatusService usar AmiService](#us-008)
+1. [US-007 — Vinculação DID-Circuito com provisionamento automático de Extensions](#us-007)
+2. [US-002 — Pesquisa e visualização de ligações realizadas](#us-002)
+3. [US-003 — Cadastro de minutagem (tarifas por tipo de ligação)](#us-003)
+4. [US-004 — Cadastro de planos de minutagem](#us-004)
+5. [US-008 — Refatoração: EndpointStatusService usar AmiService](#us-008)
 
 ---
 
@@ -70,25 +69,6 @@ Como administrador, quero cadastrar planos de minutagem associando uma tabela de
 3. **Edição:** Permite alterar qualquer campo do plano.
 4. **Exclusão:** Permite excluir plano não vinculado a troncos/clientes.
 5. **Validações:** Minutagem obrigatória; minutos gratuitos >= 0; nome único.
-
----
-
-## US-006
-
-**Titulo:** Cadastro de DID (pool de números)
-
-**Descrição:**
-Como administrador, quero cadastrar DIDs (números de telefone) no sistema, formando um pool de números disponíveis para comercialização e uso, independentemente de estarem associados a um circuito.
-
-**Estimativa:** 3 story points
-
-**Critérios de Aceite:**
-
-1. **Listagem:** Exibe DIDs cadastrados com: número, descrição, status (`LIVRE` | `EM USO`) e circuito vinculado (quando houver).
-2. **Criação:** Cadastro com número (obrigatório) e descrição (opcional).
-3. **Edição:** Permite editar número e descrição de um DID.
-4. **Exclusão:** Impede exclusão de DID vinculado a um circuito.
-5. **Validações:** Número único no sistema; formato válido; campos obrigatórios.
 
 ---
 

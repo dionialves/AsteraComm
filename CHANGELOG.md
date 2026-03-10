@@ -66,6 +66,27 @@ Como desenvolvedor, preciso refatorar o backend para que o conceito de **Circuit
 
 ---
 
+### US-006 — Cadastro de DID (pool de números)
+
+**Titulo:** Cadastro de DID (pool de números)
+
+**Descrição:**
+Como administrador, quero cadastrar DIDs (números de telefone) no sistema, formando um pool de números disponíveis para comercialização e uso, independentemente de estarem associados a um circuito.
+
+**Estimativa:** 3 story points
+
+**Critérios de Aceite:**
+
+1. **Listagem:** Exibe DIDs cadastrados com: número, status (`LIVRE` | `EM USO`) e circuito vinculado (quando houver).
+2. **Criação:** Cadastro com número obrigatório no formato `(XX) XXXX-XXXX` (exatamente 10 dígitos).
+3. **Exclusão:** Impede exclusão de DID vinculado a um circuito.
+4. **Validações:** Número único; apenas dígitos; exatamente 10 dígitos.
+5. **Vinculação/Desvinculação:** Na tela do circuito, é possível vincular um DID livre e desvincular DIDs já associados (sem provisionamento Asterisk — ver US-007).
+6. **Código do circuito auto-gerado:** Circuitos não aceitam mais número no cadastro; código gerado sequencialmente a partir de 100000.
+7. **Testes:** 148 testes, 0 falhas.
+
+---
+
 ### US-009 — Vinculação Circuito-Tronco com provisionamento automático de contextos
 
 **Titulo:** Vinculação Circuito-Tronco com provisionamento automático de contextos
