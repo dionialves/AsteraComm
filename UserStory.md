@@ -2,39 +2,13 @@
 
 ## Indice
 
-1. [US-001 — Cadastro de provedores VoIP para troncos de saída](#us-001)
-2. [US-009 — Cadastro de rotas de saída](#us-009)
-3. [US-006 — Cadastro de DID (pool de números)](#us-006)
-4. [US-007 — Vinculação DID-Circuito com provisionamento automático de Extensions](#us-007)
-5. [US-002 — Pesquisa e visualização de ligações realizadas](#us-002)
-6. [US-003 — Cadastro de minutagem (tarifas por tipo de ligação)](#us-003)
-7. [US-004 — Cadastro de planos de minutagem](#us-004)
-8. [US-008 — Refatoração: EndpointStatusService usar AmiService](#us-008)
-
----
-
-## US-001
-
-**Titulo:** Cadastro de provedores VoIP para troncos de saída com autenticação usuário/senha
-
-**Descrição:**
-Como administrador do sistema, quero cadastrar provedores VoIP (trunks SIP) com autenticação por usuário e senha, para que o Asterisk possa realizar chamadas de saída através desses provedores.
-
-**Estimativa:** 8 story points
-
-**Critérios de Aceite:**
-
-1. **Listagem:** A interface exibe a lista de provedores VoIP cadastrados (nome, host/domínio, usuário, status de registro).
-2. **Criação:** É possível cadastrar um novo provedor informando:
-   - Nome (identificador interno)
-   - Host/domínio SIP do provedor
-   - Usuário (username para autenticação)
-   - Senha
-3. **Edição:** É possível editar um provedor existente (todos os campos; senha em branco não altera a senha).
-4. **Exclusão:** É possível excluir um provedor, removendo todas as configurações do Asterisk associadas.
-5. **Persistência no Asterisk:** Ao criar/editar/excluir, as tabelas `ps_endpoints`, `ps_auths`, `ps_aors` e `ps_registrations` são atualizadas com as configurações de tronco e o Asterisk recebe um `pjsip reload`.
-6. **Status de registro:** A interface exibe se o tronco está registrado ou não no provedor, consultando o estado via AMI.
-7. **Validações:** Campos obrigatórios validados no frontend e backend; host deve ser não-vazio; nome único por sistema.
+1. [US-010 — Geração dinâmica de `extensions_trunks.conf` para contextos de tronco](#us-010)
+2. [US-006 — Cadastro de DID (pool de números)](#us-006)
+3. [US-007 — Vinculação DID-Circuito com provisionamento automático de Extensions](#us-007)
+4. [US-002 — Pesquisa e visualização de ligações realizadas](#us-002)
+5. [US-003 — Cadastro de minutagem (tarifas por tipo de ligação)](#us-003)
+6. [US-004 — Cadastro de planos de minutagem](#us-004)
+7. [US-008 — Refatoração: EndpointStatusService usar AmiService](#us-008)
 
 ---
 
@@ -157,22 +131,75 @@ Como desenvolvedor, quero que o `EndpointStatusService` utilize o `AmiService` p
 
 ---
 
-## US-009
+## US-010
 
-**Titulo:** Cadastro de rotas de saída
+**Titulo:** Geração dinâmica de `extensions_trunks.conf` para contextos de tronco
 
 **Descrição:**
-Como administrador do sistema, quero cadastrar rotas de saída associando padrões de discagem a troncos VoIP, para que o Asterisk direcione automaticamente as chamadas originadas nos circuitos pelo tronco correto de acordo com o número discado.
+Como administrador, quero que ao cadastrar ou remover um tronco o Asterisk reconheça automaticamente os contextos de dialplan correspondentes (`internal-<tronco>` e `pstn-<tronco>`), sem necessidade de edição manual de arquivos de configuração, para que as chamadas de saída e entrada dos circuitos vinculados ao tronco funcionem imediatamente após o provisionamento.
 
 **Estimativa:** 5 story points
 
+**Contexto técnico (raiz do problema):**
+
+O `AsteriskProvisioningService` já grava as extensions dos troncos e circuitos na tabela `extensions` (ARA/Realtime). O Asterisk consulta essa tabela via `switch => Realtime/@` — mas somente para contextos que possuam esse stub em `extensions.conf`. Como `extensions.conf` contém apenas stubs para `from-internal` e `from-pstn`, os contextos `internal-<tronco>` e `pstn-<tronco>` criados dinamicamente nunca são encontrados pelo Asterisk.
+
+O backend (container `backend`) não monta o volume do Asterisk (`./asterisk/config`), impossibilitando escrita direta em `extensions.conf`. A solução é um volume Docker compartilhado entre os containers `backend` e `asterisk`, onde o backend escreve um arquivo `extensions_trunks.conf` gerado dinamicamente.
+
 **Critérios de Aceite:**
 
-1. **Listagem:** A interface exibe as rotas cadastradas com: nome, padrão de discagem, tronco associado e prioridade.
-2. **Criação:** Cadastro com nome (identificador interno), padrão de discagem (ex: `_0.`, `_011.`, `_49XXXXXXXX`), tronco (dropdown dos trunks cadastrados) e prioridade (ordem de tentativa).
-3. **Edição:** Permite alterar qualquer campo da rota.
-4. **Exclusão:** Remove a rota e atualiza o dialplan do Asterisk.
-5. **Provisionamento automático:** Ao criar/editar/excluir uma rota, as entradas correspondentes na tabela `extensions` (contexto `from-internal`) são atualizadas e um `dialplan reload` é disparado via AMI.
-6. **Prioridade:** Quando múltiplas rotas existem, o Asterisk as tenta em ordem de prioridade (menor número = maior prioridade). Se uma rota falhar, tenta a próxima.
-7. **Dependência:** Só é possível excluir um tronco que não esteja associado a nenhuma rota ativa.
-8. **Validações:** Padrão de discagem obrigatório e único por rota; tronco obrigatório; nome único.
+1. **Volume Docker compartilhado:** Um volume nomeado `dialplan-generated` é adicionado a `docker-compose.dev.yml` e `docker-compose.yml`:
+   - Montado no `asterisk` em `/etc/asterisk/generated`
+   - Montado no `backend` em `/dialplan-generated`
+
+2. **`extensions.conf` simplificado:** Os stubs `[from-pstn]` e `[from-internal]` com `switch => Realtime/@` são **removidos**. O arquivo passa a conter apenas:
+   ```ini
+   #tryinclude generated/extensions_trunks.conf
+   ```
+   O `#tryinclude` tolera ausência do arquivo no primeiro boot sem gerar erro de inicialização do Asterisk.
+
+3. **`DialplanGeneratorService`:** Novo serviço criado em `asterisk/dialplan/` com dois métodos:
+   - `generateTrunkContexts()`: consulta todos os troncos em `asteracomm_trunks`, gera o arquivo com um stub `switch => Realtime/@` para cada contexto `internal-<tronco>` e `pstn-<tronco>`, e escreve em `/dialplan-generated/extensions_trunks.conf`. Exemplo de saída:
+     ```ini
+     ; AUTO-GENERATED by AsteraComm — NÃO EDITE MANUALMENTE
+     ; Gerado em: <timestamp>
+
+     [internal-vivo]
+     switch => Realtime/@
+
+     [pstn-vivo]
+     switch => Realtime/@
+     ```
+   - `generateAndReload()`: chama `generateTrunkContexts()` e em seguida envia `dialplan reload` via `AmiService`.
+   - O caminho do diretório de saída é configurável via propriedade `asterisk.dialplan.generated-path` (default: `/dialplan-generated`).
+
+4. **Geração na inicialização:** `DialplanGeneratorService.generateAndReload()` é chamado via `@EventListener(ApplicationReadyEvent.class)` na inicialização do backend, garantindo que o arquivo reflita o estado atual do banco mesmo após restart.
+
+5. **Integração com `AsteriskProvisioningService`:** Os métodos a seguir passam a invocar `dialplanGeneratorService.generateAndReload()` após sua lógica atual:
+   - `provisionTrunk(Trunk)` — novo tronco exige novo par de stubs no arquivo
+   - `deprovisionTrunk(Trunk)` — tronco removido deve ter seus stubs eliminados do arquivo
+   - `reprovisionTrunk` **não** regenera o arquivo (nome do tronco é imutável por ser PK)
+
+6. **Configuração por perfil:**
+   - `application-dev.properties`: `asterisk.dialplan.generated-path=/dialplan-generated`
+   - `application-prod.properties` (ou variável de ambiente): `asterisk.dialplan.generated-path=/dialplan-generated`
+
+7. **Testes unitários — `DialplanGeneratorServiceTest`:**
+   - Geração com zero troncos: arquivo contém apenas o cabeçalho, sem blocos de contexto.
+   - Geração com um tronco: arquivo contém exatamente `[internal-<nome>]` e `[pstn-<nome>]`.
+   - Geração com múltiplos troncos: todos os contextos esperados presentes, sem duplicatas.
+   - `generateAndReload` invoca `amiService.sendCommand("dialplan reload")` após a escrita.
+   - Falha de escrita (diretório inexistente ou sem permissão): exceção descritiva lançada, não engolida silenciosamente.
+   - Testes usam `@TempDir` para não depender do filesystem real.
+
+8. **Testes de integração — `AsteriskProvisioningServiceTest` (ajuste):**
+   - `provisionTrunk` invoca `dialplanGeneratorService.generateAndReload()`.
+   - `deprovisionTrunk` invoca `dialplanGeneratorService.generateAndReload()`.
+   - `reprovisionTrunk` **não** invoca `generateAndReload`.
+
+**Fora de escopo:**
+- Rotas de saída com seleção de padrão de discagem — coberto por US-009
+- Vinculação DID-Circuito — coberto por US-007
+- Geração de dialplan completo sem Realtime (modelo FreePBX full-generation)
+
+
