@@ -47,6 +47,7 @@ services:
       - ./asterisk/odbc.ini:/etc/odbc.ini
       - ./asterisk/odbcinst.ini:/etc/odbcinst.ini
       - /etc/localtime:/etc/localtime:ro
+      - dialplan-generated:/etc/asterisk/generated
     environment:
       - TZ=America/Sao_Paulo
     depends_on:
@@ -66,6 +67,7 @@ services:
       - "8090:8090"
     volumes:
       - /etc/localtime:/etc/localtime:ro
+      - dialplan-generated:/dialplan-generated
     environment:
       - TZ=America/Sao_Paulo
       - SPRING_PROFILES_ACTIVE=prod
@@ -143,6 +145,7 @@ services:
 
 volumes:
   postgres-data:
+  dialplan-generated:
 
 networks:
   asteracomm-network:
