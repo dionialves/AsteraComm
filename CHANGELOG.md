@@ -4,6 +4,27 @@
 
 ---
 
+### US-007 — Vinculação DID-Circuito com provisionamento automático de Extensions
+
+**Titulo:** Vinculação DID-Circuito com provisionamento automático de Extensions
+
+**Descrição:**
+Como administrador, quero vincular um ou mais DIDs a um circuito, para que o Asterisk provisione automaticamente as Extensions correspondentes, habilitando o circuito a receber e realizar chamadas por aquele número.
+
+**Estimativa:** 5 story points
+
+**Critérios de Aceite:**
+
+1. **Vinculação:** Na tela do circuito, é possível associar um DID livre ao circuito. Um circuito pode ter 1 ou mais DIDs.
+2. **Provisionamento automático:** Ao vincular, a Extension correspondente ao número do DID é criada nas tabelas do Asterisk (`pstn-{trunkName}`: Dial → Hangup) e um `dialplan reload` é disparado via AMI.
+3. **Desvinculação:** É possível desvincular um DID de um circuito. Ao desvincular, a Extension é removida do Asterisk e o `dialplan reload` é disparado.
+4. **Status do DID:** DID vinculado muda status para `EM USO`; ao desvincular volta para `LIVRE`.
+5. **Restrição:** Um DID só pode estar vinculado a um circuito por vez. Circuito com DIDs vinculados não pode ser excluído.
+6. **Exibição:** Na listagem de circuitos e na listagem de DIDs, o vínculo é exibido claramente.
+7. **Testes:** 157 testes, 0 falhas.
+
+---
+
 ### US-010 — Geração dinâmica de `extensions_trunks.conf` para contextos de tronco
 
 **Titulo:** Geração dinâmica de `extensions_trunks.conf` para contextos de tronco

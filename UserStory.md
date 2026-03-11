@@ -2,8 +2,7 @@
 
 ## Indice
 
-1. [US-007 — Vinculação DID-Circuito com provisionamento automático de Extensions](#us-007)
-2. [US-002 — Pesquisa e visualização de ligações realizadas](#us-002)
+1. [US-002 — Pesquisa e visualização de ligações realizadas](#us-002)
 3. [US-003 — Cadastro de minutagem (tarifas por tipo de ligação)](#us-003)
 4. [US-004 — Cadastro de planos de minutagem](#us-004)
 5. [US-008 — Refatoração: EndpointStatusService usar AmiService](#us-008)
@@ -69,26 +68,6 @@ Como administrador, quero cadastrar planos de minutagem associando uma tabela de
 3. **Edição:** Permite alterar qualquer campo do plano.
 4. **Exclusão:** Permite excluir plano não vinculado a troncos/clientes.
 5. **Validações:** Minutagem obrigatória; minutos gratuitos >= 0; nome único.
-
----
-
-## US-007
-
-**Titulo:** Vinculação DID-Circuito com provisionamento automático de Extensions
-
-**Descrição:**
-Como administrador, quero vincular um ou mais DIDs a um circuito, para que o Asterisk provisione automaticamente as Extensions correspondentes, habilitando o circuito a receber e realizar chamadas por aquele número.
-
-**Estimativa:** 5 story points
-
-**Critérios de Aceite:**
-
-1. **Vinculação:** Na tela do circuito (ou do DID), é possível associar um DID livre ao circuito. Um circuito pode ter 1 ou mais DIDs.
-2. **Provisionamento automático:** Ao vincular, a Extension correspondente ao número do DID é criada nas tabelas do Asterisk e um `dialplan reload` é disparado via AMI.
-3. **Desvinculação:** É possível desvincular um DID de um circuito. Ao desvincular, a Extension é removida do Asterisk e o `dialplan reload` é disparado.
-4. **Status do DID:** DID vinculado muda status para `EM USO`; ao desvincular volta para `LIVRE`.
-5. **Restrição:** Um DID só pode estar vinculado a um circuito por vez.
-6. **Exibição:** Na listagem de circuitos e na listagem de DIDs, o vínculo é exibido claramente.
 
 ---
 
