@@ -176,10 +176,20 @@ CREATE TABLE asteracomm_trunk_registration_status (
 );
 
 
+CREATE TABLE asteracomm_customers (
+  id         BIGSERIAL PRIMARY KEY,
+  name       VARCHAR(100) NOT NULL UNIQUE,
+  enabled    BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+
 CREATE TABLE asteracomm_circuits (
-  number VARCHAR(20) PRIMARY KEY,
-  password VARCHAR(80) NOT NULL,
-  trunk_name VARCHAR(40) NOT NULL
+  number      VARCHAR(20) PRIMARY KEY,
+  password    VARCHAR(80) NOT NULL,
+  trunk_name  VARCHAR(40) NOT NULL,
+  customer_id BIGINT NOT NULL REFERENCES asteracomm_customers(id)
 );
 
 
@@ -217,3 +227,5 @@ CREATE TABLE asteracomm_plans (
   created_at                   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at                   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+
