@@ -2,47 +2,34 @@
 
 ## Indice
 
-1. [US-003 — Cadastro de minutagem (tarifas por tipo de ligação)](#us-003)
-4. [US-004 — Cadastro de planos de minutagem](#us-004)
-5. [US-008 — Refatoração: EndpointStatusService usar AmiService](#us-008)
+1. [US-003 — Cadastro de planos de cobrança](#us-003)
+2. [US-008 — Refatoração: EndpointStatusService usar AmiService](#us-008)
 
 ---
 
 ## US-003
 
-**Titulo:** Cadastro de minutagem (tarifas por tipo de ligação)
+**Titulo:** Cadastro de planos de cobrança
 
 **Descrição:**
-Como administrador, quero cadastrar tabelas de tarifas de minutagem, definindo o valor por minuto para ligações locais, de longa distância e internacionais, para que essas tarifas possam ser associadas a planos.
-
-**Estimativa:** 3 story points
-
-**Critérios de Aceite:**
-
-1. **Listagem:** Exibe lista de minutagens cadastradas (nome, valor local/min, valor LD/min, valor internacional/min).
-2. **Criação:** Cadastro com nome, valor/minuto local, valor/minuto longa distância e valor/minuto internacional.
-3. **Edição:** Permite alterar qualquer campo da minutagem.
-4. **Exclusão:** Impede exclusão se a minutagem estiver vinculada a algum plano ativo.
-5. **Validações:** Valores monetários não negativos; nome único; campos obrigatórios.
-
----
-
-## US-004
-
-**Titulo:** Cadastro de planos de minutagem
-
-**Descrição:**
-Como administrador, quero cadastrar planos de minutagem associando uma tabela de tarifas e definindo minutos gratuitos por categoria de ligação, para que os planos possam ser atribuídos a clientes ou troncos.
+Como administrador, quero cadastrar planos de cobrança definindo o valor mensal, as tarifas por minuto para cada categoria de ligação fixa e, opcionalmente, um pacote de minutos inclusos — por categoria ou unificado — para que os planos possam ser atribuídos a clientes.
 
 **Estimativa:** 5 story points
 
 **Critérios de Aceite:**
 
-1. **Listagem:** Exibe lista de planos com nome, minutagem associada e minutos gratuitos por categoria.
-2. **Criação:** Cadastro com nome, seleção de minutagem (dropdown), minutos gratuitos para local, LD e internacional (podem ser 0).
+1. **Listagem:** Exibe lista de planos com: nome, valor mensal, tipo de pacote e tarifas por categoria.
+2. **Criação:** Cadastro com:
+   - `name` — obrigatório, único
+   - `monthlyPrice` — obrigatório, >= 0
+   - `fixedLocal`, `fixedLongDistance`, `mobileLocal`, `mobileLongDistance` — tarifas R$/min, obrigatórias, >= 0, 4 casas decimais
+   - `packageType`: `NONE` | `UNIFIED` | `PER_CATEGORY`
+     - `NONE`: sem pacote de minutos
+     - `UNIFIED`: campo `packageTotalMinutes` obrigatório (> 0); pool compartilhado entre todas as categorias
+     - `PER_CATEGORY`: campos `packageFixedLocal`, `packageFixedLongDistance`, `packageMobileLocal`, `packageMobileLongDistance` obrigatórios (>= 0); buckets independentes por categoria
 3. **Edição:** Permite alterar qualquer campo do plano.
-4. **Exclusão:** Permite excluir plano não vinculado a troncos/clientes.
-5. **Validações:** Minutagem obrigatória; minutos gratuitos >= 0; nome único.
+4. **Exclusão:** Permite excluir plano não vinculado a clientes.
+5. **Validações:** Consistência do pacote conforme `packageType`; nome único; campos obrigatórios.
 
 ---
 
