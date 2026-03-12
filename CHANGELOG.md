@@ -4,6 +4,26 @@
 
 ---
 
+### US-009 — Cadastro de clientes e vínculo obrigatório com circuito
+
+**Titulo:** Cadastro de clientes e vínculo obrigatório com circuito
+
+**Descrição:**
+Como administrador, quero cadastrar clientes com apenas o nome, e vincular cada circuito a um cliente, sendo esse vínculo obrigatório, para que eu possa identificar a qual cliente cada circuito pertence.
+
+**Estimativa:** 3 story points
+
+**Critérios de Aceite:**
+
+1. **CRUD de clientes:** Endpoints REST para criar, listar, buscar por ID, atualizar e remover clientes. O cliente possui `nome` (obrigatório, único), `enabled`, `createdAt` e `updatedAt`.
+2. **Vínculo no circuito:** A entidade `Circuit` possui FK obrigatória para `Customer` (`customer_id NOT NULL`).
+3. **Validação:** Não é possível criar ou atualizar um circuito sem informar um `customerId` válido.
+4. **Exclusão restrita:** Não é permitido excluir um cliente que possua circuitos vinculados — apenas desativação (`PATCH /api/customers/{id}/disable`).
+5. **Frontend:** Página `/customers` com CRUD completo (tabela paginada, modal criar/editar, botão desativar, botão excluir). Formulário de circuito inclui seletor de cliente obrigatório.
+6. **Testes:** 228 testes, 0 falhas.
+
+---
+
 ### US-008 — Refatoração: EndpointStatusService usar AmiService
 
 **Titulo:** Refatoração: EndpointStatusService usar AmiService

@@ -2,32 +2,12 @@
 
 ## Indice
 
-1. [US-009 — Cadastro de clientes e vínculo obrigatório com circuito](#us-009)
-3. [US-010 — Captura e custeio de ligações via CDR](#us-010)
-4. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
-5. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
-6. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
-7. [US-014 — Dashboard inicial com visão geral do sistema](#us-014)
-8. [US-015 — Relatórios: custo de ligações por circuito no período](#us-015)
-
----
-
-## US-009
-
-**Titulo:** Cadastro de clientes e vínculo obrigatório com circuito
-
-**Descrição:**
-Como administrador, quero cadastrar clientes com apenas o nome, e vincular cada circuito a um cliente, sendo esse vínculo obrigatório, para que eu possa identificar a qual cliente cada circuito pertence.
-
-**Estimativa:** 3 story points
-
-**Critérios de Aceite:**
-
-1. **CRUD de clientes:** Endpoints REST para criar, listar, buscar por ID, atualizar e remover clientes. O cliente possui apenas o campo `nome` (obrigatório, único).
-2. **Vínculo no circuito:** A entidade `Circuito` passa a ter uma FK obrigatória para `Cliente` (`cliente_id NOT NULL`).
-3. **Validação:** Não é possível criar ou atualizar um circuito sem informar um `clienteId` válido.
-4. **Exclusão restrita:** Não é permitido excluir um cliente que possua circuitos vinculados.
-5. **Testes:** Testes unitários e de integração cobrem o CRUD de clientes e as validações de vínculo no circuito.
+1. [US-010 — Captura e custeio de ligações via CDR](#us-010)
+2. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
+3. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
+4. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
+5. [US-014 — Dashboard inicial com visão geral do sistema](#us-014)
+6. [US-015 — Relatórios: custo de ligações por circuito no período](#us-015)
 
 ---
 
