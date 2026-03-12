@@ -2,34 +2,9 @@
 
 ## Indice
 
-1. [US-002 — Pesquisa e visualização de ligações realizadas](#us-002)
-3. [US-003 — Cadastro de minutagem (tarifas por tipo de ligação)](#us-003)
+1. [US-003 — Cadastro de minutagem (tarifas por tipo de ligação)](#us-003)
 4. [US-004 — Cadastro de planos de minutagem](#us-004)
 5. [US-008 — Refatoração: EndpointStatusService usar AmiService](#us-008)
-
----
-
-## US-002
-
-**Titulo:** Pesquisa e visualização de ligações realizadas
-
-**Descrição:**
-Como usuário do sistema, quero pesquisar e visualizar as ligações que foram realizadas, para que eu possa consultar histórico de chamadas, auditar uso e obter informações sobre origem, destino, duração e resultado de cada ligação.
-
-**Estimativa:** 5 story points
-
-**Critérios de Aceite:**
-
-1. **Listagem:** A interface exibe uma tabela paginada com as ligações registradas no CDR, contendo: data/hora, origem, destino, duração, status (ANSWERED, NO ANSWER, BUSY, FAILED).
-2. **Filtros:** É possível filtrar por:
-   - Período (data inicial e data final)
-   - Origem (número chamador)
-   - Destino (número chamado)
-   - Status da chamada
-3. **Ordenação:** A tabela permite ordenar por data/hora e duração.
-4. **Paginação:** Os resultados são paginados, com controle de itens por página.
-5. **Detalhes:** Ao clicar em uma ligação, exibe detalhes completos (contexto, canal, tempo de espera, ID único).
-6. **Acesso:** Disponível para usuários com role `ADMIN` ou superior.
 
 ---
 
