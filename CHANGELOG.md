@@ -4,6 +4,25 @@
 
 ---
 
+### US-003 — Cadastro de planos de cobrança
+
+**Titulo:** Cadastro de planos de cobrança
+
+**Descrição:**
+Como administrador, quero cadastrar planos de cobrança definindo o valor mensal, as tarifas por minuto para cada categoria de ligação fixa e, opcionalmente, um pacote de minutos inclusos — por categoria ou unificado — para que os planos possam ser atribuídos a clientes.
+
+**Estimativa:** 5 story points
+
+**Critérios de Aceite:**
+
+1. **Listagem:** Exibe lista de planos com: nome, valor mensal, tipo de pacote e tarifas por categoria.
+2. **Criação:** Cadastro com nome, mensalidade, tarifas R$/min (4 casas decimais) e pacote de minutos (`NONE` | `UNIFIED` | `PER_CATEGORY`).
+3. **Edição:** Permite alterar qualquer campo do plano.
+4. **Exclusão:** Permite excluir plano não vinculado a clientes.
+5. **Validações:** Consistência do pacote conforme `packageType` via `@ValidPackage`; nome único; campos obrigatórios; 200 testes, 0 falhas.
+
+---
+
 ### US-002 — Pesquisa e visualização de ligações realizadas
 
 **Titulo:** Pesquisa e visualização de ligações realizadas
