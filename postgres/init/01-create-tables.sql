@@ -4,6 +4,7 @@
 -- =============================================================================
 
 CREATE TABLE cdr (
+  id BIGSERIAL PRIMARY KEY,
   calldate TIMESTAMP NOT NULL,
   clid VARCHAR(80) NOT NULL,
   src VARCHAR(80) NOT NULL,
