@@ -239,7 +239,8 @@ CREATE TABLE asteracomm_calls (
   bill_seconds     INTEGER NOT NULL,
   disposition      VARCHAR(45) NOT NULL,
   call_type        VARCHAR(30) NOT NULL,
-  processed_at     TIMESTAMP NOT NULL
+  processed_at     TIMESTAMP NOT NULL,
+  circuit_number   VARCHAR(20) REFERENCES asteracomm_circuits(number) ON DELETE SET NULL
 );
 
 
