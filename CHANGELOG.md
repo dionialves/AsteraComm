@@ -4,6 +4,27 @@
 
 ---
 
+### US-017 — Enriquecimento de ligações com circuito via channel
+
+**Titulo:** Enriquecimento de ligações com circuito via channel
+
+**Descrição:**
+Ao processar registros do CDR, a entidade `Call` é enriquecida com o circuito de origem. O campo `channel` (ex: `PJSIP/4933401714-000045f0`) é parseado para extrair o código do circuito (`4933401714`), que é usado para associar a entidade `Circuit` correspondente. A tela de ligações exibe o circuito em coluna dedicada e permite filtrar por número de circuito.
+
+**Estimativa:** 3 story points
+
+**Critérios de Aceite:**
+
+1. O campo `channel` é parseado corretamente para extrair o código do circuito (formato: `<PROTOCOLO>/<codigo>-<sufixo>`).
+2. O código extraído é usado para buscar o `Circuit` correspondente pelo número do circuito.
+3. A entidade `Call` expõe o `Circuit` associado quando encontrado (campo `circuit` com FK `circuit_number`).
+4. Quando nenhum circuito é encontrado para o código extraído, a ligação ainda é retornada sem falhar (circuito nulo/ausente).
+5. O parsing trata variações de protocolo além de `PJSIP` (ex: `SIP/`, `DAHDI/`) de forma genérica.
+6. A tela de ligações exibe coluna "Circuito" e campo de filtro por número de circuito.
+7. Testes unitários: 9 casos em `ChannelParserTest`, 6 casos em `CallProcessingServiceTest` — 259 testes, 0 falhas.
+
+---
+
 ### US-016 — Entidade Call: mapeamento das ligações do CDR
 
 **Titulo:** Entidade Call: mapeamento das ligações do CDR
