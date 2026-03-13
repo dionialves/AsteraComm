@@ -2,35 +2,74 @@
 
 ## Indice
 
-1. [US-010 — Captura e custeio de ligações via CDR](#us-010)
-2. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
-3. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
-4. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
-5. [US-014 — Dashboard inicial com visão geral do sistema](#us-014)
-6. [US-015 — Relatórios: custo de ligações por circuito no período](#us-015)
+1. [US-016 — Entidade Call: mapeamento das ligações do CDR](#us-016)
+2. [US-010 — Captura e custeio de ligações via CDR](#us-010)
+3. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
+4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
+5. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
+6. [US-014 — Dashboard inicial com visão geral do sistema](#us-014)
+7. [US-015 — Relatórios: custo de ligações por circuito no período](#us-015)
+
+---
+
+## US-016
+
+**Titulo:** Entidade Call: mapeamento das ligações do CDR
+
+**Descrição:**
+Como sistema, quero processar automaticamente todos os registros da tabela `cdr` e transformá-los em objetos `Call`, enriquecendo cada ligação com data/hora, origem (callerid), destino, e categoria de destino classificada automaticamente, de forma que a tela de "Ligações" passe a consultar `Call` em vez de acessar o CDR diretamente.
+
+**Estimativa:** 3 story points
+
+**Critérios de Aceite:**
+
+1. **Processamento de todos os registros:** Todas as ligações são mapeadas independentemente do status — ANSWERED, NO ANSWER, BUSY, FAILED e demais valores de `disposition`.
+2. **Campos da entidade `Call`:**
+   - `id` (PK)
+   - `uniqueId` — CDR.uniqueid (índice único, garante idempotência)
+   - `callDate` — CDR.calldate
+   - `callerNumber` — extraído do CDR.clid (formato `"Nome" <número>` → extrair apenas o número)
+   - `dst` — CDR.dst
+   - `durationSeconds` — CDR.duration
+   - `billSeconds` — CDR.billsec
+   - `disposition` — CDR.disposition (mantido como string)
+   - `callType` — enum classificado pelo `dst` (ver critério 3)
+   - `processedAt` — timestamp de quando o registro foi criado em `Call`
+3. **Classificação do `callType`** — baseada exclusivamente na quantidade de dígitos do `dst` (após remover caracteres não numéricos):
+   - `FIXED_LOCAL` — 8 dígitos
+   - `MOBILE_LOCAL` — 9 dígitos
+   - `MOBILE_LONG_DISTANCE` — 11 dígitos (DDD + 9 dígitos móvel)
+   - `FIXED_LONG_DISTANCE` — 10 dígitos (DDD + 8 dígitos fixo)
+   - `UNKNOWN` — demais casos (internacionais, ramais, não classificável)
+4. **Polling periódico:** Um job agendado (intervalo configurável via `application.properties`) consulta registros do CDR cujo `uniqueid` ainda não existe em `asteracomm_calls` e os processa.
+5. **Idempotência:** Um mesmo `uniqueid` do CDR nunca gera dois registros em `Call`.
+6. **Substituição da tela de Ligações:** O endpoint `/api/cdrs` é substituído por `/api/calls`, retornando registros de `Call`. Os filtros existentes (origem, destino, disposition, período) são mantidos sem alterações. A tela de frontend é atualizada para consumir o novo endpoint.
+7. **Testes:** Testes unitários cobrem: extração do número do callerid, classificação de `callType` para todos os casos (8, 9, 10, 11 dígitos e UNKNOWN), e processamento de ligações com diferentes dispositions.
 
 ---
 
 ## US-010
 
-**Titulo:** Captura e custeio de ligações via CDR
+**Titulo:** Custeio de ligações: vínculo com circuito, franquia e tarifação
 
 **Descrição:**
-Como sistema, quero capturar automaticamente cada ligação registrada na tabela `cdr`, vinculá-la ao circuito de origem correspondente, verificar o consumo da franquia do plano e calcular o custo quando a franquia for excedida, para que cada ligação tenha seu valor corretamente apurado.
+Como sistema, quero enriquecer cada `Call` já processada com o circuito de origem correspondente, verificar o consumo da franquia do plano vinculado ao cliente e calcular o custo quando a franquia for excedida, para que cada ligação atendida tenha seu valor corretamente apurado.
 
 **Estimativa:** 5 story points
 
+**Pré-requisito:** US-016 concluída (`Call` já existe com `callType` classificado).
+
 **Critérios de Aceite:**
 
-1. **Captura automática:** Ao ser inserido um registro na tabela `cdr`, o sistema detecta a inserção (via polling periódico ou trigger/listener) e processa a ligação.
-2. **Vínculo com circuito:** A origem da ligação (`src` ou `channel` do CDR) é associada ao circuito cadastrado correspondente. Ligações cuja origem não corresponda a nenhum circuito ativo são ignoradas/registradas com status `SEM_CIRCUITO`.
-3. **Apenas ligações atendidas:** Somente registros com `disposition = 'ANSWERED'` são processados.
-4. **Consumo de franquia:** O sistema acumula os minutos utilizados no período de faturamento do circuito e verifica se a franquia do plano foi atingida.
+1. **Vínculo Customer → Plan:** A entidade `Customer` passa a ter um campo `plan` (FK para `Plan`, nullable). O CRUD de clientes é atualizado para aceitar `planId`.
+2. **Vínculo Call → Circuit:** O campo `circuit` (FK nullable para `Circuit`) é adicionado à entidade `Call`. Ao processar o custeio, a origem da ligação (`callerNumber`) é associada ao circuito correspondente. Ligações sem circuito correspondente recebem status `SEM_CIRCUITO` e custo = R$ 0,00.
+3. **Apenas ligações atendidas:** Somente `Call` com `disposition = 'ANSWERED'` são consideradas para custeio.
+4. **Consumo de franquia:** O sistema acumula os minutos utilizados no mês calendário corrente por circuito e verifica se a franquia do plano foi atingida.
 5. **Cálculo de custo:**
-   - Enquanto houver franquia disponível: custo da ligação = R$ 0,00.
-   - Após esgotada a franquia: custo calculado em frações de 30 segundos (cada fração iniciada é cobrada integralmente), com base na tarifa definida no plano.
-6. **Entidade `Call` persistida:** Cada ligação processada é salva com: data/hora, origem, destino, duração (segundos), minutos consumidos da franquia, custo calculado e referência ao circuito.
-7. **Idempotência:** Um mesmo registro CDR não é processado duas vezes.
+   - Enquanto houver franquia disponível: custo = R$ 0,00.
+   - Após esgotada a franquia: custo calculado em frações de 30 segundos (cada fração iniciada é cobrada integralmente), com base na tarifa do `callType` definida no plano.
+6. **Campos adicionados a `Call`:** `circuit` (FK), `minutesFromQuota` (inteiro), `cost` (decimal), `status` (enum: `PROCESSED` / `SEM_CIRCUITO` / `NO_PLAN`).
+7. **Idempotência:** Uma `Call` já custeada não é reprocessada.
 8. **Testes:** Testes unitários cobrem os cenários: ligação dentro da franquia, ligação que esgota a franquia parcialmente e ligação totalmente fora da franquia.
 
 ---

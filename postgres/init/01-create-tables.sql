@@ -229,3 +229,17 @@ CREATE TABLE asteracomm_plans (
 );
 
 
+CREATE TABLE asteracomm_calls (
+  id               BIGSERIAL PRIMARY KEY,
+  unique_id        VARCHAR(32) NOT NULL UNIQUE,
+  call_date        TIMESTAMP NOT NULL,
+  caller_number    VARCHAR(80),
+  dst              VARCHAR(80) NOT NULL,
+  duration_seconds INTEGER NOT NULL,
+  bill_seconds     INTEGER NOT NULL,
+  disposition      VARCHAR(45) NOT NULL,
+  call_type        VARCHAR(30) NOT NULL,
+  processed_at     TIMESTAMP NOT NULL
+);
+
+
