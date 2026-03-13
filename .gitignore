@@ -1,3 +1,7 @@
 .idea
 .tool-versions
 CLAUDE.md
+
+# Dados sigilosos — nunca commitar
+dados/
+postgres/init/03-seed-real.sql

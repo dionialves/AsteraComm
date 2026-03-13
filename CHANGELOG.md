@@ -4,6 +4,26 @@
 
 ---
 
+### US-019 — Migrações de schema com Flyway
+
+**Titulo:** Migrações de schema com Flyway
+
+**Descrição:**
+Substituição do `ddl-auto=create-drop` por migrações versionadas com Flyway. O schema da aplicação (`asteracomm_*`) passa a ser gerenciado pelo Flyway via `V1__create_schema.sql`. As tabelas Asterisk (`cdr`, `cel`, `ps_*`, `extensions`) permanecem no `postgres/init/01-create-tables.sql`. Um novo arquivo `postgres/init/02-initial-flyway.sql` cria as tabelas `asteracomm_*` com `IF NOT EXISTS` para garantir que o seed real (`03-seed-real.sql`) funcione antes do backend subir.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. Flyway (`flyway-core` + `flyway-database-postgresql`) adicionado ao `pom.xml`.
+2. `V1__create_schema.sql` em `db/migration/` com todas as tabelas `asteracomm_*` usando `IF NOT EXISTS`.
+3. `ddl-auto=validate` nos profiles `dev` e `prod`; `baseline-on-migrate=true`.
+4. `02-initial-flyway.sql` no `postgres/init/` cria tabelas `asteracomm_*` para o seed funcionar.
+5. `application-test.properties`: `flyway.enabled=false` + `ddl-auto=create-drop`.
+6. Divergências entre entidades JPA e schema corrigidas (`nullable`, `optional=false`).
+
+---
+
 ### US-018 — Vínculo de plano de cobrança ao circuito e seleção de cliente no frontend
 
 **Titulo:** Vínculo de plano de cobrança ao circuito e seleção de cliente no frontend
