@@ -185,11 +185,31 @@ CREATE TABLE asteracomm_customers (
 );
 
 
+CREATE TABLE asteracomm_plans (
+  id                           BIGSERIAL PRIMARY KEY,
+  name                         VARCHAR(100) NOT NULL UNIQUE,
+  monthly_price                NUMERIC(10,2) NOT NULL CHECK (monthly_price >= 0),
+  fixed_local                  NUMERIC(10,4) NOT NULL CHECK (fixed_local >= 0),
+  fixed_long_distance          NUMERIC(10,4) NOT NULL CHECK (fixed_long_distance >= 0),
+  mobile_local                 NUMERIC(10,4) NOT NULL CHECK (mobile_local >= 0),
+  mobile_long_distance         NUMERIC(10,4) NOT NULL CHECK (mobile_long_distance >= 0),
+  package_type                 VARCHAR(20) NOT NULL DEFAULT 'NONE',
+  package_total_minutes        INTEGER CHECK (package_total_minutes > 0),
+  package_fixed_local          INTEGER CHECK (package_fixed_local >= 0),
+  package_fixed_long_distance  INTEGER CHECK (package_fixed_long_distance >= 0),
+  package_mobile_local         INTEGER CHECK (package_mobile_local >= 0),
+  package_mobile_long_distance INTEGER CHECK (package_mobile_long_distance >= 0),
+  created_at                   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at                   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
 CREATE TABLE asteracomm_circuits (
   number      VARCHAR(20) PRIMARY KEY,
   password    VARCHAR(80) NOT NULL,
   trunk_name  VARCHAR(40) NOT NULL,
-  customer_id BIGINT NOT NULL REFERENCES asteracomm_customers(id)
+  customer_id BIGINT NOT NULL REFERENCES asteracomm_customers(id),
+  plan_id     BIGINT NOT NULL REFERENCES asteracomm_plans(id)
 );
 
 
@@ -207,25 +227,6 @@ CREATE TABLE asteracomm_dids (
   id BIGSERIAL PRIMARY KEY,
   number VARCHAR(10) NOT NULL UNIQUE,
   circuit_number VARCHAR(20) REFERENCES asteracomm_circuits(number)
-);
-
-
-CREATE TABLE asteracomm_plans (
-  id                           BIGSERIAL PRIMARY KEY,
-  name                         VARCHAR(100) NOT NULL UNIQUE,
-  monthly_price                NUMERIC(10,2) NOT NULL CHECK (monthly_price >= 0),
-  fixed_local                  NUMERIC(10,4) NOT NULL CHECK (fixed_local >= 0),
-  fixed_long_distance          NUMERIC(10,4) NOT NULL CHECK (fixed_long_distance >= 0),
-  mobile_local                 NUMERIC(10,4) NOT NULL CHECK (mobile_local >= 0),
-  mobile_long_distance         NUMERIC(10,4) NOT NULL CHECK (mobile_long_distance >= 0),
-  package_type                 VARCHAR(20) NOT NULL DEFAULT 'NONE',
-  package_total_minutes        INTEGER CHECK (package_total_minutes > 0),
-  package_fixed_local          INTEGER CHECK (package_fixed_local >= 0),
-  package_fixed_long_distance  INTEGER CHECK (package_fixed_long_distance >= 0),
-  package_mobile_local         INTEGER CHECK (package_mobile_local >= 0),
-  package_mobile_long_distance INTEGER CHECK (package_mobile_long_distance >= 0),
-  created_at                   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at                   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 
