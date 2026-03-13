@@ -3,11 +3,11 @@
 ## Indice
 
 1. [US-010 — Captura e custeio de ligações via CDR](#us-010)
-2. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
-3. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
-4. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
-5. [US-014 — Dashboard inicial com visão geral do sistema](#us-014)
-6. [US-015 — Relatórios: custo de ligações por circuito no período](#us-015)
+3. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
+4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
+5. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
+6. [US-014 — Dashboard inicial com visão geral do sistema](#us-014)
+7. [US-015 — Relatórios: custo de ligações por circuito no período](#us-015)
 
 ---
 

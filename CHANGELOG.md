@@ -4,6 +4,28 @@
 
 ---
 
+### US-018 — Vínculo de plano de cobrança ao circuito e seleção de cliente no frontend
+
+**Titulo:** Vínculo de plano de cobrança ao circuito e seleção de cliente no frontend
+
+**Descrição:**
+Plano de cobrança vinculado diretamente ao circuito (obrigatório). O circuito passa a ser o ponto central do sistema: `Call → Circuit → Plan` e `Call → Circuit → Customer`. A tela de circuitos exibe e permite selecionar cliente e plano. O DataSeeder cria um cliente único por circuito, um plano compartilhado e um DID por circuito.
+
+**Estimativa:** 3 story points
+
+**Critérios de Aceite:**
+
+1. **Entidade `Circuit`:** Campo `plan` adicionado (FK `NOT NULL` para `Plan`). Plano é obrigatório — `BusinessException` lançada quando `planId` é nulo.
+2. **API — criação e edição:** `POST /api/circuits` e `PUT /api/circuits/{number}` aceitam `planId` (obrigatório). `planId` inválido lança `NotFoundException`.
+3. **API — leitura:** Listagem retorna `planName`; `GET /api/circuits/{number}` retorna o objeto `plan` completo.
+4. **Frontend — formulário:** Seletor de **cliente** (obrigatório) e seletor de **plano** (obrigatório) no modal de criação/edição. Validação no frontend impede salvar sem plano.
+5. **Frontend — listagem:** Coluna **Plano** adicionada na tabela de circuitos.
+6. **SQL:** `plan_id BIGINT NOT NULL` em `asteracomm_circuits`; `asteracomm_plans` movida antes de `asteracomm_circuits` no script de init.
+7. **DataSeeder:** Cria 1 plano "Plano Dev", 1 cliente por circuito (nomes de empresas) e 1 DID por circuito (4933333333, 4933334444, ... +1111).
+8. **Testes:** 264 testes, 0 falhas — cobrem criação com/sem plano, troca de plano, exceção quando planId nulo/inválido.
+
+---
+
 ### US-017 — Enriquecimento de ligações com circuito via channel
 
 **Titulo:** Enriquecimento de ligações com circuito via channel
