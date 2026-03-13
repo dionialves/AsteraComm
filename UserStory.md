@@ -2,49 +2,12 @@
 
 ## Indice
 
-1. [US-016 — Entidade Call: mapeamento das ligações do CDR](#us-016)
-2. [US-010 — Captura e custeio de ligações via CDR](#us-010)
-3. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
-4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
-5. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
-6. [US-014 — Dashboard inicial com visão geral do sistema](#us-014)
-7. [US-015 — Relatórios: custo de ligações por circuito no período](#us-015)
-
----
-
-## US-016
-
-**Titulo:** Entidade Call: mapeamento das ligações do CDR
-
-**Descrição:**
-Como sistema, quero processar automaticamente todos os registros da tabela `cdr` e transformá-los em objetos `Call`, enriquecendo cada ligação com data/hora, origem (callerid), destino, e categoria de destino classificada automaticamente, de forma que a tela de "Ligações" passe a consultar `Call` em vez de acessar o CDR diretamente.
-
-**Estimativa:** 3 story points
-
-**Critérios de Aceite:**
-
-1. **Processamento de todos os registros:** Todas as ligações são mapeadas independentemente do status — ANSWERED, NO ANSWER, BUSY, FAILED e demais valores de `disposition`.
-2. **Campos da entidade `Call`:**
-   - `id` (PK)
-   - `uniqueId` — CDR.uniqueid (índice único, garante idempotência)
-   - `callDate` — CDR.calldate
-   - `callerNumber` — extraído do CDR.clid (formato `"Nome" <número>` → extrair apenas o número)
-   - `dst` — CDR.dst
-   - `durationSeconds` — CDR.duration
-   - `billSeconds` — CDR.billsec
-   - `disposition` — CDR.disposition (mantido como string)
-   - `callType` — enum classificado pelo `dst` (ver critério 3)
-   - `processedAt` — timestamp de quando o registro foi criado em `Call`
-3. **Classificação do `callType`** — baseada exclusivamente na quantidade de dígitos do `dst` (após remover caracteres não numéricos):
-   - `FIXED_LOCAL` — 8 dígitos
-   - `MOBILE_LOCAL` — 9 dígitos
-   - `MOBILE_LONG_DISTANCE` — 11 dígitos (DDD + 9 dígitos móvel)
-   - `FIXED_LONG_DISTANCE` — 10 dígitos (DDD + 8 dígitos fixo)
-   - `UNKNOWN` — demais casos (internacionais, ramais, não classificável)
-4. **Polling periódico:** Um job agendado (intervalo configurável via `application.properties`) consulta registros do CDR cujo `uniqueid` ainda não existe em `asteracomm_calls` e os processa.
-5. **Idempotência:** Um mesmo `uniqueid` do CDR nunca gera dois registros em `Call`.
-6. **Substituição da tela de Ligações:** O endpoint `/api/cdrs` é substituído por `/api/calls`, retornando registros de `Call`. Os filtros existentes (origem, destino, disposition, período) são mantidos sem alterações. A tela de frontend é atualizada para consumir o novo endpoint.
-7. **Testes:** Testes unitários cobrem: extração do número do callerid, classificação de `callType` para todos os casos (8, 9, 10, 11 dígitos e UNKNOWN), e processamento de ligações com diferentes dispositions.
+1. [US-010 — Captura e custeio de ligações via CDR](#us-010)
+2. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
+3. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
+4. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
+5. [US-014 — Dashboard inicial com visão geral do sistema](#us-014)
+6. [US-015 — Relatórios: custo de ligações por circuito no período](#us-015)
 
 ---
 

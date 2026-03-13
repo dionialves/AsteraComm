@@ -4,6 +4,42 @@
 
 ---
 
+### US-016 — Entidade Call: mapeamento das ligações do CDR
+
+**Titulo:** Entidade Call: mapeamento das ligações do CDR
+
+**Descrição:**
+Como sistema, quero processar automaticamente todos os registros da tabela `cdr` e transformá-los em objetos `Call`, enriquecendo cada ligação com data/hora, origem (callerid), destino, e categoria de destino classificada automaticamente, de forma que a tela de "Ligações" passe a consultar `Call` em vez de acessar o CDR diretamente.
+
+**Estimativa:** 3 story points
+
+**Critérios de Aceite:**
+
+1. **Processamento de todos os registros:** Todas as ligações são mapeadas independentemente do status — ANSWERED, NO ANSWER, BUSY, FAILED e demais valores de `disposition`.
+2. **Campos da entidade `Call`:**
+   - `id` (PK)
+   - `uniqueId` — CDR.uniqueid (índice único, garante idempotência)
+   - `callDate` — CDR.calldate
+   - `callerNumber` — extraído do CDR.clid (formato `"Nome" <número>` → extrair apenas o número)
+   - `dst` — CDR.dst
+   - `durationSeconds` — CDR.duration
+   - `billSeconds` — CDR.billsec
+   - `disposition` — CDR.disposition (mantido como string)
+   - `callType` — enum classificado pelo `dst` (ver critério 3)
+   - `processedAt` — timestamp de quando o registro foi criado em `Call`
+3. **Classificação do `callType`** — validação do dígito inicial do assinante e suporte a prefixos brasileiros:
+   - `FIXED_LOCAL` — 8 dígitos, começa com 2–8
+   - `MOBILE_LOCAL` — 9 dígitos, começa com 9
+   - `FIXED_LONG_DISTANCE` — DDD(2)+fixo(8), 0+DDD+fixo(11d) ou 0+CSP+DDD+fixo(13d)
+   - `MOBILE_LONG_DISTANCE` — DDD(2)+móvel(9), 0+DDD+móvel(12d) ou 0+CSP+DDD+móvel(14d)
+   - `UNKNOWN` — demais casos
+4. **Polling periódico:** Um job agendado (intervalo configurável via `application.properties`) consulta registros do CDR cujo `uniqueid` ainda não existe em `asteracomm_calls` e os processa.
+5. **Idempotência:** Um mesmo `uniqueid` do CDR nunca gera dois registros em `Call`.
+6. **Substituição da tela de Ligações:** O endpoint `/api/cdrs` é substituído por `/api/calls`, retornando registros de `Call`. Os filtros existentes (origem, destino, disposition, período) são mantidos. A tela de frontend é atualizada com coluna Tipo e campos do novo JSON.
+7. **Testes:** 247 testes, 0 falhas — cobrindo extração de callerid, classificação de callType (23 casos) e processamento com diferentes dispositions.
+
+---
+
 ### US-009 — Cadastro de clientes e vínculo obrigatório com circuito
 
 **Titulo:** Cadastro de clientes e vínculo obrigatório com circuito
