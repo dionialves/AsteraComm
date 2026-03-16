@@ -4,6 +4,27 @@
 
 ---
 
+### US-020 — Ajuste do consumo de pacote de minutagem para frações de 30 segundos
+
+**Titulo:** Ajuste do consumo de pacote de minutagem para frações de 30 segundos
+
+**Descrição:**
+Como operador, quero que o consumo do pacote de minutagem use a mesma base de faturamento (frações de 30 segundos), para que cada minuto de pacote cubra exatamente um minuto de custo faturável, sem penalizar o cliente com consumo excessivo de pacote por arredondamento para o minuto inteiro.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **Nova lógica de consumo:** O consumo do pacote passa a usar `ceil(billSeconds / 30.0)` frações de 30s, idêntico à base de cálculo de custo. Uma ligação de 61s consome 3 frações (1,5 min) do pacote — o mesmo valor que custaria se fosse cobrada.
+2. **Campo `minutes_from_quota`:** Passa a armazenar o número de **frações de 30 segundos** consumidas do pacote (não minutos inteiros). O nome da coluna é mantido por retrocompatibilidade, mas o valor semântico muda: `2 = 1 minuto`.
+3. **Comparação com o pacote:** O total disponível é convertido para frações na comparação: `packageTotalMinutes × 2`. As queries `sumQuotaMinutes` e `sumQuotaMinutesByType` continuam somando `minutes_from_quota` normalmente — o ajuste está na comparação.
+4. **`CallCostingService`:** A lógica de `applyWithQuota` é atualizada: `durationMinutes` → `durationFractions = ceil(billSeconds / 30.0)`. O cálculo de excedente usa `billableSeconds = billSeconds - (remaining × 30)`.
+5. **`AuditService`:** Atualizado da mesma forma, mantendo paridade com a produção.
+6. **Registros históricos:** Ligações já processadas com a lógica antiga não são reprocessadas. A mudança vale apenas para novos processamentos.
+7. **Testes:** Testes cobrem: ligação de 61s consome 3 frações (não 2 min), ligação parcialmente coberta com excedente correto, pacote esgotado no meio de uma ligação, verificação de que auditoria e produção produzem o mesmo resultado.
+
+---
+
 ### US-016 — Ferramenta de auditoria de custo de ligações por circuito
 
 **Titulo:** Ferramenta de auditoria de custo de ligações por circuito
