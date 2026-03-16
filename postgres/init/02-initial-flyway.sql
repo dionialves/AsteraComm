@@ -94,3 +94,8 @@ CREATE TABLE IF NOT EXISTS asteracomm_calls (
   processed_at     TIMESTAMP NOT NULL,
   circuit_number   VARCHAR(20) REFERENCES asteracomm_circuits(number) ON DELETE SET NULL
 );
+
+ALTER TABLE asteracomm_calls
+    ADD COLUMN call_status        VARCHAR(30),
+    ADD COLUMN minutes_from_quota INTEGER,
+    ADD COLUMN cost               NUMERIC(10, 2);

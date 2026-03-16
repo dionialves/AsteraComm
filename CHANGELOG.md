@@ -4,6 +4,29 @@
 
 ---
 
+### US-010 — Custeio de ligações por circuito com franquia e tarifação
+
+**Titulo:** Custeio de ligações por circuito com franquia e tarifação
+
+**Descrição:**
+Como sistema, quero que cada `Call` criada a partir de um registro CDR seja associada ao circuito de origem, tenha seu tipo classificado e seu custo calculado, de forma que ligações originadas no servidor tenham seu valor apurado considerando a franquia de minutos do plano vinculado ao circuito.
+
+**Estimativa:** 5 story points
+
+**Critérios de Aceite:**
+
+1. Escopo de custeio: apenas ligações de contextos de saída são custeadas; demais recebem `OUT_OF_SCOPE` e `cost = 0,00`.
+2. Vínculo `Call → Circuit → Plan`; sem plano vinculado → `NO_PLAN` e `cost = 0,00`.
+3. Franquia prioriza pacote exclusivo do `callType`; fallback para pacote geral; sem pacote → vai direto à tarifação.
+4. Minutos acumulados por circuito no mês calendário corrente.
+5. Custo em frações de 30 s (cada fração iniciada cobrada integralmente = 50% do valor/min).
+6. Cenários: dentro da franquia (cost=0), esgotamento parcial, totalmente fora da franquia.
+7. Idempotência: `Call` com `status != null` não é reprocessada.
+8. Campos: `callStatus` (enum `PROCESSED/NO_CIRCUIT/NO_PLAN/OUT_OF_SCOPE`), `minutesFromQuota` (int), `cost` (decimal 2 casas).
+9. Frontend: colunas "Custeio" e "Valor" na tabela e modal de ligações.
+
+---
+
 ### US-019 — Migrações de schema com Flyway
 
 **Titulo:** Migrações de schema com Flyway

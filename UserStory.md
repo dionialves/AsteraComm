@@ -2,38 +2,11 @@
 
 ## Indice
 
-1. [US-010 — Captura e custeio de ligações via CDR](#us-010)
-3. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
+1. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
 4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
 5. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
 6. [US-014 — Dashboard inicial com visão geral do sistema](#us-014)
 7. [US-015 — Relatórios: custo de ligações por circuito no período](#us-015)
-
----
-
-## US-010
-
-**Titulo:** Custeio de ligações: vínculo com circuito, franquia e tarifação
-
-**Descrição:**
-Como sistema, quero enriquecer cada `Call` já processada com o circuito de origem correspondente, verificar o consumo da franquia do plano vinculado ao cliente e calcular o custo quando a franquia for excedida, para que cada ligação atendida tenha seu valor corretamente apurado.
-
-**Estimativa:** 5 story points
-
-**Pré-requisito:** US-016 concluída (`Call` já existe com `callType` classificado).
-
-**Critérios de Aceite:**
-
-1. **Vínculo Customer → Plan:** A entidade `Customer` passa a ter um campo `plan` (FK para `Plan`, nullable). O CRUD de clientes é atualizado para aceitar `planId`.
-2. **Vínculo Call → Circuit:** O campo `circuit` (FK nullable para `Circuit`) é adicionado à entidade `Call`. Ao processar o custeio, a origem da ligação (`callerNumber`) é associada ao circuito correspondente. Ligações sem circuito correspondente recebem status `SEM_CIRCUITO` e custo = R$ 0,00.
-3. **Apenas ligações atendidas:** Somente `Call` com `disposition = 'ANSWERED'` são consideradas para custeio.
-4. **Consumo de franquia:** O sistema acumula os minutos utilizados no mês calendário corrente por circuito e verifica se a franquia do plano foi atingida.
-5. **Cálculo de custo:**
-   - Enquanto houver franquia disponível: custo = R$ 0,00.
-   - Após esgotada a franquia: custo calculado em frações de 30 segundos (cada fração iniciada é cobrada integralmente), com base na tarifa do `callType` definida no plano.
-6. **Campos adicionados a `Call`:** `circuit` (FK), `minutesFromQuota` (inteiro), `cost` (decimal), `status` (enum: `PROCESSED` / `SEM_CIRCUITO` / `NO_PLAN`).
-7. **Idempotência:** Uma `Call` já custeada não é reprocessada.
-8. **Testes:** Testes unitários cobrem os cenários: ligação dentro da franquia, ligação que esgota a franquia parcialmente e ligação totalmente fora da franquia.
 
 ---
 
