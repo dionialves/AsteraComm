@@ -6,8 +6,7 @@
 2. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
 3. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
 4. [US-014 — Dashboard inicial com visão geral do sistema](#us-014)
-5. [US-015 — Relatórios: custo de ligações por circuito no período](#us-015)
-6. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
+5. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
 
 ---
 
@@ -138,32 +137,6 @@ Como administrador, quero uma tela de dashboard que exiba um resumo operacional 
 6. **Atualização:** Os dados do dashboard são carregados ao acessar a página. Não é necessário polling automático nesta versão.
 
 7. **Testes:** Testes unitários cobrem o serviço de agregação do dashboard (contagens e totalizações).
-
----
-
-## US-015
-
-**Titulo:** Relatórios: custo de ligações por circuito no período
-
-**Descrição:**
-Como administrador, quero acessar um menu de relatórios e gerar um relatório de custo de ligações por circuito, informando um período (data início e data fim), para visualizar o quanto cada circuito gerou de custo com ligações no intervalo selecionado.
-
-**Estimativa:** 3 story points
-
-**Critérios de Aceite:**
-
-1. **Menu de Relatórios:** Nova entrada no menu lateral "Relatórios", contendo a listagem de relatórios disponíveis. Inicialmente exibe apenas o relatório de custo por circuito.
-2. **Filtro de período:** O usuário informa data de início e data de fim. Ambos os campos são obrigatórios.
-3. **Resultado por circuito:** O relatório exibe uma linha por circuito com:
-   - Nome do cliente vinculado ao circuito.
-   - Nome do circuito.
-   - Quantidade de ligações no período.
-   - Total de minutos consumidos.
-   - Custo total (R$) gerado pelas ligações (excluindo valor de plano/franquia — apenas custo excedente de ligações).
-4. **Apenas ligações:** O relatório considera exclusivamente registros da entidade `Call`; faturas, planos e outros valores não entram no cálculo.
-5. **Circuitos sem ligações:** Circuitos sem nenhuma ligação no período não aparecem no resultado.
-6. **API backend:** Endpoint `GET /api/v1/reports/call-cost?from=YYYY-MM-DD&to=YYYY-MM-DD` retorna os dados agregados por circuito.
-7. **Testes:** Testes unitários cobrem a query de agregação e os casos: período sem ligações, múltiplos circuitos com custos distintos.
 
 ---
 

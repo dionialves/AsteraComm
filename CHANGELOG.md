@@ -4,6 +4,35 @@
 
 ---
 
+### US-015 — Relatórios: custo de ligações por circuito no período
+
+**Titulo:** Relatórios: custo de ligações por circuito no período
+
+**Descrição:**
+Como administrador, quero acessar um menu de relatórios e gerar um relatório de custo de ligações por circuito, informando mês e ano, para visualizar o quanto cada circuito gerou de custo com ligações no mês selecionado.
+
+**Estimativa:** 3 story points
+
+**Critérios de Aceite:**
+
+1. **Menu de Relatórios:** Nova entrada no menu lateral "Relatórios", contendo a listagem de relatórios disponíveis. Inicialmente exibe apenas o relatório de custo por circuito.
+2. **Filtro por mês/ano:** O usuário seleciona mês e ano. Ambos os campos são obrigatórios.
+3. **Resultado por circuito:** O relatório exibe uma linha por circuito com:
+   - Nome do cliente vinculado ao circuito.
+   - Nome do circuito.
+   - Quantidade de ligações no período.
+   - Total de minutos consumidos.
+   - Custo total (R$) gerado pelas ligações (excluindo valor de plano/franquia — apenas custo excedente de ligações).
+4. **Apenas ligações:** O relatório considera exclusivamente registros da entidade `Call`; faturas, planos e outros valores não entram no cálculo.
+5. **Circuitos sem ligações:** Circuitos sem nenhuma ligação no período não aparecem no resultado.
+6. **API backend:** Endpoint `GET /api/v1/reports/call-cost?month=MM&year=YYYY&onlyWithCost=false` retorna os dados agregados por circuito.
+7. **Layout da tela:** A página exibe, em ordem: título do relatório, descrição explicativa, seletores de mês e ano, checkbox "Apenas com custo", botão "Processar" e tabela de resultados com totalizador.
+8. **Filtro "Apenas com custo":** Checkbox que, quando marcada, exclui do resultado circuitos com `totalCost = 0`. Filtro aplicado no backend via `onlyWithCost=true`.
+9. **Download PDF:** Botão "Baixar PDF" gera um arquivo com header (logo, título, filtros aplicados, data de geração) e tabela com totais via `jsPDF` + `jspdf-autotable`. Download iniciado automaticamente sem diálogo de impressão.
+10. **Testes:** 12 testes (7 service + 5 controller), 0 falhas. Cobrem: mês sem ligações, múltiplos circuitos com custos distintos, filtro `onlyWithCost` ativo vs. inativo, parâmetros obrigatórios.
+
+---
+
 ### US-020 — Ajuste do consumo de pacote de minutagem para frações de 30 segundos
 
 **Titulo:** Ajuste do consumo de pacote de minutagem para frações de 30 segundos
