@@ -2,11 +2,34 @@
 
 ## Indice
 
-1. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
+1. [US-020 — Ajuste do consumo de pacote de minutagem para frações de 30 segundos](#us-020)
+3. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
 4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
 5. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
 6. [US-014 — Dashboard inicial com visão geral do sistema](#us-014)
 7. [US-015 — Relatórios: custo de ligações por circuito no período](#us-015)
+8. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
+
+---
+
+## US-020
+
+**Titulo:** Ajuste do consumo de pacote de minutagem para frações de 30 segundos
+
+**Descrição:**
+Como operador, quero que o consumo do pacote de minutagem use a mesma base de faturamento (frações de 30 segundos), para que cada minuto de pacote cubra exatamente um minuto de custo faturável, sem penalizar o cliente com consumo excessivo de pacote por arredondamento para o minuto inteiro.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **Nova lógica de consumo:** O consumo do pacote passa a usar `ceil(billSeconds / 30.0)` frações de 30s, idêntico à base de cálculo de custo. Uma ligação de 61s consome 3 frações (1,5 min) do pacote — o mesmo valor que custaria se fosse cobrada.
+2. **Campo `minutes_from_quota`:** Passa a armazenar o número de **frações de 30 segundos** consumidas do pacote (não minutos inteiros). O nome da coluna é mantido por retrocompatibilidade, mas o valor semântico muda: `2 = 1 minuto`.
+3. **Comparação com o pacote:** O total disponível é convertido para frações na comparação: `packageTotalMinutes × 2`. As queries `sumQuotaMinutes` e `sumQuotaMinutesByType` continuam somando `minutes_from_quota` normalmente — o ajuste está na comparação.
+4. **`CallCostingService`:** A lógica de `applyWithQuota` é atualizada: `durationMinutes` → `durationFractions = ceil(billSeconds / 30.0)`. O cálculo de excedente usa `billableSeconds = billSeconds - (remaining × 30)`.
+5. **`AuditService`:** Atualizado da mesma forma, mantendo paridade com a produção.
+6. **Registros históricos:** Ligações já processadas com a lógica antiga não são reprocessadas. A mudança vale apenas para novos processamentos.
+7. **Testes:** Testes cobrem: ligação de 61s consome 3 frações (não 2 min), ligação parcialmente coberta com excedente correto, pacote esgotado no meio de uma ligação, verificação de que auditoria e produção produzem o mesmo resultado.
 
 ---
 
@@ -163,6 +186,29 @@ Como administrador, quero acessar um menu de relatórios e gerar um relatório d
 5. **Circuitos sem ligações:** Circuitos sem nenhuma ligação no período não aparecem no resultado.
 6. **API backend:** Endpoint `GET /api/v1/reports/call-cost?from=YYYY-MM-DD&to=YYYY-MM-DD` retorna os dados agregados por circuito.
 7. **Testes:** Testes unitários cobrem a query de agregação e os casos: período sem ligações, múltiplos circuitos com custos distintos.
+
+---
+
+## US-017
+
+**Titulo:** Snapshot de estado do circuito, DID e plano no processamento da ligação
+
+**Descrição:**
+Como desenvolvedor, quero que cada ligação processada registre um snapshot dos dados relevantes do circuito, DID e plano vigentes no momento do processamento, para que auditorias futuras não dependam do estado atual dessas entidades, que podem ter sido alteradas desde então.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **Campos de snapshot em `Call`:** A entidade `Call` passa a armazenar, no momento do processamento, os seguintes dados desnormalizados:
+   - Do **plano**: nome, valor da franquia de minutos (se houver), tarifas por tipo de destino (fixo local, fixo DDD, móvel local, móvel DDD, internacional).
+   - Do **circuito**: nome, `closing_day`.
+   - Do **DID**: número.
+2. **Preenchimento automático:** Ao processar uma ligação, o serviço de billing preenche os campos de snapshot com os valores vigentes naquele instante. Nenhuma ação manual é necessária.
+3. **Imutabilidade:** Os campos de snapshot nunca são atualizados após a criação do registro — alterações posteriores no plano, circuito ou DID não afetam chamadas já registradas.
+4. **Ferramenta de auditoria (US-016):** A ferramenta de auditoria passa a utilizar os dados do snapshot armazenados em `Call` para os cálculos, em vez de buscar o estado atual do plano/circuito.
+5. **Migração:** Uma migração Flyway adiciona as novas colunas à tabela de calls, com valor `NULL` para registros históricos (aceito para chamadas anteriores à feature).
+6. **Testes:** Testes unitários cobrem: snapshot preenchido corretamente no processamento, imutabilidade após alteração do plano, e que a auditoria usa os dados do snapshot e não os valores atuais.
 
 ---
 

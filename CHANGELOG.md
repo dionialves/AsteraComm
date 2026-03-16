@@ -4,6 +4,30 @@
 
 ---
 
+### US-016 — Ferramenta de auditoria de custo de ligações por circuito
+
+**Titulo:** Ferramenta de auditoria de custo de ligações por circuito
+
+**Descrição:**
+Como desenvolvedor, quero uma ferramenta que, dado um circuito, mês e ano, simule o cálculo de custo de cada ligação do período de forma transparente e passo a passo, exibindo o raciocínio de cada cálculo (custo unitário, desconto por pacote de minutagem e consumo acumulado), para que eu possa auditar e validar se a lógica de billing está correta.
+
+**Estimativa:** 3 story points
+
+**Critérios de Aceite:**
+
+1. **Filtro de seleção:** Seletor de circuito, mês e ano com botão "Processar".
+2. **Processamento cronológico:** Ligações do período exibidas em ordem cronológica, uma por linha.
+3. **Linha por ligação:** Data/hora, destino, tipo, duração, tarifa, minutos do pacote consumidos, acumulado do pacote e custo calculado.
+4. **Contador de pacote:** Acumula progressivamente os minutos consumidos do pacote; congela ao esgotar.
+5. **Custo zerado por pacote:** Ligações cobertas exibem R$ 0,00 com o acréscimo no contador.
+6. **Filtro dinâmico:** Toggle "Exibir apenas chamadas relevantes" filtra no client sem nova requisição, mostrando contador de linhas visíveis.
+7. **Resumo ao final:** Total de ligações, minutos, minutos de pacote usados, minutos excedentes e custo total.
+8. **Acesso restrito:** Disponível apenas para `SUPER_ADMIN`.
+9. **Bug fix — `CURRENT_DATE`:** Corrigido bug em `sumQuotaMinutesThisMonth` / `sumQuotaMinutesThisMonthByType` que usavam `CURRENT_DATE` nas queries, fazendo com que ligações processadas em mês diferente do mês da chamada calculassem a cota com saldo incorreto. Métodos renomeados para `sumQuotaMinutes` / `sumQuotaMinutesByType` e passam a receber `month` e `year` explícitos derivados de `call.getCallDate()`.
+10. **Testes:** `AuditServiceTest` (11 casos) + `CallCostingServiceTest` atualizado (15 casos), 0 falhas.
+
+---
+
 ### US-010 — Custeio de ligações por circuito com franquia e tarifação
 
 **Titulo:** Custeio de ligações por circuito com franquia e tarifação
