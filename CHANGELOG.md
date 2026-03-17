@@ -4,6 +4,29 @@
 
 ---
 
+### US-022 — Campo `active` no circuito e regra de exclusão com fallback para desativação
+
+**Titulo:** Campo `active` no circuito e regra de exclusão com fallback para desativação
+
+**Descrição:**
+Como administrador, quero que o circuito possua um campo `active` indicando se está em operação, e que a exclusão só seja permitida quando não houver DIDs nem Calls vinculadas — caso contrário, o sistema deve desativar o circuito em vez de excluí-lo. No frontend, o estado ativo deve ser visível na listagem e editável no formulário.
+
+**Estimativa:** 3 story points
+
+**Critérios de Aceite:**
+
+1. **Campo `active` na entidade `Circuit`:** Booleano, padrão `true` na criação. Persistido como `active BOOLEAN NOT NULL DEFAULT TRUE` via migração Flyway.
+2. **Regra de exclusão:** `DELETE /api/v1/circuits/{number}` verifica:
+   - Se houver DIDs vinculados → `BusinessException` ("Desvincule os DIDs antes de excluir o circuito").
+   - Se houver Calls vinculadas → não é possível excluir; o serviço **desativa** o circuito (`active = false`) e retorna `HTTP 200` com o circuito atualizado (em vez de `204`).
+   - Se não houver DIDs nem Calls → exclui normalmente (`HTTP 204`).
+3. **Endpoint de atualização:** `PUT /api/v1/circuits/{number}` passa a aceitar o campo `active` no body, permitindo ativar/desativar manualmente.
+4. **Frontend — listagem:** Coluna **Ativo** adicionada à tabela de circuitos exibindo `Sim` (verde) ou `Não` (vermelho).
+5. **Frontend — formulário (criação e edição):** Campo **Ativo** abaixo do campo Código, com radio buttons `( ) Sim  ( ) Não`. Padrão `Sim` na criação.
+6. **Testes:** Cobrem os três cenários de exclusão (tem DID, tem Call, nenhum vínculo), atualização do campo `active` e criação com `active = true` por padrão.
+
+---
+
 ### US-021 — Refatoração UX: página de detalhe do circuito e ID no domínio
 
 **Titulo:** Refatoração UX: página de detalhe do circuito

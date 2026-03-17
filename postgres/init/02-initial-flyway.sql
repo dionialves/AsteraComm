@@ -135,3 +135,6 @@ ALTER TABLE asteracomm_dids ADD CONSTRAINT asteracomm_dids_circuit_number_fkey
 
 ALTER TABLE asteracomm_calls ADD CONSTRAINT asteracomm_calls_circuit_number_fkey
     FOREIGN KEY (circuit_number) REFERENCES asteracomm_circuits(number) ON DELETE SET NULL;
+
+ALTER TABLE asteracomm_circuits
+    ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;

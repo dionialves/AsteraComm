@@ -6,6 +6,10 @@
 2. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
 3. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
 4. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
+5. [US-023 — Reordenar e ajustar colunas da listagem de circuitos](#us-023)
+6. [US-024 — Padronizar estilo do botão "Adicionar" em todo o sistema](#us-024)
+7. [US-025 — Padronizar estilo dos botões de paginação em todo o sistema](#us-025)
+8. [FIX-001 — Corrigir carregamento de DIDs livres no modal de vínculo do circuito](#fix-001)
 
 ---
 
@@ -123,6 +127,78 @@ Como desenvolvedor, quero que cada ligação processada registre um snapshot dos
 4. **Ferramenta de auditoria (US-016):** A ferramenta de auditoria passa a utilizar os dados do snapshot armazenados em `Call` para os cálculos, em vez de buscar o estado atual do plano/circuito.
 5. **Migração:** Uma migração Flyway adiciona as novas colunas à tabela de calls, com valor `NULL` para registros históricos (aceito para chamadas anteriores à feature).
 6. **Testes:** Testes unitários cobrem: snapshot preenchido corretamente no processamento, imutabilidade após alteração do plano, e que a auditoria usa os dados do snapshot e não os valores atuais.
+
+---
+
+## US-023
+
+**Titulo:** Reordenar e ajustar colunas da listagem de circuitos
+
+**Descrição:**
+Como administrador, quero que a tabela de circuitos exiba as colunas na ordem e com os nomes corretos, incluindo o campo de status (ativo/inativo) como segunda coluna, para facilitar a leitura e priorizar as informações mais relevantes.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Ordem das colunas:** A tabela exibe exatamente as seguintes colunas, nesta ordem:
+   `ID | Status | Código | Cliente | Plano | Tronco | Online | IP | RTT`
+2. **Coluna Status:** Exibe o campo `active` do circuito — `Ativo` (verde) ou `Inativo` (vermelho).
+3. **Coluna Online:** Mantém o comportamento atual — `OK` (verde) ou `Offline` (vermelho), sem RTT nesta coluna.
+4. **Colunas IP e RTT:** Exibidas separadamente. IP exibe o endereço quando online, `—` quando offline. RTT exibe o valor quando online, `—` quando offline.
+5. **Sem outras alterações:** Layout, paginação, busca e navegação por linha permanecem iguais.
+
+---
+
+## US-024
+
+**Titulo:** Padronizar estilo do botão "Adicionar" em todo o sistema
+
+**Descrição:**
+Como administrador, quero que o botão "Adicionar" siga um padrão visual único em todas as telas, com fundo `bg-green-500` e hover `bg-green-600`, garantindo consistência na interface.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Estilo obrigatório:** Todo botão de ação primária de adição (`+ Adicionar`) deve ter exatamente `bg-green-500` e `hover:bg-green-600`.
+2. **Escopo:** Todas as páginas do sistema que possuam botão de adicionar (circuitos, clientes, DIDs, planos, troncos, usuários e demais).
+3. **Sem outras alterações:** Texto, tamanho, padding e demais propriedades dos botões permanecem como estão.
+
+---
+
+## US-025
+
+**Titulo:** Padronizar estilo dos botões de paginação em todo o sistema
+
+**Descrição:**
+Como administrador, quero que os botões "Anterior" e "Próximo" da paginação sigam um padrão visual único em todas as telas, com fundo `#e5e7eb` e hover em tom mais escuro.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Estilo obrigatório:** Todo botão de paginação (`‹ Anterior` e `Próxima ›`) deve ter `background-color: #e5e7eb` (`bg-gray-200`) e `hover:bg-gray-300`.
+2. **Escopo:** Todas as páginas do sistema que possuam paginação (circuitos, clientes, DIDs, planos, troncos, usuários, ligações e demais).
+3. **Sem outras alterações:** Texto, tamanho, padding e demais propriedades permanecem como estão.
+
+---
+
+## FIX-001
+
+**Titulo:** Corrigir carregamento de DIDs livres no modal de vínculo do circuito
+
+**Descrição:**
+O modal de vínculo de DID no formulário do circuito não exibe os DIDs disponíveis mesmo quando existem DIDs sem circuito vinculado. A causa é que o frontend carrega todos os DIDs e filtra no cliente via `!d.circuitNumber`, o que falha silenciosamente quando o parâmetro `sort` é codificado incorretamente pelo `URLSearchParams` (vírgula → `%2C`), gerando erro no Pageable do Spring.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Novo endpoint backend:** `GET /api/dids/free` retorna todos os DIDs onde `circuit_number IS NULL`, sem paginação (lista simples).
+2. **Frontend atualizado:** O modal de vínculo de DID em `circuits/[id].astro` passa a usar `/api/did/free` em vez de `/api/did/dids?page=0&size=200` + filtro cliente.
+3. **Nova rota Astro:** `src/pages/api/did/free.ts` criada para proxiar `GET /api/dids/free`.
+4. **Sem regressão:** A listagem de DIDs nas demais páginas permanece inalterada.
 
 ---
 
