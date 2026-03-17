@@ -4,6 +4,27 @@
 
 ---
 
+### US-021 — Refatoração UX: página de detalhe do circuito e ID no domínio
+
+**Titulo:** Refatoração UX: página de detalhe do circuito
+
+**Descrição:**
+Como administrador, quero que ao clicar em um circuito na lista eu seja levado a uma página de detalhe dedicada, onde posso visualizar e editar todas as informações do circuito e gerenciar os DIDs vinculados, em vez de editar inline na lista.
+
+**Estimativa:** 3 story points
+
+**Critérios de Aceite:**
+
+1. **Lista de circuitos:** A coluna de Ações é removida. Clicar em qualquer linha navega para a página de detalhe do circuito (`/circuits/{id}`). Coluna **ID** adicionada como primeira coluna.
+2. **Página de detalhe — cabeçalho:** Segue o padrão visual do sistema: título (nome do circuito) e subtítulo (ex.: "Editar circuito") na mesma linha dos botões **Voltar**, **Salvar** e **Deletar**.
+3. **Página de detalhe — campos:** Abaixo do cabeçalho, cada campo é exibido em uma linha própria com o nome do campo à esquerda e o input à direita, empilhados verticalmente. Campos ID e Código sem placeholder no formulário de criação.
+4. **Tabela de DIDs vinculados:** Abaixo dos campos, exibe uma tabela com os DIDs associados ao circuito.
+5. **Ações da tabela de DIDs:** Acima da tabela, alinhados à direita, os botões **Adicionar** e **Desvincular**. O botão **Desvincular** aparece em vermelho apagado (desabilitado) e fica ativo (vermelho normal) somente quando ao menos um DID está selecionado na tabela.
+6. **Consistência:** A experiência de navegação (voltar para a lista, salvar, deletar) funciona corretamente sem quebrar funcionalidades existentes.
+7. **ID no domínio Circuit:** Campo `id` (Long, PK sequencial) adicionado à entidade `Circuit`. Migração `V3__add_id_to_circuits.sql` cuida da transição em bancos existentes. `findById` substituído por `findByNumber` em `AuditService`, `CallProcessingService` e `DIDService`. `@JoinColumn` em `Call` corrigido com `referencedColumnName = "number"` para manter compatibilidade de schema. 322 testes, 0 falhas.
+
+---
+
 ### US-014 — Dashboard inicial com visão geral do sistema
 
 **Titulo:** Dashboard inicial com visão geral do sistema
