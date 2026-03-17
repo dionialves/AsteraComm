@@ -4,6 +4,12 @@
 
 ---
 
+### FIX — Auditoria: circuito não encontrado ao processar
+
+O seletor de circuito na página de auditoria usava `c.id` (PK numérica) como valor do `<option>`, mas o backend busca pelo campo `number` (string). Corrigido para `c.number` em `audit/index.astro`.
+
+---
+
 ### US-022 — Campo `active` no circuito e regra de exclusão com fallback para desativação
 
 **Titulo:** Campo `active` no circuito e regra de exclusão com fallback para desativação
