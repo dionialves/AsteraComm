@@ -4,6 +4,41 @@
 
 ---
 
+### US-014 — Dashboard inicial com visão geral do sistema
+
+**Titulo:** Dashboard inicial com visão geral do sistema
+
+**Descrição:**
+Como administrador, quero uma tela de dashboard que exiba um resumo operacional e financeiro do sistema, com painéis de circuitos, ligações, faturamento e troncos, para ter visibilidade rápida do estado da plataforma ao acessar o sistema.
+
+**Estimativa:** 5 story points
+
+**Critérios de Aceite:**
+
+1. **Cards de resumo (4 colunas):**
+   - **Circuitos:** total, online (indicador verde) e offline (indicador vermelho).
+   - **Troncos:** total, registrados (verde) e não registrados (vermelho).
+   - **Ligações do mês:** total, atendidas (verde), não atendidas (âmbar) e ocupado (vermelho).
+   - **Faturamento do mês:** valor total em destaque, breakdown em assinaturas + excedentes.
+
+2. **Gráfico de faturamento mensal:** Barras empilhadas com os últimos 12 meses — azul para assinaturas, âmbar para excedentes. Valores no eixo Y em reais (BRL).
+
+3. **Gráfico de ligações diárias:** Barras empilhadas dos últimos 30 dias — atendidas (verde), não atendidas (âmbar), ocupado (vermelho) e falhas (cinza).
+
+4. **Tabela "Circuitos com consumo próximo do limite":** Exibe até 10 circuitos com pacote de minutagem, ordenados do maior para o menor consumo percentual no mês corrente, **excluindo** circuitos cujo pacote já foi excedido. Cada linha mostra: número do circuito, plano, minutos utilizados, limite do pacote e barra de progresso colorida (verde abaixo de 85 %, âmbar de 85–94 %, vermelho a partir de 95 %).
+
+5. **Gráfico de excedência (donut):** Card ao lado da tabela acima exibindo um gráfico circular com a proporção entre circuitos com pacote excedido vs. circuitos dentro do limite (`CircuitOverageStats`).
+
+6. **Gráfico "Top 10 circuitos por consumo":** Barras horizontais com os 10 circuitos de maior consumo de minutos no mês, exibindo minutos utilizados vs. limite do pacote. Barras de consumo ficam vermelhas quando excedem o limite.
+
+7. **API backend:** Endpoint `GET /api/dashboard` retorna todos os dados em um único payload (`CircuitStats`, `TrunkStats`, `CallStats`, `BillingStats`, `DailyCallStat[]`, `MonthlyBillingStat[]`, `CircuitConsumption[]`, `TopCircuit[]`, `CircuitOverageStats`).
+
+8. **Atualização:** Dados carregados ao acessar a página, sem polling automático.
+
+9. **Testes:** 18 testes unitários cobrindo: estatísticas de circuitos, troncos, ligações, faturamento, intervalos de data, valores zero/vazios, filtro de excedidos na near-limit list, ordenação por percentual e contagem de overage.
+
+---
+
 ### US-015 — Relatórios: custo de ligações por circuito no período
 
 **Titulo:** Relatórios: custo de ligações por circuito no período

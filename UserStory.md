@@ -5,8 +5,8 @@
 1. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
 2. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
 3. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
-4. [US-014 — Dashboard inicial com visão geral do sistema](#us-014)
-5. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
+4. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
+5. [US-021 — Refatoração UX: página de detalhe do circuito](#us-021)
 
 ---
 
@@ -104,42 +104,6 @@ Como administrador, quero que um circuito possa ter mais de um DID associado, e 
 
 ---
 
-## US-014
-
-**Titulo:** Dashboard inicial com visão geral do sistema
-
-**Descrição:**
-Como administrador, quero uma tela de dashboard que exiba um resumo operacional e financeiro do sistema, com painéis de circuitos, ligações, faturamento e troncos, para ter visibilidade rápida do estado da plataforma ao acessar o sistema.
-
-**Estimativa:** 5 story points
-
-**Critérios de Aceite:**
-
-1. **Painel de Circuitos:**
-   - Total de circuitos cadastrados.
-   - Circuitos registrados (online) vs. offline, com indicador visual de status.
-
-2. **Painel de Troncos:**
-   - Total de troncos cadastrados.
-   - Troncos com registro ativo vs. sem registro, com indicador visual.
-
-3. **Painel de Ligações:**
-   - Total de ligações do mês corrente.
-   - Total de minutos consumidos no mês.
-   - Breakdown por status: atendidas, não atendidas, ocupado.
-
-4. **Painel de Faturamento:**
-   - Valor total faturado no mês corrente (soma das faturas `OPEN` em andamento).
-   - Valor total de faturas `CLOSED` no mês anterior.
-
-5. **API backend:** Endpoint `GET /api/v1/dashboard` retorna todos os dados acima em um único payload, minimizando roundtrips.
-
-6. **Atualização:** Os dados do dashboard são carregados ao acessar a página. Não é necessário polling automático nesta versão.
-
-7. **Testes:** Testes unitários cobrem o serviço de agregação do dashboard (contagens e totalizações).
-
----
-
 ## US-017
 
 **Titulo:** Snapshot de estado do circuito, DID e plano no processamento da ligação
@@ -163,3 +127,22 @@ Como desenvolvedor, quero que cada ligação processada registre um snapshot dos
 
 ---
 
+## US-021
+
+**Titulo:** Refatoração UX: página de detalhe do circuito
+
+**Descrição:**
+Como administrador, quero que ao clicar em um circuito na lista eu seja levado a uma página de detalhe dedicada, onde posso visualizar e editar todas as informações do circuito e gerenciar os DIDs vinculados, em vez de editar inline na lista.
+
+**Estimativa:** 3 story points
+
+**Critérios de Aceite:**
+
+1. **Lista de circuitos:** A coluna de Ações é removida. Clicar em qualquer linha navega para a página de detalhe do circuito (`/circuits/{id}`).
+2. **Página de detalhe — cabeçalho:** Segue o padrão visual do sistema: título (nome do circuito) e subtítulo (ex.: "Editar circuito") na mesma linha dos botões **Voltar**, **Salvar** e **Deletar**.
+3. **Página de detalhe — campos:** Abaixo do cabeçalho, cada campo é exibido em uma linha própria com o nome do campo à esquerda e o input à direita, empilhados verticalmente.
+4. **Tabela de DIDs vinculados:** Abaixo dos campos, exibe uma tabela com os DIDs associados ao circuito.
+5. **Ações da tabela de DIDs:** Acima da tabela, alinhados à direita, os botões **Adicionar** e **Desvincular**. O botão **Desvincular** aparece em vermelho apagado (desabilitado) e fica ativo (vermelho normal) somente quando ao menos um DID está selecionado na tabela.
+6. **Consistência:** A experiência de navegação (voltar para a lista, salvar, deletar) funciona corretamente sem quebrar funcionalidades existentes.
+
+---
