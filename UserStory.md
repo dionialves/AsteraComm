@@ -7,7 +7,6 @@
 5. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
 6. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
 7. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
-9. [US-030 — Página de detalhe do cliente](#us-030)
 
 ---
 
@@ -150,25 +149,3 @@ Como administrador, quero que ao clicar em "Adicionar DID" na página de detalhe
 
 ---
 
-## US-030
-
-**Titulo:** Página de detalhe do cliente
-
-**Descrição:**
-Como administrador, quero que ao clicar em um cliente na listagem, o sistema abra uma página de detalhe com as informações do cliente e a lista de circuitos vinculados a ele, seguindo o mesmo layout da página de detalhe do circuito.
-
-**Estimativa:** 2 story points
-
-**Critérios de Aceite:**
-
-1. **Navegação:** Clicar em qualquer linha da listagem de clientes abre a página `customers/[id]`.
-2. **Campos exibidos:** A página exibe, no mesmo modelo de layout da página `circuits/[id]` (campos em linhas com label à direita e valor à esquerda):
-   - ID (somente leitura)
-   - Nome (somente leitura)
-   - Ativo — `Ativo` (verde) ou `Inativo` (vermelho), mesmo padrão visual de circuitos
-   - Criado em (somente leitura)
-   - Atualizado em (somente leitura)
-3. **Lista de circuitos vinculados:** Abaixo dos campos, uma tabela lista os circuitos do cliente. Ao clicar em um circuito, o sistema navega para `circuits/[number]`.
-4. **Botão Voltar:** Retorna para `/customers`.
-5. **Somente leitura:** Nenhuma ação de criação, edição ou vínculo de circuitos está disponível nesta página.
-6. **Sem outras alterações:** O comportamento da listagem de clientes permanece inalterado.

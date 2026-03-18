@@ -4,6 +4,18 @@
 
 ---
 
+### US-030 — Página de detalhe do cliente
+
+**Solução:**
+- Clicar em uma linha da listagem de clientes navega para `customers/[id]`.
+- Página de detalhe exibe: ID, Nome (editável), Ativo (radio Sim/Não, editável), Criado em, Atualizado em.
+- Botão Salvar persiste Nome e Ativo via PUT sem recarregar a página.
+- Tabela de circuitos vinculados com colunas: ID, Status, Código, Plano, Tronco, Online, IP, RTT — clicável para `circuits/[number]`.
+- Novo cliente criado em `customers/new` (mesma estrutura da página de edição); após salvar redireciona para `customers/[id]`.
+- Modal de criação/edição removido da listagem.
+
+---
+
 ### US-029 — Padronizar largura de colunas nas listagens do sistema
 
 **Solução:**
