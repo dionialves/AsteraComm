@@ -7,8 +7,7 @@
 5. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
 6. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
 7. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
-9. [US-029 — Padronizar largura de colunas nas listagens do sistema](#us-029)
-10. [US-030 — Página de detalhe do cliente](#us-030)
+9. [US-030 — Página de detalhe do cliente](#us-030)
 
 ---
 
@@ -148,25 +147,6 @@ Como administrador, quero que ao clicar em "Adicionar DID" na página de detalhe
 6. **Cancelamento:** Botão "Cancelar" ou clique fora do modal fecha sem realizar nenhuma ação.
 7. **Feedback:** Após o vínculo bem-sucedido, a tabela de DIDs do circuito é atualizada sem reload de página.
 8. **Sem regressão:** O comportamento de desvinculação e demais funcionalidades da página permanecem inalterados.
-
----
-
-## US-029
-
-**Titulo:** Padronizar largura de colunas nas listagens do sistema
-
-**Descrição:**
-Como administrador, quero que as colunas das tabelas de listagem ocupem apenas o espaço necessário para exibir seus dados, evitando que colunas com conteúdo pequeno dominem a tela com espaço em branco desnecessário.
-
-**Estimativa:** 2 story points
-
-**Critérios de Aceite:**
-
-1. **Largura automática:** As colunas não devem ter largura fixa (`w-1/6`, `w-24`, etc.) — devem usar `whitespace-nowrap` e deixar o layout determinar o espaço conforme o conteúdo.
-2. **Alinhamento:** Todo conteúdo alinhado à esquerda. O espaço excedente fica à direita da última coluna.
-3. **Tabela expansível:** A tabela usa `w-full` mas sem `table-fixed`, permitindo que as colunas se ajustem ao conteúdo.
-4. **Escopo:** Todas as páginas com listagem em tabela: circuitos, clientes, DIDs, planos, troncos, usuários, CDRs.
-5. **Sem outras alterações:** Ordenação, paginação, busca e navegação por linha permanecem iguais.
 
 ---
 

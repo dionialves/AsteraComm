@@ -4,6 +4,19 @@
 
 ---
 
+### US-029 — Padronizar largura de colunas nas listagens do sistema
+
+**Solução:**
+- Colunas sem largura fixa: usam `whitespace-nowrap`, layout determina o espaço conforme conteúdo.
+- Alinhamento à esquerda; espaço excedente fica à direita da última coluna.
+- Tabela usa `w-full` sem `table-fixed`.
+- Coluna ID adicionada como primeira coluna com ordenação inicial decrescente em todas as páginas.
+- Ordenação por coluna clicável com cursor `pointer` nos cabeçalhos.
+- Escopo: circuitos, clientes, DIDs, planos, troncos, usuários, CDRs.
+- Backend: ordenação padrão `id DESC` adicionada ao endpoint de planos.
+
+---
+
 ### US-028 — Reorganizar colunas e padronizar status na listagem de clientes
 
 **Solução:**
