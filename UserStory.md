@@ -7,7 +7,8 @@
 5. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
 6. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
 7. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
-9. [US-025 — Padronizar estilo dos botões de paginação em todo o sistema](#us-025)
+9. [US-029 — Padronizar largura de colunas nas listagens do sistema](#us-029)
+10. [US-030 — Página de detalhe do cliente](#us-030)
 
 ---
 
@@ -150,19 +151,44 @@ Como administrador, quero que ao clicar em "Adicionar DID" na página de detalhe
 
 ---
 
-## US-025
+## US-029
 
-**Titulo:** Padronizar estilo dos botões de paginação em todo o sistema
+**Titulo:** Padronizar largura de colunas nas listagens do sistema
 
 **Descrição:**
-Como administrador, quero que os botões "Anterior" e "Próximo" da paginação sigam um padrão visual único em todas as telas, com fundo `#e5e7eb` e hover em tom mais escuro.
+Como administrador, quero que as colunas das tabelas de listagem ocupem apenas o espaço necessário para exibir seus dados, evitando que colunas com conteúdo pequeno dominem a tela com espaço em branco desnecessário.
 
-**Estimativa:** 1 story point
+**Estimativa:** 2 story points
 
 **Critérios de Aceite:**
 
-1. **Estilo obrigatório:** Todo botão de paginação (`‹ Anterior` e `Próxima ›`) deve ter `background-color: #e5e7eb` (`bg-gray-200`) e `hover:bg-gray-300`.
-2. **Escopo:** Todas as páginas do sistema que possuam paginação (circuitos, clientes, DIDs, planos, troncos, usuários, ligações e demais).
-3. **Sem outras alterações:** Texto, tamanho, padding e demais propriedades permanecem como estão.
+1. **Largura automática:** As colunas não devem ter largura fixa (`w-1/6`, `w-24`, etc.) — devem usar `whitespace-nowrap` e deixar o layout determinar o espaço conforme o conteúdo.
+2. **Alinhamento:** Todo conteúdo alinhado à esquerda. O espaço excedente fica à direita da última coluna.
+3. **Tabela expansível:** A tabela usa `w-full` mas sem `table-fixed`, permitindo que as colunas se ajustem ao conteúdo.
+4. **Escopo:** Todas as páginas com listagem em tabela: circuitos, clientes, DIDs, planos, troncos, usuários, CDRs.
+5. **Sem outras alterações:** Ordenação, paginação, busca e navegação por linha permanecem iguais.
 
+---
 
+## US-030
+
+**Titulo:** Página de detalhe do cliente
+
+**Descrição:**
+Como administrador, quero que ao clicar em um cliente na listagem, o sistema abra uma página de detalhe com as informações do cliente e a lista de circuitos vinculados a ele, seguindo o mesmo layout da página de detalhe do circuito.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **Navegação:** Clicar em qualquer linha da listagem de clientes abre a página `customers/[id]`.
+2. **Campos exibidos:** A página exibe, no mesmo modelo de layout da página `circuits/[id]` (campos em linhas com label à direita e valor à esquerda):
+   - ID (somente leitura)
+   - Nome (somente leitura)
+   - Ativo — `Ativo` (verde) ou `Inativo` (vermelho), mesmo padrão visual de circuitos
+   - Criado em (somente leitura)
+   - Atualizado em (somente leitura)
+3. **Lista de circuitos vinculados:** Abaixo dos campos, uma tabela lista os circuitos do cliente. Ao clicar em um circuito, o sistema navega para `circuits/[number]`.
+4. **Botão Voltar:** Retorna para `/customers`.
+5. **Somente leitura:** Nenhuma ação de criação, edição ou vínculo de circuitos está disponível nesta página.
+6. **Sem outras alterações:** O comportamento da listagem de clientes permanece inalterado.

@@ -4,6 +4,16 @@
 
 ---
 
+### US-028 — Reorganizar colunas e padronizar status na listagem de clientes
+
+**Solução:**
+- Coluna ID adicionada como primeira coluna.
+- Ordem das colunas: `ID | Nome | Status | Criado em | Atualizado em`.
+- Coluna Status padronizada: `Ativo` (verde, `text-green-600`) / `Inativo` (vermelho, `text-red-600`) com `font-semibold`, removendo o badge anterior.
+- Ordenação inicial alterada para ID decrescente (`sort=id,desc`).
+
+---
+
 ### US-024 — Padronizar estilo dos botões de ação em todo o sistema
 
 **Solução:**
