@@ -4,6 +4,16 @@
 
 ---
 
+### US-024 — Padronizar estilo dos botões de ação em todo o sistema
+
+**Solução:**
+- Verde (Adicionar, Salvar, Vincular): `bg-green-600 hover:bg-green-700` — corrigido em circuits, customers, dids, plans, trunks e users.
+- Cinza (Cancelar, Voltar, Fechar, Anterior, Próximo): `bg-gray-200 hover:bg-gray-300` — corrigido nos modais de todas as páginas e no `.listing-page-btn` do CSS global (de `#f3f4f6` → `#e5e7eb`).
+- Azul (Filtrar, Editar): `bg-blue-500 hover:bg-blue-600` — corrigido em cdrs e plans.
+- Vermelho (Excluir, Deletar): já estava correto em todas as páginas.
+
+---
+
 ### US-023 — Reordenar e ajustar colunas da listagem de circuitos
 
 **Solução:**

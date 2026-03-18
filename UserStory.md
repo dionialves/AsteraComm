@@ -7,7 +7,6 @@
 5. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
 6. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
 7. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
-8. [US-024 — Padronizar estilo do botão "Adicionar" em todo o sistema](#us-024)
 9. [US-025 — Padronizar estilo dos botões de paginação em todo o sistema](#us-025)
 
 ---
@@ -148,23 +147,6 @@ Como administrador, quero que ao clicar em "Adicionar DID" na página de detalhe
 6. **Cancelamento:** Botão "Cancelar" ou clique fora do modal fecha sem realizar nenhuma ação.
 7. **Feedback:** Após o vínculo bem-sucedido, a tabela de DIDs do circuito é atualizada sem reload de página.
 8. **Sem regressão:** O comportamento de desvinculação e demais funcionalidades da página permanecem inalterados.
-
----
-
-## US-024
-
-**Titulo:** Padronizar estilo do botão "Adicionar" em todo o sistema
-
-**Descrição:**
-Como administrador, quero que o botão "Adicionar" siga um padrão visual único em todas as telas, com fundo `bg-green-500` e hover `bg-green-600`, garantindo consistência na interface.
-
-**Estimativa:** 1 story point
-
-**Critérios de Aceite:**
-
-1. **Estilo obrigatório:** Todo botão de ação primária de adição (`+ Adicionar`) deve ter exatamente `bg-green-500` e `hover:bg-green-600`.
-2. **Escopo:** Todas as páginas do sistema que possuam botão de adicionar (circuitos, clientes, DIDs, planos, troncos, usuários e demais).
-3. **Sem outras alterações:** Texto, tamanho, padding e demais propriedades dos botões permanecem como estão.
 
 ---
 
