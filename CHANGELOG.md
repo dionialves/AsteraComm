@@ -4,6 +4,18 @@
 
 ---
 
+### US-023 — Reordenar e ajustar colunas da listagem de circuitos
+
+**Solução:**
+- Colunas reordenadas para: `ID | Status | Código | Cliente | Plano | Tronco | Online | IP | RTT`.
+- Coluna `Senha` removida da listagem.
+- Coluna Status exibe `Ativo` (verde) / `Inativo` (vermelho) baseado no campo `active`.
+- Coluna Online exibe apenas `OK` (verde) ou `Offline` (vermelho), sem RTT embutido.
+- Colunas IP e RTT exibidas separadamente.
+- Ordenação inicial alterada para ID decrescente (maior ID primeiro), tanto no backend (`@PageableDefault`) quanto no frontend (sort padrão `id,desc`).
+
+---
+
 ### US-027 — Refatoração: DID referencia circuito por ID em vez de número
 
 **Solução:**

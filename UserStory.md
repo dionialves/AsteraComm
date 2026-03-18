@@ -3,7 +3,6 @@
 ## Indice
 
 1. [US-026 — Modal de seleção de DID ao vincular circuito](#us-026)
-3. [US-023 — Reordenar e ajustar colunas da listagem de circuitos](#us-023)
 4. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
 5. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
 6. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
@@ -149,26 +148,6 @@ Como administrador, quero que ao clicar em "Adicionar DID" na página de detalhe
 6. **Cancelamento:** Botão "Cancelar" ou clique fora do modal fecha sem realizar nenhuma ação.
 7. **Feedback:** Após o vínculo bem-sucedido, a tabela de DIDs do circuito é atualizada sem reload de página.
 8. **Sem regressão:** O comportamento de desvinculação e demais funcionalidades da página permanecem inalterados.
-
----
-
-## US-023
-
-**Titulo:** Reordenar e ajustar colunas da listagem de circuitos
-
-**Descrição:**
-Como administrador, quero que a tabela de circuitos exiba as colunas na ordem e com os nomes corretos, incluindo o campo de status (ativo/inativo) como segunda coluna, para facilitar a leitura e priorizar as informações mais relevantes.
-
-**Estimativa:** 1 story point
-
-**Critérios de Aceite:**
-
-1. **Ordem das colunas:** A tabela exibe exatamente as seguintes colunas, nesta ordem:
-   `ID | Status | Código | Cliente | Plano | Tronco | Online | IP | RTT`
-2. **Coluna Status:** Exibe o campo `active` do circuito — `Ativo` (verde) ou `Inativo` (vermelho).
-3. **Coluna Online:** Mantém o comportamento atual — `OK` (verde) ou `Offline` (vermelho), sem RTT nesta coluna.
-4. **Colunas IP e RTT:** Exibidas separadamente. IP exibe o endereço quando online, `—` quando offline. RTT exibe o valor quando online, `—` quando offline.
-5. **Sem outras alterações:** Layout, paginação, busca e navegação por linha permanecem iguais.
 
 ---
 
