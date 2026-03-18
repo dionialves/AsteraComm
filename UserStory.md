@@ -2,14 +2,15 @@
 
 ## Indice
 
-1. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
-2. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
-3. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
-4. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
-5. [US-023 — Reordenar e ajustar colunas da listagem de circuitos](#us-023)
-6. [US-024 — Padronizar estilo do botão "Adicionar" em todo o sistema](#us-024)
-7. [US-025 — Padronizar estilo dos botões de paginação em todo o sistema](#us-025)
-8. [FIX-001 — Corrigir carregamento de DIDs livres no modal de vínculo do circuito](#fix-001)
+1. [US-026 — Modal de seleção de DID ao vincular circuito](#us-026)
+3. [US-023 — Reordenar e ajustar colunas da listagem de circuitos](#us-023)
+4. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
+5. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
+6. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
+7. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
+8. [US-024 — Padronizar estilo do botão "Adicionar" em todo o sistema](#us-024)
+9. [US-025 — Padronizar estilo dos botões de paginação em todo o sistema](#us-025)
+10. [US-027 — Refatoração: DID referencia circuito por ID em vez de número](#us-027)
 
 ---
 
@@ -130,6 +131,28 @@ Como desenvolvedor, quero que cada ligação processada registre um snapshot dos
 
 ---
 
+## US-026
+
+**Titulo:** Modal de seleção de DID ao vincular circuito
+
+**Descrição:**
+Como administrador, quero que ao clicar em "Adicionar DID" na página de detalhe do circuito, abra um modal onde posso navegar pelos DIDs disponíveis ou pesquisar por número, selecionar um e confirmar a vinculação — sem sair da página.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **Abertura do modal:** O botão "Adicionar DID" na página `circuits/[id]` abre um modal sobreposto à tela.
+2. **Listagem de DIDs livres:** O modal exibe todos os DIDs disponíveis (sem circuito vinculado), carregados via `GET /api/dids/free`.
+3. **Pesquisa por número:** Campo de busca no topo do modal filtra os DIDs exibidos em tempo real (client-side) conforme o usuário digita.
+4. **Seleção:** Clicar em um DID da lista o destaca como selecionado.
+5. **Confirmação:** Botão "Inserir" vincula o DID selecionado ao circuito (requisição existente de vínculo) e fecha o modal.
+6. **Cancelamento:** Botão "Cancelar" ou clique fora do modal fecha sem realizar nenhuma ação.
+7. **Feedback:** Após o vínculo bem-sucedido, a tabela de DIDs do circuito é atualizada sem reload de página.
+8. **Sem regressão:** O comportamento de desvinculação e demais funcionalidades da página permanecem inalterados.
+
+---
+
 ## US-023
 
 **Titulo:** Reordenar e ajustar colunas da listagem de circuitos
@@ -184,21 +207,25 @@ Como administrador, quero que os botões "Anterior" e "Próximo" da paginação 
 
 ---
 
-## FIX-001
+## US-027
 
-**Titulo:** Corrigir carregamento de DIDs livres no modal de vínculo do circuito
+**Titulo:** Refatoração: DID referencia circuito por ID em vez de número
 
 **Descrição:**
-O modal de vínculo de DID no formulário do circuito não exibe os DIDs disponíveis mesmo quando existem DIDs sem circuito vinculado. A causa é que o frontend carrega todos os DIDs e filtra no cliente via `!d.circuitNumber`, o que falha silenciosamente quando o parâmetro `sort` é codificado incorretamente pelo `URLSearchParams` (vírgula → `%2C`), gerando erro no Pageable do Spring.
+Como desenvolvedor, quero que a entidade `DID` referencie o circuito pelo `id` (PK numérica) em vez do `number` (string), alinhando o modelo de dados com as demais entidades do sistema e eliminando acoplamento por campo de negócio.
 
-**Estimativa:** 1 story point
+**Estimativa:** 2 story points
 
 **Critérios de Aceite:**
 
-1. **Novo endpoint backend:** `GET /api/dids/free` retorna todos os DIDs onde `circuit_number IS NULL`, sem paginação (lista simples).
-2. **Frontend atualizado:** O modal de vínculo de DID em `circuits/[id].astro` passa a usar `/api/did/free` em vez de `/api/did/dids?page=0&size=200` + filtro cliente.
-3. **Nova rota Astro:** `src/pages/api/did/free.ts` criada para proxiar `GET /api/dids/free`.
-4. **Sem regressão:** A listagem de DIDs nas demais páginas permanece inalterada.
+1. **Entidade `DID`:** Campo `circuitNumber` (String) substituído por `circuitId` (Long, FK nullable para `asteracomm_circuits.id`).
+2. **Repository:** Métodos que referenciam `circuitNumber` atualizados para `circuitId` (ex: `existsByCircuitNumber` → `existsByCircuitId`, `findByCircuitNumberIsNull` → `findByCircuitIdIsNull`).
+3. **Service:** `linkToCircuit` passa a receber e armazenar o `circuitId`; `unlinkFromCircuit` e `delete` ajustados.
+4. **Controller:** `PUT /api/dids/{id}/link/{circuitId}` — path variable passa a ser `circuitId` (Long) em vez de `circuitNumber` (String).
+5. **Migração Flyway:** Nova migração renomeia/substitui a coluna `circuit_number` por `circuit_id BIGINT REFERENCES asteracomm_circuits(id)`, preservando vínculos existentes via `SELECT id FROM asteracomm_circuits WHERE number = circuit_number`.
+6. **Frontend:** Todas as referências a `circuitNumber` em contexto de DID são substituídas por `circuitId` — inclui chamadas de API, filtros de tabela e payload de vínculo.
+7. **Sem quebra de funcionalidade:** Vínculo, desvinculação e listagem de DIDs continuam funcionando normalmente após a refatoração.
+8. **Testes:** Testes existentes atualizados para refletir o novo campo; todos passam.
 
 ---
 

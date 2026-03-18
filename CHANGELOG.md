@@ -4,6 +4,18 @@
 
 ---
 
+### FIX-001 — Corrigir carregamento de DIDs livres no modal de vínculo do circuito
+
+**Descrição:**
+O modal de vínculo de DID no formulário do circuito não exibia os DIDs disponíveis porque o frontend carregava todos os DIDs e filtrava no cliente via `!d.circuitNumber`, o que falhava silenciosamente quando o parâmetro `sort` era codificado incorretamente pelo `URLSearchParams` (vírgula → `%2C`), gerando erro no Pageable do Spring.
+
+**Solução:**
+- Backend: novo endpoint `GET /api/dids/free` retorna lista simples de DIDs sem circuito vinculado.
+- Frontend: nova rota Astro `src/pages/api/did/free.ts` proxia o endpoint.
+- `openModal()` em `circuits/[id].astro` atualizado para usar `/api/did/free` diretamente, eliminando o filtro cliente.
+
+---
+
 ### FIX — Auditoria: circuito não encontrado ao processar
 
 O seletor de circuito na página de auditoria usava `c.id` (PK numérica) como valor do `<option>`, mas o backend busca pelo campo `number` (string). Corrigido para `c.number` em `audit/index.astro`.
