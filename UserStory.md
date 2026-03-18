@@ -10,7 +10,6 @@
 7. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
 8. [US-024 — Padronizar estilo do botão "Adicionar" em todo o sistema](#us-024)
 9. [US-025 — Padronizar estilo dos botões de paginação em todo o sistema](#us-025)
-10. [US-027 — Refatoração: DID referencia circuito por ID em vez de número](#us-027)
 
 ---
 
@@ -205,27 +204,4 @@ Como administrador, quero que os botões "Anterior" e "Próximo" da paginação 
 2. **Escopo:** Todas as páginas do sistema que possuam paginação (circuitos, clientes, DIDs, planos, troncos, usuários, ligações e demais).
 3. **Sem outras alterações:** Texto, tamanho, padding e demais propriedades permanecem como estão.
 
----
-
-## US-027
-
-**Titulo:** Refatoração: DID referencia circuito por ID em vez de número
-
-**Descrição:**
-Como desenvolvedor, quero que a entidade `DID` referencie o circuito pelo `id` (PK numérica) em vez do `number` (string), alinhando o modelo de dados com as demais entidades do sistema e eliminando acoplamento por campo de negócio.
-
-**Estimativa:** 2 story points
-
-**Critérios de Aceite:**
-
-1. **Entidade `DID`:** Campo `circuitNumber` (String) substituído por `circuitId` (Long, FK nullable para `asteracomm_circuits.id`).
-2. **Repository:** Métodos que referenciam `circuitNumber` atualizados para `circuitId` (ex: `existsByCircuitNumber` → `existsByCircuitId`, `findByCircuitNumberIsNull` → `findByCircuitIdIsNull`).
-3. **Service:** `linkToCircuit` passa a receber e armazenar o `circuitId`; `unlinkFromCircuit` e `delete` ajustados.
-4. **Controller:** `PUT /api/dids/{id}/link/{circuitId}` — path variable passa a ser `circuitId` (Long) em vez de `circuitNumber` (String).
-5. **Migração Flyway:** Nova migração renomeia/substitui a coluna `circuit_number` por `circuit_id BIGINT REFERENCES asteracomm_circuits(id)`, preservando vínculos existentes via `SELECT id FROM asteracomm_circuits WHERE number = circuit_number`.
-6. **Frontend:** Todas as referências a `circuitNumber` em contexto de DID são substituídas por `circuitId` — inclui chamadas de API, filtros de tabela e payload de vínculo.
-7. **Sem quebra de funcionalidade:** Vínculo, desvinculação e listagem de DIDs continuam funcionando normalmente após a refatoração.
-8. **Testes:** Testes existentes atualizados para refletir o novo campo; todos passam.
-
----
 

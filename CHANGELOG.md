@@ -4,6 +4,17 @@
 
 ---
 
+### US-027 — Refatoração: DID referencia circuito por ID em vez de número
+
+**Solução:**
+- `DID` passa a ter `@ManyToOne Circuit` com `@JoinColumn(name = "circuit_id")`, expondo `circuitId` e `circuitNumber` via `@JsonProperty`.
+- Migração Flyway V5 converte `circuit_number` (VARCHAR) para `circuit_id` (BIGINT FK), preservando vínculos existentes via JOIN por número.
+- Endpoints ajustados: `GET /api/dids/free`, `GET /api/dids/by-circuit/{circuitNumber}` e `PUT /api/dids/{id}/link/{circuitNumber}`.
+- `03-seed-real.sql` atualizado para resolver `circuit_id` via `JOIN asteracomm_circuits ON number`.
+- Frontend: `carregarDIDs()` usa endpoint dedicado, eliminando filtro client-side com limite de 200 registros; payloads de vínculo atualizados.
+
+---
+
 ### FIX-001 — Corrigir carregamento de DIDs livres no modal de vínculo do circuito
 
 **Descrição:**
