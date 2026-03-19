@@ -4,6 +4,19 @@
 
 ---
 
+### US-035 — Travar seleção e exibir ações ao selecionar item no SearchSelect
+
+**Solução:**
+- Ao selecionar um item, o trigger do SearchSelect fica travado (não abre o dropdown).
+- Ícone **X** aparece ao lado: limpa a seleção e reabre o dropdown automaticamente.
+- Ícone **seta** aparece ao lado quando `onNavigate` está definido no config: navega para a URL retornada com `?from=[caminho atual]` para que o "Voltar" funcione.
+- Quando `setDisabled(true)` está ativo, o ícone X fica oculto (campo bloqueado externamente).
+- Campo Cliente em `circuits/new.astro` e `circuits/[id].astro` configurado com `onNavigate: (id) => \`customers/${id}\``.
+- `customers/[id].astro`: botão "Voltar" passa a suportar o parâmetro `?from`.
+- 17 novos testes cobrindo travamento, X e navegação.
+
+---
+
 ### US-033 — Botão "Adicionar circuito" na página de detalhe do cliente
 
 **Solução:**
