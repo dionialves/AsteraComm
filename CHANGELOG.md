@@ -4,6 +4,18 @@
 
 ---
 
+### US-039 — Sistema de modais empilhados para edição de registros (Circuito e Cliente)
+
+**Solução:**
+- `ModalSystem` class (inline) com dois níveis de overlay/modal, animações CSS, URL sync via `history.pushState` e suporte a Escape.
+- `SearchSelect` substituindo `ChipSelect` nos chips do modal — modo chip visual (`.cs-chip`) ao selecionar, modo busca ao limpar; visibilidade dos botões gerenciada via `style.display` para evitar conflito de classes.
+- **Página de Circuitos:** clique na linha abre modal principal com abas Detalhes / DIDs / Histórico. Detalhes: campos editáveis (senha com toggle olho, tronco/plano/cliente com SearchSelect). DIDs: lista com desvincular (confirm) + botão "+ Adicionar" que filtra apenas DIDs livres via `/api/did/free`. Chips com `setLinkClickHandler` abrindo sub-modal para edição de Tronco, Plano e Cliente.
+- **Sub-modal Cliente** (dentro de Circuitos): abas Detalhes / Circuitos / Histórico; footer Salvar/Deletar ocultos nas abas não-Detalhes.
+- **Página de Clientes:** clique na linha abre modal principal com abas Detalhes / Circuitos / Histórico. Aba Circuitos: botão ícone external-link por linha abre sub-modal completo do circuito (todas as abas, edição completa, modal DID para vinculação).
+- CSS em `global.css`: sistema completo de classes `.modal-overlay`, `.modal-main`, `.modal-sub`, `.cs-chip-*`, `.did-grid-*`, `.history-*`, `.modal-footer`, `.btn-modal-*`, `.toggle-switch`, `.form-input`, `.section-title` etc.
+
+---
+
 ### US-036 — Redesenhar layout da página de detalhe do circuito
 
 **Solução:**

@@ -7,7 +7,8 @@
 3. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
 4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
 5. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
-6. [US-038 — Slide panel para edição de registros (Circuito e Cliente)](#us-038)
+6. [US-040 — Refatoração: extrair scripts de modal para arquivos `.ts` importáveis nas páginas Astro](#us-040)
+7. [US-041 — Reestruturação da página de listagem de Circuitos](#us-041)
 
 ---
 
@@ -147,29 +148,46 @@ Como administrador, quero que cada DID registre a data em que foi vinculado a um
 
 ---
 
-## US-038
+## US-040
 
-**Titulo:** Slide panel para edição de registros (Circuito e Cliente)
+**Titulo:** Refatoração: extrair scripts de modal para arquivos `.ts` importáveis nas páginas Astro
 
 **Descrição:**
-Como administrador, quero que ao clicar em um registro na listagem (Circuitos, Clientes) um painel lateral deslizante se abra pela direita, mantendo a listagem visível ao fundo, em vez de navegar para uma página dedicada. O panel permite editar, salvar e deletar o registro sem sair da listagem, e oferece um botão "Expandir" para abrir a página inteira quando necessário.
+Como desenvolvedor, quero que a lógica dos modais (`ModalSystem`, `ChipSelect` e os scripts de abertura/população de modal) seja extraída dos blocos `<script>` inline das páginas Astro para arquivos TypeScript dedicados, eliminando a duplicação de código entre `circuits/index.astro` e `customers/index.astro` e tornando a adição de novos modais mais simples.
 
-**Estimativa:** 8 story points
+**Estimativa:** 2 story points
 
 **Critérios de Aceite:**
 
-1. **Overlay:** Camada semi-transparente (`rgba(0,0,0,0.12)`) cobre a viewport ao abrir o panel; clicar nela fecha o panel. Transição de `0.3s ease` sincronizada com o panel.
-2. **Slide panel — container:** Fixo à direita (`position: fixed; top: 0; right: 0; bottom: 0`), largura 520px, fundo branco, borda esquerda fina. Animação: `transform: translateX(100%)` → `translateX(0)` com `cubic-bezier(0.4, 0, 0.2, 1) 0.3s`. Z-index overlay: 5; panel: 10.
-3. **Header (sticky):** Subtítulo do tipo da entidade + título com código do registro. Dois botões ícone à direita: **Expandir** (navega para a página inteira `/circuits/{id}`) e **Fechar** (fecha o panel). Abaixo, linha de tabs horizontais.
-4. **Tabs — Circuito:** "Detalhes", "DIDs", "Histórico". Tabs — **Cliente:** "Detalhes", "Circuitos", "Histórico". Tab ativa: `border-bottom: 2px solid` + texto primário + font-weight 500. Tab inativa: borda transparente + cor secundária.
-5. **Tab Detalhes (Circuito):** Seções separadas por dividers (sem cards com borda). Seção **Identificação**: grid 2 colunas (ID disabled, Código disabled) + toggle Ativo/Inativo. Seção **Autenticação**: input password + toggle visibilidade. Seção **Configuração**: grid 2 colunas (Tronco, Plano) + Cliente em largura parcial — todos com SearchSelect.
-6. **Tab Detalhes (Cliente):** Seção **Identificação**: grid 2 colunas (ID disabled, Nome editável) + toggle Ativo/Inativo.
-7. **Tab DIDs / Circuitos:** Botão "Adicionar" alinhado à direita. Grid com colunas adaptadas para 520px. DIDs: `50px 1fr 100px 36px` (ID, Número, Vinculado em, X). Circuitos: colunas essenciais (ID, Status, Código, Plano, Online, link externo) — omitir IP e RTT. Estado vazio com mensagem centralizada.
-8. **Tab Histórico:** Timeline vertical com bolinha colorida, texto do evento (ex: "Plano alterado: Básico → Real") e metadata (data/hora — usuário). Dado alimentado pelo backend; exibir "Nenhum registro." se vazio.
-9. **Footer (sticky):** Lado esquerdo: botão "Deletar" com confirmação em 2 cliques (primeiro muda texto/estilo, segundo executa). Lado direito: botões "Cancelar" (fecha sem salvar) e "Salvar" (AJAX, sem reload).
-10. **Comportamentos:** Fechar via botão X, Cancelar, overlay ou `Escape`. Após salvar com sucesso: panel permanece aberto, linha na listagem atualizada in-place, toast de sucesso exibido. URL atualizada via `history.pushState` (ex: `/circuits?panel=4933311611`) para deep linking.
-11. **Dimensões no panel:** Font-size de inputs 13px, padding `7px 10px`, ícones 13px, botões do footer 12px — levemente reduzidos em relação à página inteira para caber em 520px.
-12. **Página inteira preservada:** `circuits/[id].astro` e `customers/[id].astro` permanecem funcionais como fallback acessível pelo botão "Expandir" e por URLs diretas.
-13. **Testes:** Abertura/fechamento do panel, troca de tabs, salvamento via AJAX com atualização in-place da listagem, deletar com 2 cliques, fechar com Escape e overlay.
+1. **Resolução do alias `@/`:** O bundler Vite resolve corretamente imports `@/lib/*` nos scripts das páginas Astro (sem `is:inline` e sem `type="module"`), eliminando o erro "bare specifier".
+2. **`ModalSystem` e `ChipSelect` importados:** As classes deixam de ser copiadas inline em cada página e passam a ser importadas de `src/lib/modal-system.ts` e `src/lib/chip-select.ts`.
+3. **Scripts de página extraídos:** A lógica de cada modal (população de campos, save, delete, tabs) é movida para arquivos como `src/lib/modals/circuit-modal.ts` e `src/lib/modals/customer-modal.ts`, importados nas respectivas páginas.
+4. **Sem duplicação:** O sub-modal de cliente (aberto a partir do circuito) reutiliza a lógica de `customer-modal.ts`.
+5. **Comportamento preservado:** Todos os critérios da US-039 continuam funcionando após a refatoração.
+6. **Testes:** Os testes existentes de `ModalSystem` e `ChipSelect` continuam passando.
 
 ---
+
+## US-041
+
+**Titulo:** Reestruturação da página de listagem de Circuitos
+
+**Descrição:**
+Como administrador, quero que a página de listagem de Circuitos seja redesenhada com cards de resumo de métricas, filtros rápidos por segmento e indicadores visuais melhorados na tabela, mantendo a integração com o sistema de modais empilhados para edição.
+
+**Estimativa:** 5 story points
+
+**Critérios de Aceite:**
+
+1. **Cards de resumo (4):** Grid 4 colunas com cards de fundo `#f5f5f5`, padding 14px 16px, border-radius 8px — exibindo Total de circuitos (texto primário), Ativos (verde `#085041`), Online agora (verde `#085041`) e Inativos (vermelho `#791F1F`). Label 12px / valor 22px font-weight 500. Dados vindos de `GET /api/circuits/summary` → `{ total, active, online, inactive }`.
+2. **Barra de ferramentas:** Campo de busca com ícone de lupa integrado (debounce 300ms, max-width 320px) + button group de 4 filtros (Todos / Online / Offline / Inativos) + paginação com chevrons SVG substituindo os textos "Anterior/Próxima".
+3. **Button group de filtros:** Botões sem gap, bordas unificadas. Ativo: fundo `#ffffff`, texto `#1a1a1a`, font-weight 500. Inativo: fundo transparente, texto `#888`. Filtros mapeados para query params: Todos (sem filtro), Online (`online=true`), Offline (`online=false&status=ACTIVE`), Inativos (`status=INACTIVE`).
+4. **Tabela em grid CSS:** Container com `border-radius 12px`, `border: 0.5px solid #e0e0e0`, `overflow: hidden`. Header com fundo `#f5f5f5`, font-size 11px. Linhas com `grid-template-columns: 48px 68px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 64px 110px 70px`, gap 6px, padding 11px 16px.
+5. **Coluna Status:** bolinha 7px (`#1D9E75` ativo / `#E24B4A` inativo) + texto (`#085041` / `#791F1F`).
+6. **Coluna Online:** badge pill (`border-radius: 99px`) — "OK" com fundo `#E1F5EE` / texto `#085041`; "Off" com fundo `#f5f5f5` / texto `#888`.
+7. **Linha selecionada:** ao abrir modal, linha recebe fundo `#E6F1FB` e `border-left: 2px solid #378ADD`; ao fechar modal, volta ao normal.
+8. **Linha inativa:** `opacity: 0.55` (hover: `0.75`).
+9. **Campos monospace:** Código, IP e RTT renderizados em `font-family: monospace`.
+10. **Botão "Novo circuito":** fundo `#1D9E75`, ícone `+` SVG + texto, abre modal em modo criação (campos vazios).
+11. **Endpoint de resumo:** `GET /api/circuits/summary` no backend retornando `{ total, active, online, inactive }` calculados a partir da base.
+
