@@ -3,10 +3,10 @@
 ## Indice
 
 1. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
-4. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
-5. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
-6. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
-7. [US-033 — Botão "Adicionar circuito" na página de detalhe do cliente](#us-033)
+2. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
+3. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
+4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
+5. [US-035 — Atalho de navegação para detalhe do item selecionado no SearchSelect](#us-035)
 
 ---
 
@@ -127,21 +127,21 @@ Como desenvolvedor, quero que cada ligação processada registre um snapshot dos
 
 ---
 
-## US-033
+## US-035
 
-**Titulo:** Botão "Adicionar circuito" na página de detalhe do cliente
+**Titulo:** Atalho de navegação para detalhe do item selecionado no SearchSelect
 
 **Descrição:**
-Como administrador, quero que na página de detalhe do cliente haja um botão "Adicionar" acima da tabela de circuitos que me leve para a página de criação de circuito com o campo Cliente já preenchido, e ao salvar o novo circuito, retorne automaticamente para a página do cliente.
+Como administrador, quero que ao selecionar um item em um campo SearchSelect (ex.: cliente), apareça um ícone de seta ao lado do campo que, ao ser clicado, abre a página de detalhe do item selecionado — com o botão "Voltar" funcionando corretamente para retornar à página de origem.
 
-**Estimativa:** 1 story point
+**Estimativa:** 2 story points
 
 **Critérios de Aceite:**
 
-1. **Botão Adicionar:** Na página `customers/[id]`, um botão "Adicionar" é exibido no canto superior direito acima da tabela de circuitos vinculados.
-2. **Navegação com cliente pré-selecionado:** Clicar no botão navega para `circuits/new?customerId=[id]`, passando o ID do cliente como parâmetro.
-3. **Campo Cliente pré-preenchido:** Na página `circuits/new`, se o parâmetro `customerId` estiver presente, o campo Cliente é automaticamente selecionado e não pode ser alterado.
-4. **Retorno ao cliente:** Após salvar o novo circuito com sucesso, o sistema navega para `customers/[id]` em vez de `circuits/[number]`.
-5. **Comportamento padrão preservado:** Quando `circuits/new` for acessado sem `customerId`, o comportamento atual permanece inalterado (cliente editável, retorno para `/circuits`).
+1. **Ícone de atalho:** Quando um item está selecionado no SearchSelect, um ícone `arrow-up-right` é exibido à direita do componente; quando vazio, o ícone fica oculto.
+2. **Navegação:** Clicar no ícone navega para a página de detalhe do item com parâmetro `from` para que o botão "Voltar" retorne à página de origem.
+3. **Escopo inicial:** Aplicado ao campo **Cliente** nas páginas `circuits/new` e `circuits/[id]` (única entidade com página de detalhe atualmente). Campo Plano e Tronco serão contemplados quando suas páginas de detalhe existirem.
+4. **API do componente:** O SearchSelect recebe uma função `onNavigate?: (value: string) => string` no config, que retorna a URL de destino. O ícone só é renderizado quando `onNavigate` está definido.
+5. **Sem regressão:** O comportamento de seleção, filtragem e fechamento do SearchSelect permanece inalterado.
 
-
+---

@@ -4,6 +4,17 @@
 
 ---
 
+### US-033 — Botão "Adicionar circuito" na página de detalhe do cliente
+
+**Solução:**
+- Botão "Adicionar" inserido no cabeçalho da tabela de circuitos em `customers/[id].astro`; navega para `circuits/new?customerId=${customerId}`.
+- Em `circuits/new.astro`, se `customerId` estiver presente na URL: campo Cliente é pré-selecionado via `setValue()` e desabilitado via `setDisabled(true)`.
+- Após salvar com sucesso, redireciona para `customers/${customerId}` em vez de `circuits/${created.number}`.
+- Método `setDisabled(boolean)` adicionado ao componente `SearchSelect`.
+- Comportamento padrão (sem `customerId`) preservado integralmente.
+
+---
+
 ### US-032 — Navegação contextual: voltar para cliente ao acessar circuito via página de cliente
 
 **Solução:**
