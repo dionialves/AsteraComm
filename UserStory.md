@@ -6,6 +6,8 @@
 2. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
 3. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
 4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
+5. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
+6. [US-038 — Slide panel para edição de registros (Circuito e Cliente)](#us-038)
 
 ---
 
@@ -126,3 +128,48 @@ Como desenvolvedor, quero que cada ligação processada registre um snapshot dos
 
 ---
 
+## US-037
+
+**Titulo:** Adicionar campo `linked_at` ao DID
+
+**Descrição:**
+Como administrador, quero que cada DID registre a data em que foi vinculado a um circuito, para que a página de detalhe do circuito exiba a coluna "Vinculado em" com a data correta.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Campo `linked_at`:** A entidade `DID` passa a ter o campo `linked_at` (timestamp, nullable), preenchido automaticamente com a data/hora atual sempre que o DID é vinculado a um circuito (`circuit_id` atribuído).
+2. **Limpeza ao desvincular:** Ao desvincular o DID (circuito removido), `linked_at` é zerado (`NULL`).
+3. **Migração:** Uma migração Flyway adiciona a coluna `linked_at` à tabela de DIDs, com valor `NULL` para registros existentes.
+4. **API:** O endpoint `GET /api/v1/dids/by-circuit/{circuitId}` retorna o campo `linkedAt` no JSON de cada DID.
+5. **Frontend:** Nenhuma alteração necessária — a página de detalhe do circuito já usa `did.linkedAt` na coluna "Vinculado em".
+
+---
+
+## US-038
+
+**Titulo:** Slide panel para edição de registros (Circuito e Cliente)
+
+**Descrição:**
+Como administrador, quero que ao clicar em um registro na listagem (Circuitos, Clientes) um painel lateral deslizante se abra pela direita, mantendo a listagem visível ao fundo, em vez de navegar para uma página dedicada. O panel permite editar, salvar e deletar o registro sem sair da listagem, e oferece um botão "Expandir" para abrir a página inteira quando necessário.
+
+**Estimativa:** 8 story points
+
+**Critérios de Aceite:**
+
+1. **Overlay:** Camada semi-transparente (`rgba(0,0,0,0.12)`) cobre a viewport ao abrir o panel; clicar nela fecha o panel. Transição de `0.3s ease` sincronizada com o panel.
+2. **Slide panel — container:** Fixo à direita (`position: fixed; top: 0; right: 0; bottom: 0`), largura 520px, fundo branco, borda esquerda fina. Animação: `transform: translateX(100%)` → `translateX(0)` com `cubic-bezier(0.4, 0, 0.2, 1) 0.3s`. Z-index overlay: 5; panel: 10.
+3. **Header (sticky):** Subtítulo do tipo da entidade + título com código do registro. Dois botões ícone à direita: **Expandir** (navega para a página inteira `/circuits/{id}`) e **Fechar** (fecha o panel). Abaixo, linha de tabs horizontais.
+4. **Tabs — Circuito:** "Detalhes", "DIDs", "Histórico". Tabs — **Cliente:** "Detalhes", "Circuitos", "Histórico". Tab ativa: `border-bottom: 2px solid` + texto primário + font-weight 500. Tab inativa: borda transparente + cor secundária.
+5. **Tab Detalhes (Circuito):** Seções separadas por dividers (sem cards com borda). Seção **Identificação**: grid 2 colunas (ID disabled, Código disabled) + toggle Ativo/Inativo. Seção **Autenticação**: input password + toggle visibilidade. Seção **Configuração**: grid 2 colunas (Tronco, Plano) + Cliente em largura parcial — todos com SearchSelect.
+6. **Tab Detalhes (Cliente):** Seção **Identificação**: grid 2 colunas (ID disabled, Nome editável) + toggle Ativo/Inativo.
+7. **Tab DIDs / Circuitos:** Botão "Adicionar" alinhado à direita. Grid com colunas adaptadas para 520px. DIDs: `50px 1fr 100px 36px` (ID, Número, Vinculado em, X). Circuitos: colunas essenciais (ID, Status, Código, Plano, Online, link externo) — omitir IP e RTT. Estado vazio com mensagem centralizada.
+8. **Tab Histórico:** Timeline vertical com bolinha colorida, texto do evento (ex: "Plano alterado: Básico → Real") e metadata (data/hora — usuário). Dado alimentado pelo backend; exibir "Nenhum registro." se vazio.
+9. **Footer (sticky):** Lado esquerdo: botão "Deletar" com confirmação em 2 cliques (primeiro muda texto/estilo, segundo executa). Lado direito: botões "Cancelar" (fecha sem salvar) e "Salvar" (AJAX, sem reload).
+10. **Comportamentos:** Fechar via botão X, Cancelar, overlay ou `Escape`. Após salvar com sucesso: panel permanece aberto, linha na listagem atualizada in-place, toast de sucesso exibido. URL atualizada via `history.pushState` (ex: `/circuits?panel=4933311611`) para deep linking.
+11. **Dimensões no panel:** Font-size de inputs 13px, padding `7px 10px`, ícones 13px, botões do footer 12px — levemente reduzidos em relação à página inteira para caber em 520px.
+12. **Página inteira preservada:** `circuits/[id].astro` e `customers/[id].astro` permanecem funcionais como fallback acessível pelo botão "Expandir" e por URLs diretas.
+13. **Testes:** Abertura/fechamento do panel, troca de tabs, salvamento via AJAX com atualização in-place da listagem, deletar com 2 cliques, fechar com Escape e overlay.
+
+---

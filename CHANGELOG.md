@@ -4,6 +4,19 @@
 
 ---
 
+### US-036 — Redesenhar layout da página de detalhe do circuito
+
+**Solução:**
+- Container principal: `max-w-[1100px] mx-auto`.
+- Header: breadcrumb (`Circuitos › {código}`) + `h1` + botões Voltar/Salvar. Deletar removido do header.
+- Card Identificação: grid 3 colunas — ID (disabled), Código (disabled), Status com toggle button group colorido (Ativo = verde, Inativo = vermelho).
+- Card Autenticação: `input[type=password]` + font-mono + botão toggle olho/olho-cortado.
+- Card Configuração: Tronco e Plano em grid 2 colunas; Cliente em `max-w-[400px]`, todos com SearchSelect.
+- Card DIDs vinculados: grid CSS por linha (`60px 1fr 130px 44px`), colunas ID/Número/Vinculado em + botão X individual para desvincular (sem checkbox).
+- Footer: botão "Deletar circuito" com confirmação em 2 cliques (4s de timeout), timestamp "Última modificação".
+
+---
+
 ### US-035 — Travar seleção e exibir ações ao selecionar item no SearchSelect
 
 **Solução:**
