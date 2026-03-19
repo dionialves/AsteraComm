@@ -3,10 +3,12 @@
 ## Indice
 
 1. [US-026 — Modal de seleção de DID ao vincular circuito](#us-026)
-4. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
-5. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
-6. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
-7. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
+3. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
+4. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
+5. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
+6. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
+7. [US-032 — Navegação contextual: voltar para cliente ao acessar circuito via página de cliente](#us-032)
+8. [US-033 — Botão "Adicionar circuito" na página de detalhe do cliente](#us-033)
 
 ---
 
@@ -148,4 +150,40 @@ Como administrador, quero que ao clicar em "Adicionar DID" na página de detalhe
 8. **Sem regressão:** O comportamento de desvinculação e demais funcionalidades da página permanecem inalterados.
 
 ---
+
+## US-032
+
+**Titulo:** Navegação contextual: voltar para cliente ao acessar circuito via página de cliente
+
+**Descrição:**
+Como administrador, quero que ao clicar em um circuito dentro da página de detalhe de um cliente, o botão "Voltar" na página do circuito me retorne à página do cliente de onde vim — e não para a listagem geral de circuitos.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Navegação de ida:** Clicar em um circuito na tabela de `customers/[id]` navega para `circuits/[number]` passando a origem como parâmetro (ex.: `?from=customers/[id]`).
+2. **Botão Voltar contextual:** Na página `circuits/[number]`, se o parâmetro `from` estiver presente, o botão "Voltar" navega para a URL indicada por `from`.
+3. **Comportamento padrão preservado:** Se não houver parâmetro `from`, o botão "Voltar" continua navegando para `/circuits` como hoje.
+4. **Sem outras alterações:** Nenhum outro comportamento da página de circuito é afetado.
+
+---
+
+## US-033
+
+**Titulo:** Botão "Adicionar circuito" na página de detalhe do cliente
+
+**Descrição:**
+Como administrador, quero que na página de detalhe do cliente haja um botão "Adicionar" acima da tabela de circuitos que me leve para a página de criação de circuito com o campo Cliente já preenchido, e ao salvar o novo circuito, retorne automaticamente para a página do cliente.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Botão Adicionar:** Na página `customers/[id]`, um botão "Adicionar" é exibido no canto superior direito acima da tabela de circuitos vinculados.
+2. **Navegação com cliente pré-selecionado:** Clicar no botão navega para `circuits/new?customerId=[id]`, passando o ID do cliente como parâmetro.
+3. **Campo Cliente pré-preenchido:** Na página `circuits/new`, se o parâmetro `customerId` estiver presente, o campo Cliente é automaticamente selecionado e não pode ser alterado.
+4. **Retorno ao cliente:** Após salvar o novo circuito com sucesso, o sistema navega para `customers/[id]` em vez de `circuits/[number]`.
+5. **Comportamento padrão preservado:** Quando `circuits/new` for acessado sem `customerId`, o comportamento atual permanece inalterado (cliente editável, retorno para `/circuits`).
+
 

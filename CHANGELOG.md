@@ -4,6 +4,30 @@
 
 ---
 
+### US-034 — Ajustar colunas da tabela de DIDs vinculados no circuito
+
+**Solução:**
+- Tabela de DIDs em `circuits/[id].astro` passa a exibir apenas as colunas `ID` e `Número`, removendo a coluna `Status`.
+- Coluna `ID` com largura fixa `w-16`; coluna `Número` sem largura fixa, ocupando o restante da tabela.
+- Checkboxes de seleção e comportamento do botão Desvincular preservados.
+
+---
+
+### US-031 — Componente de seleção com pesquisa integrada (SearchSelect)
+
+**Solução:**
+- Componente `SearchSelect` implementado em `src/lib/search-select.ts` como classe TypeScript reutilizável.
+- Aparência fechada simula `<select>` nativo com ícone de seta e label do item selecionado (ou placeholder em cinza).
+- Ao clicar, abre dropdown com campo de pesquisa no topo e lista de até 10 opções filtradas em tempo real (case-insensitive, client-side).
+- API pública: `getValue()`, `setValue(value)`, `setOptions(options)`.
+- Clicar fora do componente fecha o dropdown sem alterar a seleção.
+- Integrado em `circuits/new.astro` (tronco, cliente, plano) e `circuits/[id].astro` (tronco, cliente, plano e DID no modal de vínculo).
+- Selects excluídos: `#selectPackageType` em `plans/index.astro` (3 opções fixas de controle).
+- Payloads HTTP enviados ao backend permanecem idênticos aos anteriores.
+- 19 testes unitários cobrindo: estado fechado, abertura, filtragem, seleção, fechamento, `setValue()` e `setOptions()`.
+
+---
+
 ### US-030 — Página de detalhe do cliente
 
 **Solução:**
