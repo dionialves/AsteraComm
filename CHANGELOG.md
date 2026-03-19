@@ -4,6 +4,14 @@
 
 ---
 
+### US-032 — Navegação contextual: voltar para cliente ao acessar circuito via página de cliente
+
+**Solução:**
+- Em `customers/[id].astro`, o clique em uma linha de circuito passa `?from=customers/${customerId}` na URL de destino.
+- Em `circuits/[id].astro`, o botão "Voltar" lê o parâmetro `from`: se presente, navega para `/${from}`; caso contrário, mantém o comportamento padrão (`/circuits`).
+
+---
+
 ### US-034 — Ajustar colunas da tabela de DIDs vinculados no circuito
 
 **Solução:**

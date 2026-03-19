@@ -2,13 +2,11 @@
 
 ## Indice
 
-1. [US-026 — Modal de seleção de DID ao vincular circuito](#us-026)
-3. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
+1. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
 4. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
 5. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
 6. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
-7. [US-032 — Navegação contextual: voltar para cliente ao acessar circuito via página de cliente](#us-032)
-8. [US-033 — Botão "Adicionar circuito" na página de detalhe do cliente](#us-033)
+7. [US-033 — Botão "Adicionar circuito" na página de detalhe do cliente](#us-033)
 
 ---
 
@@ -126,46 +124,6 @@ Como desenvolvedor, quero que cada ligação processada registre um snapshot dos
 4. **Ferramenta de auditoria (US-016):** A ferramenta de auditoria passa a utilizar os dados do snapshot armazenados em `Call` para os cálculos, em vez de buscar o estado atual do plano/circuito.
 5. **Migração:** Uma migração Flyway adiciona as novas colunas à tabela de calls, com valor `NULL` para registros históricos (aceito para chamadas anteriores à feature).
 6. **Testes:** Testes unitários cobrem: snapshot preenchido corretamente no processamento, imutabilidade após alteração do plano, e que a auditoria usa os dados do snapshot e não os valores atuais.
-
----
-
-## US-026
-
-**Titulo:** Modal de seleção de DID ao vincular circuito
-
-**Descrição:**
-Como administrador, quero que ao clicar em "Adicionar DID" na página de detalhe do circuito, abra um modal onde posso navegar pelos DIDs disponíveis ou pesquisar por número, selecionar um e confirmar a vinculação — sem sair da página.
-
-**Estimativa:** 2 story points
-
-**Critérios de Aceite:**
-
-1. **Abertura do modal:** O botão "Adicionar DID" na página `circuits/[id]` abre um modal sobreposto à tela.
-2. **Listagem de DIDs livres:** O modal exibe todos os DIDs disponíveis (sem circuito vinculado), carregados via `GET /api/dids/free`.
-3. **Pesquisa por número:** Campo de busca no topo do modal filtra os DIDs exibidos em tempo real (client-side) conforme o usuário digita.
-4. **Seleção:** Clicar em um DID da lista o destaca como selecionado.
-5. **Confirmação:** Botão "Inserir" vincula o DID selecionado ao circuito (requisição existente de vínculo) e fecha o modal.
-6. **Cancelamento:** Botão "Cancelar" ou clique fora do modal fecha sem realizar nenhuma ação.
-7. **Feedback:** Após o vínculo bem-sucedido, a tabela de DIDs do circuito é atualizada sem reload de página.
-8. **Sem regressão:** O comportamento de desvinculação e demais funcionalidades da página permanecem inalterados.
-
----
-
-## US-032
-
-**Titulo:** Navegação contextual: voltar para cliente ao acessar circuito via página de cliente
-
-**Descrição:**
-Como administrador, quero que ao clicar em um circuito dentro da página de detalhe de um cliente, o botão "Voltar" na página do circuito me retorne à página do cliente de onde vim — e não para a listagem geral de circuitos.
-
-**Estimativa:** 1 story point
-
-**Critérios de Aceite:**
-
-1. **Navegação de ida:** Clicar em um circuito na tabela de `customers/[id]` navega para `circuits/[number]` passando a origem como parâmetro (ex.: `?from=customers/[id]`).
-2. **Botão Voltar contextual:** Na página `circuits/[number]`, se o parâmetro `from` estiver presente, o botão "Voltar" navega para a URL indicada por `from`.
-3. **Comportamento padrão preservado:** Se não houver parâmetro `from`, o botão "Voltar" continua navegando para `/circuits` como hoje.
-4. **Sem outras alterações:** Nenhum outro comportamento da página de circuito é afetado.
 
 ---
 
