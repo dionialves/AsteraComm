@@ -4,6 +4,22 @@
 
 ---
 
+### US-048 — Reestruturação da página de listagem de Usuários
+
+**Solução:**
+- Frontend: `users/index.astro` reescrito com 100% Tailwind + classes canônicas do `global.css`.
+- Header com título "Usuários" + subtítulo + botão "Novo usuário" (`#1D9E75`).
+- Toolbar com busca (debounce 300ms, client-side por nome e username), filtros Todos/Ativos/Inativos e paginação condicional (oculta quando ≤ 20 registros).
+- Tabela CSS Grid 7 colunas: ID (font-mono), Status (bolinha 7px + texto colorido), Nome, Username, Role (badge pill por nível), Criado em, Atualizado em. Sort client-side por coluna com seta indicadora.
+- Linha inativa `opacity: 0.55`, linha selecionada `#E6F1FB` + `border-left: 2px solid #378ADD`.
+- Rodapé contador singular/plural alinhado à direita.
+- Modal no padrão canônico dos Circuitos: `.modal-overlay` animado, `.modal-main` (780px, `height: auto`), `.modal-header` com subtítulo "Usuário" + título dinâmico + botão fechar, `.modal-body` com campos `form-input`/`form-label`, `.modal-footer` com Excluir (edit only) à esquerda e Cancelar/Salvar à direita.
+- Campos do modal: Nome, Username (disabled no edit), Senha (apenas criação), Nível de Acesso (select), toggle Ativo/Inativo (apenas edit).
+- Exclusão com confirmação inline: form-body oculto, confirm-body exibido com "Confirmar exclusão" / "Voltar".
+- Sem alteração no backend.
+
+---
+
 ### US-047 — Reestruturação do sistema de Relatórios
 
 **Solução:**

@@ -8,8 +8,10 @@
 4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
 5. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
 6. [US-040 — Refatoração: extrair scripts de modal para arquivos `.ts` importáveis nas páginas Astro](#us-040)
-7. [US-048 — Reestruturação da página de listagem de Usuários](#us-048)
-11. [US-049 — Reestruturação da página de Auditoria](#us-049)
+7. [FIX-001 — Erro ao desativar/ativar usuário](#fix-001)
+8. [FIX-002 — Modais fora do tamanho correto nas páginas de Ligações e Planos](#fix-002)
+9. [FIX-003 — Botões do modal desalinhados no modo de criação](#fix-003)
+10. [US-049 — Reestruturação da página de Auditoria](#us-049)
 12. [US-050 — Reestruturação do sidebar de navegação](#us-050)
 13. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
 14. [US-053 — Botão "Novo circuito" abre modal de criação](#us-053)
@@ -19,6 +21,8 @@
 18. [US-057 — Adicionar campo `active` ao Plano com filtro na listagem](#us-057)
 19. [US-058 — Ajustar cor do texto dos IDs nas páginas de Clientes e DIDs](#us-058)
 20. [US-059 — Adicionar coluna ID na listagem de Troncos](#us-059)
+21. [US-060 — Excluir usuário pelo modal de edição](#us-060)
+22. [US-061 — Refatoração: controle de acesso ao menu por nível de usuário](#us-061)
 
 ---
 
@@ -178,29 +182,54 @@ Como desenvolvedor, quero que a lógica dos modais (`ModalSystem`, `ChipSelect` 
 
 ---
 
-## US-048
+## FIX-001
 
-**Titulo:** Reestruturação da página de listagem de Usuários
+**Titulo:** Erro ao desativar/ativar usuário
 
 **Descrição:**
-Como administrador, quero que a página de listagem de Usuários seja redesenhada sem cards de resumo, busca, filtros ou paginação (sistema terá 1-5 usuários), com tabela de 7 colunas exibindo status, nome, username, role com badge colorido por nível de acesso e timestamps, clique na linha abrindo modal de edição.
+Como administrador, ao clicar em "Desativar usuário" ou "Ativar usuário" no modal de edição, o sistema retorna erro porque as rotas Astro `PATCH /api/users/[id]/disable` e `PATCH /api/users/[id]/enable` não existem no frontend.
 
-**Estimativa:** 2 story points
+**Estimativa:** 1 story point
 
 **Critérios de Aceite:**
 
-1. **Header:** Título "Usuários" (22px, font-weight 500) + subtítulo "Controle de acesso e permissões do sistema" (13px, `#888`) à esquerda; botão "Novo usuário" (fundo `#1D9E75`, ícone `+` SVG, abre modal de criação) à direita.
-2. **Sem cards, busca, filtros ou paginação:** removidos por serem desnecessários para 1-5 registros.
-3. **Tabela em grid CSS:** Container com `border-radius 12px`, `border: 0.5px solid #e0e0e0`, `overflow: hidden`. Colunas: `grid-template-columns: 40px 68px minmax(0,1fr) minmax(0,1fr) 100px 140px 140px`, gap 8px, padding linhas 14px 16px. Header fundo `#f5f5f5`, font-size 11px, font-weight 500, cor `#888`. Colunas: ID, Status, Nome, Username, Role, Criado em, Atualizado em.
-4. **Coluna Status:** bolinha 7px + texto — Ativo (bolinha `#1D9E75`, texto `#085041`), Inativo (bolinha `#E24B4A`, texto `#791F1F`).
-5. **Coluna Nome:** font-size 13px, font-weight 500, cor primária.
-6. **Coluna Username:** font-size 12px, cor `#888`, com `text-overflow: ellipsis` para emails longos.
-7. **Coluna Role:** badge pill (border-radius 99px, font-size 11px, padding 2px 10px). Super Admin: fundo `#EEEDFE`, texto `#3C3489`. Admin: fundo `#E6F1FB`, texto `#0C447C`. Operador: fundo `#f5f5f5`, texto `#888`.
-8. **Colunas de data:** font-size 12px, cor `#888`, formato `dd/mm/aaaa, HH:mm`.
-9. **Linha inativa:** `opacity: 0.55` (hover: `0.75`).
-10. **Linha selecionada:** ao abrir modal, fundo `#E6F1FB` + `border-left: 2px solid #378ADD`; ao fechar, volta ao normal.
-11. **Rodapé contador:** texto "{n} usuários cadastrados" / "1 usuário cadastrado" (singular), font-size 12px, cor `#888`, alinhado à direita, margin-top 12px.
-12. **Endpoint backend:** `GET /api/users` retorna `List<UserDTO>` simples (sem paginação), cada item com `id`, `name`, `username`, `role` (`SUPER_ADMIN`, `ADMIN`, `OPERATOR`), `active`, `createdAt`, `updatedAt`.
+1. **Rota disable:** Criar `frontend/src/pages/api/users/[id]/disable.ts` com handler `PATCH` que proxia para `PATCH /api/users/{id}/disable` no backend com o token de autenticação.
+2. **Rota enable:** Criar `frontend/src/pages/api/users/[id]/enable.ts` com handler `PATCH` que proxia para `PATCH /api/users/{id}/enable` no backend com o token de autenticação.
+3. **Comportamento:** O toggle Ativar/Desativar no modal funciona sem erro, a tabela atualiza imediatamente e exibe toast de sucesso.
+
+---
+
+## FIX-002
+
+**Titulo:** Modais fora do tamanho correto nas páginas de Ligações e Planos
+
+**Descrição:**
+Como administrador, os modais das páginas de Ligações (`/calls`) e Planos (`/plans`) estão com dimensões incorretas em relação ao padrão visual do sistema, causando inconsistência de layout.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Modal de Planos:** largura e altura ajustadas para seguir o padrão canônico (`max-w-md` ou `max-w-lg` conforme quantidade de campos), sem overflow nem compressão de conteúdo.
+2. **Modal de Ligações:** idem — dimensões corrigidas para exibir todos os campos sem scroll desnecessário ou espaço excessivo.
+3. **Sem alteração** de conteúdo, lógica ou comportamento dos modais — apenas dimensões e espaçamentos corrigidos.
+
+---
+
+## FIX-003
+
+**Titulo:** Botões do modal desalinhados no modo de criação
+
+**Descrição:**
+Ao abrir o modal para adicionar um novo registro, o botão "Excluir" (visível apenas no modo edição) ocupa espaço no layout mesmo quando oculto, fazendo com que os botões "Cancelar" e "Salvar" não fiquem totalmente à direita.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Modo criação:** os botões "Cancelar" e "Salvar" ficam alinhados à direita (`justify-content: flex-end`) quando não há botão "Excluir" visível.
+2. **Modo edição:** o layout permanece com "Excluir" à esquerda e "Cancelar"/"Salvar" à direita (`space-between`), sem alteração.
+3. **Escopo:** corrigir em todas as páginas que utilizam o padrão de modal com footer (`modal-footer`) — Circuitos, Clientes, Planos, DIDs, Troncos e Usuários.
 
 ---
 
@@ -417,3 +446,42 @@ Como administrador, quero que a tabela de listagem de Troncos exiba a coluna ID,
 2. **Header:** Label `"ID"` no cabeçalho, seguindo o padrão `text-[11px] font-medium text-[#888] uppercase tracking-wide`.
 3. **Grid atualizado:** `grid-template-columns` da `.trunk-row` atualizado para incluir a nova coluna.
 4. **Sem alteração** em qualquer outro campo, comportamento ou estilo da página.
+
+---
+
+## US-060
+
+**Titulo:** Excluir usuário pelo modal de edição
+
+**Descrição:**
+Como administrador, quero poder excluir um usuário diretamente pelo modal de edição, com confirmação antes de executar a ação, para remover contas que não serão mais utilizadas.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Botão "Excluir":** exibido apenas no modal de edição, posicionado à esquerda no rodapé do header do modal (separado dos botões Salvar/Cancelar), texto `#791F1F`, hover `bg-[#FEE2E2]`, border `#e0e0e0`.
+2. **Confirmação inline:** ao clicar, o body do modal exibe mensagem "Tem certeza? Esta ação não pode ser desfeita." com botões "Confirmar exclusão" (vermelho) e "Cancelar" (cinza); os campos do formulário ficam ocultos durante a confirmação.
+3. **Execução:** confirmar chama `DELETE /api/users/{id}`, fecha o modal, remove o usuário da tabela e exibe toast de sucesso.
+4. **Proteção:** o botão "Excluir" é oculto quando o usuário logado é o mesmo que está sendo editado (sem auto-exclusão).
+
+---
+
+## US-061
+
+**Titulo:** Refatoração: controle de acesso ao menu por nível de usuário
+
+**Descrição:**
+Como administrador, quero que os itens do sidebar de navegação sejam exibidos de acordo com o nível de acesso do usuário logado, ocultando seções restritas para perfis com menos privilégios.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **Leitura do perfil logado:** O frontend obtém o `role` do usuário autenticado (via endpoint existente ou JWT decodificado no middleware) e o disponibiliza para as decisões de visibilidade do menu.
+2. **Regras de visibilidade por role:**
+   - `SUPER_ADMIN`: acesso a todos os itens do menu.
+   - `ADMIN`: acesso a todos os itens, exceto o menu de **Usuários**.
+   - `USER` (Operador): acesso apenas a itens operacionais (Circuitos, Ligações, Auditoria) — sem acesso a Usuários, Clientes, Planos, Troncos ou DIDs.
+3. **Proteção de rota:** Além da visibilidade no menu, o middleware Astro (`src/middleware.ts`) nega acesso direto via URL a rotas restritas, redirecionando para `/dashboard` com mensagem de permissão insuficiente.
+4. **Sem impacto visual:** itens visíveis permanecem com aparência idêntica ao atual; apenas itens inacessíveis são ocultados.
