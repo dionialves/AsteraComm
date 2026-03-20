@@ -8,8 +8,7 @@
 4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
 5. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
 6. [US-040 — Refatoração: extrair scripts de modal para arquivos `.ts` importáveis nas páginas Astro](#us-040)
-7. [US-046 — Reestruturação da página de listagem de Planos](#us-046)
-9. [US-047 — Reestruturação do sistema de Relatórios](#us-047)
+7. [US-047 — Reestruturação do sistema de Relatórios](#us-047)
 10. [US-048 — Reestruturação da página de listagem de Usuários](#us-048)
 11. [US-049 — Reestruturação da página de Auditoria](#us-049)
 12. [US-050 — Reestruturação do sidebar de navegação](#us-050)
@@ -18,6 +17,9 @@
 15. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
 16. [US-055 — Excluir DID livre pela página de listagem de DIDs](#us-055)
 17. [US-056 — Contador de registros no rodapé das listagens de Circuitos, Clientes e DIDs](#us-056)
+18. [US-057 — Adicionar campo `active` ao Plano com filtro na listagem](#us-057)
+19. [US-058 — Ajustar cor do texto dos IDs nas páginas de Clientes e DIDs](#us-058)
+20. [US-059 — Adicionar coluna ID na listagem de Troncos](#us-059)
 
 ---
 
@@ -174,31 +176,6 @@ Como desenvolvedor, quero que a lógica dos modais (`ModalSystem`, `ChipSelect` 
 4. **Sem duplicação:** O sub-modal de cliente (aberto a partir do circuito) reutiliza a lógica de `customer-modal.ts`.
 5. **Comportamento preservado:** Todos os critérios da US-039 continuam funcionando após a refatoração.
 6. **Testes:** Os testes existentes de `ModalSystem` e `ChipSelect` continuam passando.
-
----
-
-## US-046
-
-**Titulo:** Reestruturação da página de listagem de Planos
-
-**Descrição:**
-Como administrador, quero que a página de listagem de Planos seja redesenhada sem cards de resumo, busca, filtros ou paginação (sistema terá 1-3 planos), com tabela de 8 colunas exibindo tarifas por destino e mini badges de pacote de minutos, clique na linha abrindo modal de edição e deleção exclusivamente no modal.
-
-**Estimativa:** 2 story points
-
-**Critérios de Aceite:**
-
-1. **Header:** Título "Planos" (22px, font-weight 500) + subtítulo "Franquias de minutos e tarifação por destino" (13px, `#888`) à esquerda; botão "Novo plano" (fundo `#1D9E75`, ícone `+` SVG, abre modal de criação) à direita.
-2. **Sem cards, busca, filtros ou paginação:** removidos por serem desnecessários para 1-3 registros.
-3. **Tabela em grid CSS:** Container com `border-radius 12px`, `border: 0.5px solid #e0e0e0`, `overflow: hidden`. Colunas: `grid-template-columns: 40px minmax(0,1fr) 90px 80px 80px 80px 80px minmax(0,1fr)`, gap 6px, padding linhas 14px 16px. Header fundo `#f5f5f5`, font-size 11px, font-weight 500, cor `#888`. Colunas: ID, Nome, Mensalidade, Fixo Local, Fixo LD, Móvel Local, Móvel LD, Pacote.
-4. **Coluna Nome:** font-size 13px, font-weight 500, cor primária.
-5. **Coluna Mensalidade:** font-family monospace, font-size 12px, font-weight 500, cor primária. Formato `R$ 42,90`.
-6. **Colunas de tarifas (Fixo Local, Fixo LD, Móvel Local, Móvel LD):** font-family monospace, font-size 12px, font-weight normal, cor primária. Formato com 4 casas decimais (ex: `0,3099`).
-7. **Coluna Pacote:** mini badges pill (border-radius 99px, font-size 11px, padding 1px 8px) para cada tipo — FL, FI, ML, MLD. Franquia > 0: fundo `#E6F1FB`, texto `#0C447C`. Franquia = 0: fundo `#f5f5f5`, texto `#888`.
-8. **Remoção dos botões "Editar" e "Excluir" da tabela:** deleção exclusivamente no footer do modal.
-9. **Linha selecionada:** ao abrir modal, fundo `#E6F1FB` + `border-left: 2px solid #378ADD`; ao fechar, volta ao normal.
-10. **Rodapé contador:** texto "{n} planos cadastrados" / "1 plano cadastrado" (singular), font-size 12px, cor `#888`, alinhado à direita, margin-top 12px.
-11. **Endpoint backend:** `GET /api/plans` retorna `List<PlanDTO>` simples (sem paginação), cada item com `id`, `name`, `monthlyFee`, `rateLocalFixed`, `rateLongDistanceFixed`, `rateLocalMobile`, `rateLongDistanceMobile`, `packageLocalFixed`, `packageLongDistanceFixed`, `packageLocalMobile`, `packageLongDistanceMobile`.
 
 ---
 
@@ -413,3 +390,58 @@ Como administrador, quero ver um contador de registros no rodapé das páginas d
 3. **Separador de milhares:** número formatado em pt-BR (ex: `123.560 circuitos cadastrados`).
 4. **Reflete filtros:** o total exibido é o `totalElements` da página atual retornado pelo backend (já disponível na resposta paginada).
 5. **Páginas alvo:** `circuits/index.astro`, `customers/index.astro`, `dids/index.astro`.
+
+---
+
+## US-057
+
+**Titulo:** Adicionar campo `active` ao Plano com filtro na listagem
+
+**Descrição:**
+Como administrador, quero que cada plano tenha um campo de status (ativo/inativo), que seja exibido como linha esmaecida na tabela quando inativo, e que a listagem de planos ofereça um grupo de botões de filtro (Todos / Ativos / Inativos) para segmentar a visão.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **Campo `active` no backend:** A entidade `Plan` passa a ter o campo `active` (boolean, não nulo, padrão `true`). Migração Flyway adiciona a coluna `active` com valor `true` para registros existentes.
+2. **API:** O campo `active` é retornado no JSON do plano. O endpoint `GET /api/plans` aceita o parâmetro opcional `active` (true/false/ausente = todos) para filtrar os resultados.
+3. **Toggle no modal:** O modal de edição exibe um toggle "Ativo / Inativo" que permite alterar o status do plano.
+4. **Linha inativa na tabela:** Planos com `active = false` recebem a classe `.row-inactive` (`opacity: 0.55`).
+5. **Filtro na toolbar:** Grupo de botões (Todos / Ativos / Inativos) exibido à esquerda, acima da tabela. O botão ativo recebe fundo `#1a1a1a` e texto branco; os demais ficam com texto `#888`. Ao selecionar um filtro, a listagem é recarregada com o parâmetro correspondente.
+6. **Sem alteração no comportamento existente** de criação, edição e exclusão.
+
+---
+
+## US-058
+
+**Titulo:** Ajustar cor do texto dos IDs nas páginas de Clientes e DIDs
+
+**Descrição:**
+Como administrador, quero que o campo ID nas listagens de Clientes e DIDs use a mesma cor e estilo da página de Circuitos (`font-mono text-[#888]`), garantindo consistência visual entre as páginas de listagem.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Página de Clientes:** A célula de ID na tabela passa a usar `font-mono text-[#888]`, igual ao padrão da tabela de Circuitos.
+2. **Página de DIDs:** A célula de ID na tabela passa a usar `font-mono text-[#888]`, igual ao padrão da tabela de Circuitos.
+3. **Sem alteração** em qualquer outro campo, comportamento ou estilo das páginas.
+
+---
+
+## US-059
+
+**Titulo:** Adicionar coluna ID na listagem de Troncos
+
+**Descrição:**
+Como administrador, quero que a tabela de listagem de Troncos exiba a coluna ID, seguindo o mesmo padrão visual das demais listagens (`font-mono text-[#888]`).
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Coluna ID:** Adicionada como primeira coluna da tabela, com largura fixa (`40px`), estilo `font-mono text-[#888] text-[13px]`.
+2. **Header:** Label `"ID"` no cabeçalho, seguindo o padrão `text-[11px] font-medium text-[#888] uppercase tracking-wide`.
+3. **Grid atualizado:** `grid-template-columns` da `.trunk-row` atualizado para incluir a nova coluna.
+4. **Sem alteração** em qualquer outro campo, comportamento ou estilo da página.

@@ -4,6 +4,21 @@
 
 ---
 
+### US-046 — Reestruturação da página de listagem de Planos
+
+**Solução:**
+- Frontend: `plans/index.astro` reescrito com 100% Tailwind — header com botão "Novo plano", toolbar com busca (debounce 300ms) à esquerda e paginação condicional (visível apenas quando totalPages > 1) à direita.
+- Tabela CSS Grid 8 colunas: ID · Nome · Mensalidade · Fixo Local · Fixo LD · Móvel Local · Móvel LD · Pacote.
+- Colunas de tarifa em `font-mono`, 4 casas decimais; Mensalidade em `font-mono font-medium` com prefixo `R$`.
+- Coluna Pacote: mini badges pill FL / FI / ML / MLD — ativo (`#E6F1FB` / `#0C447C`) ou inativo (`#f5f5f5` / `#888`) conforme franquia > 0.
+- Ordenação por coluna: chevron SVG exibido apenas na coluna ativa (padrão Circuitos).
+- Modal no padrão do sistema: overlay + scale/opacity, subtítulo "Plano", footer com Excluir (dois cliques para confirmar) à esquerda e Cancelar + Salvar à direita.
+- Linha selecionada: `.row-selected` com `#E6F1FB` + `border-left: 2px solid #378ADD`.
+- Contador de rodapé à direita: "1 plano cadastrado" / "N planos cadastrados".
+- Sem alteração no backend.
+
+---
+
 ### US-045 — Reestruturação da página de listagem de Ligações (CDR)
 
 **Solução:**
