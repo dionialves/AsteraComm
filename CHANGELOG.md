@@ -4,6 +4,15 @@
 
 ---
 
+### US-047 — Reestruturação do sistema de Relatórios
+
+**Solução:**
+- Backend: dependência OpenPDF adicionada. Novos records `CostPerCircuitSummaryDTO` e `CostPerCircuitResponseDTO`. `CallReportService` com métodos `getCostPerCircuit()` e `generateCostPerCircuitPdf()` (geração server-side). `CallReportController` com endpoints `GET /api/reports/cost-per-circuit` e `GET /api/reports/cost-per-circuit/pdf`.
+- Frontend: `ReportCard.astro` criado em `src/components/` como componente reutilizável para cards do índice. `reports/index.astro` redesenhado com header + grid 3 colunas. `reports/cost-per-circuit.astro` criado com header (botão voltar + título + subtítulo), card de filtros (Mês, Ano, checkbox), 4 totalizadores em grid, botão "Baixar PDF" e tabela somente leitura CSS Grid 5 colunas. Proxies Astro `api/reports/cost-per-circuit.ts` e `cost-per-circuit-pdf.ts` criados.
+- Endpoints antigos (`/api/reports/call-cost`, `/reports/call-cost`) mantidos sem alteração.
+
+---
+
 ### US-046 — Reestruturação da página de listagem de Planos
 
 **Solução:**

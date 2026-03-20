@@ -8,8 +8,7 @@
 4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
 5. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
 6. [US-040 — Refatoração: extrair scripts de modal para arquivos `.ts` importáveis nas páginas Astro](#us-040)
-7. [US-047 — Reestruturação do sistema de Relatórios](#us-047)
-10. [US-048 — Reestruturação da página de listagem de Usuários](#us-048)
+7. [US-048 — Reestruturação da página de listagem de Usuários](#us-048)
 11. [US-049 — Reestruturação da página de Auditoria](#us-049)
 12. [US-050 — Reestruturação do sidebar de navegação](#us-050)
 13. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
@@ -176,33 +175,6 @@ Como desenvolvedor, quero que a lógica dos modais (`ModalSystem`, `ChipSelect` 
 4. **Sem duplicação:** O sub-modal de cliente (aberto a partir do circuito) reutiliza a lógica de `customer-modal.ts`.
 5. **Comportamento preservado:** Todos os critérios da US-039 continuam funcionando após a refatoração.
 6. **Testes:** Os testes existentes de `ModalSystem` e `ChipSelect` continuam passando.
-
----
-
-## US-047
-
-**Titulo:** Reestruturação do sistema de Relatórios
-
-**Descrição:**
-Como administrador, quero que o sistema de Relatórios seja redesenhado em dois níveis: um índice com grid de cards selecionáveis e um template base reutilizável (filtros → processar → totalizadores + tabela + exportação PDF), com o relatório "Custo por circuito" como primeiro relatório implementado.
-
-**Estimativa:** 5 story points
-
-**Critérios de Aceite:**
-
-1. **Índice de relatórios (`/reports`):** Header com título "Relatórios" e subtítulo "Geração de relatórios operacionais e financeiros". Grid 3 colunas de cards clicáveis (border: 0.5px solid `#e0e0e0`, border-radius 12px, padding 20px). Cada card exibe ícone 32x32 com fundo colorido, título (14px, font-weight 500) e descrição (12px, `#888`).
-2. **Card "Custo por circuito" no índice:** Ícone cifrão (fundo `#E1F5EE`, stroke `#085041`), título "Custo por circuito", descrição "Total de ligações, minutos consumidos e custo gerado por cada circuito em um mês/ano selecionado." Navega para `/reports/cost-per-circuit`.
-3. **Template base reutilizável:** Componentes Astro `ReportLayout`, `ReportFilters`, `ReportTotals`, `ReportTable` e `ExportButton` criados em `src/components/`. Cada relatório usa `ReportLayout` como wrapper e preenche o slot com conteúdo específico.
-4. **Header do relatório:** Botão voltar (seta SVG, borda `#d0d0d0`) + título (22px) na mesma linha; subtítulo (13px, `#888`) alinhado com o título (margin-left 39px).
-5. **Card de filtros:** Fundo branco, border 0.5px `#e0e0e0`, border-radius 12px, padding 16px. Campos em flex com gap 12px, align-items flex-end. Botão "Processar" (fundo `#1D9E75`) posicionado no final da linha.
-6. **Totalizadores:** Grid `repeat(N, 1fr)`, gap 12px, fundo `#f5f5f5`, padding 14px 16px, border-radius 8px. Label 12px/`#888`, valor 22px/font-weight 500. Valores monetários destacados em `#085041`.
-7. **Botão "Baixar PDF":** Alinhado à direita, acima da tabela. Estilo outline (borda `#d0d0d0`, fundo branco), ícone de download à esquerda.
-8. **Tabela somente leitura:** border-radius 12px, `border: 0.5px solid #e0e0e0`. Header fundo `#f5f5f5`, font-size 11px. Linhas sem cursor pointer, sem modal ao clicar. Valores monetários > 0: font-weight 500, cor `#085041`. Valores = 0: cor `#888`.
-9. **Relatório "Custo por circuito" (`/reports/cost-per-circuit`):** Filtros Mês (select), Ano (select) e checkbox "Apenas com custo". 4 totalizadores: Total de circuitos, Total de ligações, Total de minutos, Custo total (`#085041`). Tabela 5 colunas: Cliente, Circuito (monospace), Ligações (right), Minutos (right), Custo R$ (right).
-10. **Endpoints backend:**
-    - `GET /api/reports/cost-per-circuit?month&year&onlyWithCost` → `{ summary: { totalCircuits, totalCalls, totalMinutes, totalCost }, data: [...] }`.
-    - `GET /api/reports/cost-per-circuit/pdf?month&year&onlyWithCost` → `application/pdf`.
-11. **Extensibilidade:** Adicionar novo relatório requer apenas: card no índice + page Astro + endpoint Spring Boot. O template base não precisa ser modificado.
 
 ---
 
