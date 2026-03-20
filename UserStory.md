@@ -8,7 +8,17 @@
 4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
 5. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
 6. [US-040 — Refatoração: extrair scripts de modal para arquivos `.ts` importáveis nas páginas Astro](#us-040)
-7. [US-041 — Reestruturação da página de listagem de Circuitos](#us-041)
+7. [US-042 — Reestruturação da página de listagem de Clientes](#us-042)
+8. [US-043 — Reestruturação da página de listagem de DIDs](#us-043)
+9. [US-044 — Reestruturação da página de listagem de Troncos](#us-044)
+10. [US-045 — Reestruturação da página de listagem de Ligações (CDR)](#us-045)
+11. [US-046 — Reestruturação da página de listagem de Planos](#us-046)
+12. [US-047 — Reestruturação do sistema de Relatórios](#us-047)
+13. [US-048 — Reestruturação da página de listagem de Usuários](#us-048)
+14. [US-049 — Reestruturação da página de Auditoria](#us-049)
+15. [US-050 — Reestruturação do sidebar de navegação](#us-050)
+16. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
+17. [US-053 — Botão "Novo circuito" abre modal de criação](#us-053)
 
 ---
 
@@ -168,26 +178,284 @@ Como desenvolvedor, quero que a lógica dos modais (`ModalSystem`, `ChipSelect` 
 
 ---
 
-## US-041
+## US-042
 
-**Titulo:** Reestruturação da página de listagem de Circuitos
+**Titulo:** Reestruturação da página de listagem de Clientes
 
 **Descrição:**
-Como administrador, quero que a página de listagem de Circuitos seja redesenhada com cards de resumo de métricas, filtros rápidos por segmento e indicadores visuais melhorados na tabela, mantendo a integração com o sistema de modais empilhados para edição.
+Como administrador, quero que a página de listagem de Clientes seja redesenhada com cards de resumo de métricas, filtros rápidos por segmento, paginação com chevrons, indicadores visuais na tabela (status com bolinha colorida, linhas inativas com opacidade reduzida) e clique na linha abrindo o modal de edição, seguindo o mesmo padrão visual da listagem de Circuitos.
+
+**Estimativa:** 3 story points
+
+**Critérios de Aceite:**
+
+1. **Header:** Título "Clientes" (22px, font-weight 500) + subtítulo "Cadastro de clientes vinculados a circuitos" (13px, `#888`) à esquerda; botão "Novo cliente" (fundo `#1D9E75`, ícone `+` SVG, abre modal de criação) à direita.
+2. **Cards de resumo (3):** Grid 3 colunas com cards `#f5f5f5`, padding 14px 16px, border-radius 8px — exibindo Total de clientes (cor primária), Ativos (`#085041`) e Inativos (`#791F1F`). Label 12px / valor 22px. Dados vindos de `GET /api/clients/summary` → `{ total, active, inactive }`.
+3. **Campo de busca:** Ícone de lupa integrado (left 10px), placeholder "Buscar por nome...", debounce 300ms, max-width 320px.
+4. **Button group de filtros (3):** Todos / Ativos / Inativos. Mapeados para: Todos (sem filtro), Ativos (`status=ACTIVE`), Inativos (`status=INACTIVE`). Estilo idêntico ao da listagem de Circuitos.
+5. **Paginação:** Texto "Página {n} de {total}" (12px, cor secundária) + chevrons SVG agrupados.
+6. **Tabela em grid CSS:** Container com `border-radius 12px`, `border: 0.5px solid #e0e0e0`, `overflow: hidden`. Header fundo `#f5f5f5`, font-size 11px, font-weight 500, cor `#888`. Colunas: `grid-template-columns: 48px minmax(0,1fr) 68px 90px 140px 140px`, gap 8px, padding linhas 11px 16px. Colunas: ID, Nome, Status, Circuitos, Criado em, Atualizado em.
+7. **Coluna Status:** bolinha 7px (`#1D9E75` ativo / `#E24B4A` inativo) + texto (`#085041` / `#791F1F`).
+8. **Coluna Circuitos:** contagem de circuitos vinculados — número (font-weight 500, cor primária) + sufixo "circ." (cor secundária). Exemplo: **3** circ.
+9. **Colunas de data:** "Criado em" e "Atualizado em" em font-size 12px, cor `#888`, formato `dd/mm/aaaa, HH:mm`.
+10. **Linha inativa:** `opacity: 0.55` (hover: `0.75`).
+11. **Linha selecionada:** ao abrir modal, fundo `#E6F1FB` + `border-left: 2px solid #378ADD`; ao fechar, volta ao normal.
+12. **Clique na linha:** abre modal de edição do cliente; após save/delete, `atualizarLinhaListagem` / `removerLinhaDaListagem` atualiza a UI e recarrega o summary.
+13. **Endpoints backend:**
+    - `GET /api/clients?page&size&status&search` — lista paginada com campo `circuitCount` no DTO.
+    - `GET /api/clients/summary` — `{ total, active, inactive }`.
+
+---
+
+## US-043
+
+**Titulo:** Reestruturação da página de listagem de DIDs
+
+**Descrição:**
+Como administrador, quero que a página de listagem de DIDs seja redesenhada com cards de resumo de métricas, filtros rápidos por segmento, paginação com chevrons, badges de status no formato pill e clique na linha abrindo o modal de edição, seguindo o padrão visual das listagens de Circuitos e Clientes — com a particularidade de que DIDs livres não são exibidos com opacidade reduzida, pois disponibilidade não é um estado negativo.
+
+**Estimativa:** 3 story points
+
+**Critérios de Aceite:**
+
+1. **Header:** Título "DIDs" (22px, font-weight 500) + subtítulo "Numeração DID disponível e vínculos com circuitos" (13px, `#888`) à esquerda; botão "Novo DID" (fundo `#1D9E75`, ícone `+` SVG, abre modal de criação) à direita.
+2. **Cards de resumo (3):** Grid 3 colunas, fundo `#f5f5f5`, padding 14px 16px, border-radius 8px — Total de DIDs (cor primária), Em uso (`#085041`) e Livres (`#0C447C`, azul escuro — disponibilidade não é estado negativo). Dados vindos de `GET /api/dids/summary` → `{ total, inUse, free }`.
+3. **Campo de busca:** Ícone de lupa integrado, placeholder "Buscar por número...", debounce 300ms, max-width 320px.
+4. **Button group de filtros (3):** Todos / Em uso / Livres. Mapeados para: Todos (sem filtro), Em uso (`status=IN_USE`), Livres (`status=FREE`). Estilo idêntico às outras listagens.
+5. **Paginação:** Texto "Página {n} de {total}" (12px, cor secundária) + chevrons SVG agrupados.
+6. **Tabela em grid CSS:** Container com `border-radius 12px`, `border: 0.5px solid #e0e0e0`, `overflow: hidden`. Header fundo `#f5f5f5`, font-size 11px, font-weight 500, cor `#888`. Colunas: `grid-template-columns: 48px minmax(0,1fr) 80px minmax(0,1fr)`, gap 8px, padding 11px 16px. Colunas: ID, Número, Status, Circuito.
+7. **Coluna Número:** font-family monospace, font-size 13px, cor primária.
+8. **Coluna Status:** badge pill (border-radius 99px, font-size 11px, padding 2px 10px). "Em uso": fundo `#E1F5EE`, texto `#085041`. "Livre": fundo `#E6F1FB`, texto `#0C447C`.
+9. **Coluna Circuito:** se vinculado, exibe código do circuito em monospace, font-size 12px; se livre, exibe "—" (cor `#888`).
+10. **Sem opacidade reduzida:** DIDs livres não recebem `opacity: 0.55` — livre é disponibilidade, não estado degradado.
+11. **Linha selecionada:** ao abrir modal, fundo `#E6F1FB` + `border-left: 2px solid #378ADD`; ao fechar, volta ao normal.
+12. **Remoção do botão "Excluir" da tabela:** a deleção passa a ocorrer exclusivamente no footer do modal de edição (dois cliques para confirmar).
+13. **Endpoints backend:**
+    - `GET /api/dids?page&size&status&search` — lista paginada; cada item contém `id`, `number`, `status` (`IN_USE` / `FREE`) e `circuit` (`{ id, code }` ou `null`).
+    - `GET /api/dids/summary` — `{ total, inUse, free }`.
+
+---
+
+## US-044
+
+**Titulo:** Reestruturação da página de listagem de Troncos
+
+**Descrição:**
+Como administrador, quero que a página de listagem de Troncos seja redesenhada com visual consistente às demais listagens, porém simplificada — sem cards de resumo, busca, filtros ou paginação, já que o sistema terá no máximo 2-3 troncos cadastrados. A tabela exibe 5 colunas com badge pill de status de registro e um contador de registros no rodapé.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **Header:** Título "Troncos" (22px, font-weight 500) + subtítulo "Conexões SIP com operadoras de telefonia" (13px, `#888`) à esquerda; botão "Novo tronco" (fundo `#1D9E75`, ícone `+` SVG, abre modal de criação) à direita.
+2. **Sem cards, busca, filtros ou paginação:** removidos por serem desnecessários para 2-3 registros.
+3. **Tabela em grid CSS:** Container com `border-radius 12px`, `border: 0.5px solid #e0e0e0`, `overflow: hidden`. Header fundo `#f5f5f5`, font-size 11px, font-weight 500, cor `#888`, padding 10px 16px. Colunas: `grid-template-columns: 48px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 120px`, gap 8px, padding linhas 14px 16px. Colunas: ID, Nome, Host, Usuário, Registro.
+4. **Coluna Nome:** font-size 13px, font-weight 500, cor primária (peso maior pois é o identificador principal).
+5. **Coluna Host:** font-family monospace, font-size 12px, cor primária, com `text-overflow: ellipsis` para hosts longos.
+6. **Coluna Registro:** badge pill (border-radius 99px, font-size 11px, padding 2px 10px). "Registrado": fundo `#E1F5EE`, texto `#085041`. "Não registrado": fundo `#FCEBEB`, texto `#791F1F` (vermelho — é um estado negativo que requer atenção).
+7. **Sem opacidade reduzida:** troncos não registrados não recebem `opacity: 0.55` — o estado precisa de atenção, não de atenuação visual.
+8. **Linha selecionada:** ao abrir modal, fundo `#E6F1FB` + `border-left: 2px solid #378ADD`; ao fechar, volta ao normal.
+9. **Rodapé contador:** texto "{n} troncos cadastrados" / "1 tronco cadastrado" (singular), font-size 12px, cor `#888`, alinhado à direita, margin-top 12px.
+10. **Endpoint backend:** `GET /api/trunks` retorna `List<TrunkDTO>` simples (sem paginação), cada item com `id`, `name`, `host`, `username`, `registered`.
+11. **Frontend:** `loadTrunks()` busca a lista completa e atualiza tabela + contador. Após delete no modal, `removerLinhaDaListagem(id)` remove a linha com fade e atualiza o contador.
+
+---
+
+## US-045
+
+**Titulo:** Reestruturação da página de listagem de Ligações (CDR)
+
+**Descrição:**
+Como administrador, quero que a página de listagem de Ligações seja redesenhada com cards de resumo dinâmicos, card de filtros avançados com 6 campos e paginação, e tabela compacta de 10 colunas com badges coloridos para tipo, status e custeio — sem botão de adição, sem modal de edição e sem cursor pointer, pois os registros de CDR são somente leitura.
 
 **Estimativa:** 5 story points
 
 **Critérios de Aceite:**
 
-1. **Cards de resumo (4):** Grid 4 colunas com cards de fundo `#f5f5f5`, padding 14px 16px, border-radius 8px — exibindo Total de circuitos (texto primário), Ativos (verde `#085041`), Online agora (verde `#085041`) e Inativos (vermelho `#791F1F`). Label 12px / valor 22px font-weight 500. Dados vindos de `GET /api/circuits/summary` → `{ total, active, online, inactive }`.
-2. **Barra de ferramentas:** Campo de busca com ícone de lupa integrado (debounce 300ms, max-width 320px) + button group de 4 filtros (Todos / Online / Offline / Inativos) + paginação com chevrons SVG substituindo os textos "Anterior/Próxima".
-3. **Button group de filtros:** Botões sem gap, bordas unificadas. Ativo: fundo `#ffffff`, texto `#1a1a1a`, font-weight 500. Inativo: fundo transparente, texto `#888`. Filtros mapeados para query params: Todos (sem filtro), Online (`online=true`), Offline (`online=false&status=ACTIVE`), Inativos (`status=INACTIVE`).
-4. **Tabela em grid CSS:** Container com `border-radius 12px`, `border: 0.5px solid #e0e0e0`, `overflow: hidden`. Header com fundo `#f5f5f5`, font-size 11px. Linhas com `grid-template-columns: 48px 68px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 64px 110px 70px`, gap 6px, padding 11px 16px.
-5. **Coluna Status:** bolinha 7px (`#1D9E75` ativo / `#E24B4A` inativo) + texto (`#085041` / `#791F1F`).
-6. **Coluna Online:** badge pill (`border-radius: 99px`) — "OK" com fundo `#E1F5EE` / texto `#085041`; "Off" com fundo `#f5f5f5` / texto `#888`.
-7. **Linha selecionada:** ao abrir modal, linha recebe fundo `#E6F1FB` e `border-left: 2px solid #378ADD`; ao fechar modal, volta ao normal.
-8. **Linha inativa:** `opacity: 0.55` (hover: `0.75`).
-9. **Campos monospace:** Código, IP e RTT renderizados em `font-family: monospace`.
-10. **Botão "Novo circuito":** fundo `#1D9E75`, ícone `+` SVG + texto, abre modal em modo criação (campos vazios).
-11. **Endpoint de resumo:** `GET /api/circuits/summary` no backend retornando `{ total, active, online, inactive }` calculados a partir da base.
+1. **Header:** Título "Ligações" (22px, font-weight 500) + subtítulo "Histórico de chamadas processadas (CDR)" (13px, `#888`). Sem botão de ação no lado direito.
+2. **Cards de resumo (4):** Grid 4 colunas, fundo `#f5f5f5`, padding 14px 16px, border-radius 8px — Total de registros (cor primária), Atendidas (`#085041`), Sem resposta (`#854F0B`, amber), Ocupado (`#791F1F`). Os valores refletem os filtros aplicados. Dados de `GET /api/calls/summary` (aceita os mesmos parâmetros de filtro).
+3. **Card de filtros:** Container com `border: 0.5px solid #e0e0e0`, `border-radius 12px`, `padding 16px`. Linha superior com 6 campos (Origem, Destino, Circuito, Status, Data início, Data fim) em flex-wrap, gap 8px. Linha inferior com botões "Filtrar" (fundo `#1D9E75`, ícone lupa) e "Limpar" (borda `#d0d0d0`) à esquerda, paginação com chevrons à direita.
+4. **Filtros aplicados manualmente:** os filtros só são aplicados ao clicar "Filtrar" (não há debounce automático). "Limpar" zera todos os campos e recarrega sem filtros. Ambos os botões atualizam tabela e cards simultaneamente.
+5. **Campos de filtro:** Origem, Destino e Circuito são inputs monospace com busca parcial. Status é select com opções: Todos / Atendida / Sem resposta / Ocupado / Falha. Data início e Data fim são `input[type=date]`.
+6. **Tabela em grid CSS:** Container com `border-radius 12px`, `border: 0.5px solid #e0e0e0`. Colunas: `grid-template-columns: 44px 130px minmax(0,1fr) minmax(0,1fr) 70px 80px 60px 80px 80px 80px`, gap 4px, padding 10px 12px. Header fundo `#f5f5f5`, font-size 11px. Colunas: ID, Data/hora, Origem, Destino, Circuito, Tipo, Duração, Status, Custeio, Valor.
+7. **Somente leitura:** `cursor: default` nas linhas, sem hover de seleção, sem `border-left` azul, sem modal ao clicar.
+8. **Coluna Tipo:** badge pill com cores semânticas — Fixo Local (azul `#E6F1FB`/`#0C447C`), Fixo LD (cinza `#f5f5f5`/`#888`), Móvel Local (roxo `#EEEDFE`/`#3C3489`), Móvel LD (coral `#FAECE7`/`#712B13`).
+9. **Coluna Status:** badge pill — Atendida (`#E1F5EE`/`#085041`), Sem resp. (`#FAEEDA`/`#854F0B`), Ocupado (`#FCEBEB`/`#791F1F`), Falha (`#FCEBEB`/`#791F1F`).
+10. **Coluna Custeio:** badge pill para Processado, Pendente e Erro; "Sem circ." exibido como texto simples em cor `#888` (sem badge).
+11. **Coluna Duração:** formato `0s`, `4s`, `2m 6s`, `1h 2m 30s`. Duração > 0: font-weight 500, cor primária. Duração = 0: cor `#888`.
+12. **Endpoints backend:**
+    - `GET /api/calls?page&size&src&dst&circuit&disposition&dateFrom&dateTo` — lista paginada, somente leitura (sem PUT/DELETE/POST).
+    - `GET /api/calls/summary` (mesmos params) — `{ total, answered, noAnswer, busy }`.
+
+---
+
+## US-046
+
+**Titulo:** Reestruturação da página de listagem de Planos
+
+**Descrição:**
+Como administrador, quero que a página de listagem de Planos seja redesenhada sem cards de resumo, busca, filtros ou paginação (sistema terá 1-3 planos), com tabela de 8 colunas exibindo tarifas por destino e mini badges de pacote de minutos, clique na linha abrindo modal de edição e deleção exclusivamente no modal.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **Header:** Título "Planos" (22px, font-weight 500) + subtítulo "Franquias de minutos e tarifação por destino" (13px, `#888`) à esquerda; botão "Novo plano" (fundo `#1D9E75`, ícone `+` SVG, abre modal de criação) à direita.
+2. **Sem cards, busca, filtros ou paginação:** removidos por serem desnecessários para 1-3 registros.
+3. **Tabela em grid CSS:** Container com `border-radius 12px`, `border: 0.5px solid #e0e0e0`, `overflow: hidden`. Colunas: `grid-template-columns: 40px minmax(0,1fr) 90px 80px 80px 80px 80px minmax(0,1fr)`, gap 6px, padding linhas 14px 16px. Header fundo `#f5f5f5`, font-size 11px, font-weight 500, cor `#888`. Colunas: ID, Nome, Mensalidade, Fixo Local, Fixo LD, Móvel Local, Móvel LD, Pacote.
+4. **Coluna Nome:** font-size 13px, font-weight 500, cor primária.
+5. **Coluna Mensalidade:** font-family monospace, font-size 12px, font-weight 500, cor primária. Formato `R$ 42,90`.
+6. **Colunas de tarifas (Fixo Local, Fixo LD, Móvel Local, Móvel LD):** font-family monospace, font-size 12px, font-weight normal, cor primária. Formato com 4 casas decimais (ex: `0,3099`).
+7. **Coluna Pacote:** mini badges pill (border-radius 99px, font-size 11px, padding 1px 8px) para cada tipo — FL, FI, ML, MLD. Franquia > 0: fundo `#E6F1FB`, texto `#0C447C`. Franquia = 0: fundo `#f5f5f5`, texto `#888`.
+8. **Remoção dos botões "Editar" e "Excluir" da tabela:** deleção exclusivamente no footer do modal.
+9. **Linha selecionada:** ao abrir modal, fundo `#E6F1FB` + `border-left: 2px solid #378ADD`; ao fechar, volta ao normal.
+10. **Rodapé contador:** texto "{n} planos cadastrados" / "1 plano cadastrado" (singular), font-size 12px, cor `#888`, alinhado à direita, margin-top 12px.
+11. **Endpoint backend:** `GET /api/plans` retorna `List<PlanDTO>` simples (sem paginação), cada item com `id`, `name`, `monthlyFee`, `rateLocalFixed`, `rateLongDistanceFixed`, `rateLocalMobile`, `rateLongDistanceMobile`, `packageLocalFixed`, `packageLongDistanceFixed`, `packageLocalMobile`, `packageLongDistanceMobile`.
+
+---
+
+## US-047
+
+**Titulo:** Reestruturação do sistema de Relatórios
+
+**Descrição:**
+Como administrador, quero que o sistema de Relatórios seja redesenhado em dois níveis: um índice com grid de cards selecionáveis e um template base reutilizável (filtros → processar → totalizadores + tabela + exportação PDF), com o relatório "Custo por circuito" como primeiro relatório implementado.
+
+**Estimativa:** 5 story points
+
+**Critérios de Aceite:**
+
+1. **Índice de relatórios (`/reports`):** Header com título "Relatórios" e subtítulo "Geração de relatórios operacionais e financeiros". Grid 3 colunas de cards clicáveis (border: 0.5px solid `#e0e0e0`, border-radius 12px, padding 20px). Cada card exibe ícone 32x32 com fundo colorido, título (14px, font-weight 500) e descrição (12px, `#888`).
+2. **Card "Custo por circuito" no índice:** Ícone cifrão (fundo `#E1F5EE`, stroke `#085041`), título "Custo por circuito", descrição "Total de ligações, minutos consumidos e custo gerado por cada circuito em um mês/ano selecionado." Navega para `/reports/cost-per-circuit`.
+3. **Template base reutilizável:** Componentes Astro `ReportLayout`, `ReportFilters`, `ReportTotals`, `ReportTable` e `ExportButton` criados em `src/components/`. Cada relatório usa `ReportLayout` como wrapper e preenche o slot com conteúdo específico.
+4. **Header do relatório:** Botão voltar (seta SVG, borda `#d0d0d0`) + título (22px) na mesma linha; subtítulo (13px, `#888`) alinhado com o título (margin-left 39px).
+5. **Card de filtros:** Fundo branco, border 0.5px `#e0e0e0`, border-radius 12px, padding 16px. Campos em flex com gap 12px, align-items flex-end. Botão "Processar" (fundo `#1D9E75`) posicionado no final da linha.
+6. **Totalizadores:** Grid `repeat(N, 1fr)`, gap 12px, fundo `#f5f5f5`, padding 14px 16px, border-radius 8px. Label 12px/`#888`, valor 22px/font-weight 500. Valores monetários destacados em `#085041`.
+7. **Botão "Baixar PDF":** Alinhado à direita, acima da tabela. Estilo outline (borda `#d0d0d0`, fundo branco), ícone de download à esquerda.
+8. **Tabela somente leitura:** border-radius 12px, `border: 0.5px solid #e0e0e0`. Header fundo `#f5f5f5`, font-size 11px. Linhas sem cursor pointer, sem modal ao clicar. Valores monetários > 0: font-weight 500, cor `#085041`. Valores = 0: cor `#888`.
+9. **Relatório "Custo por circuito" (`/reports/cost-per-circuit`):** Filtros Mês (select), Ano (select) e checkbox "Apenas com custo". 4 totalizadores: Total de circuitos, Total de ligações, Total de minutos, Custo total (`#085041`). Tabela 5 colunas: Cliente, Circuito (monospace), Ligações (right), Minutos (right), Custo R$ (right).
+10. **Endpoints backend:**
+    - `GET /api/reports/cost-per-circuit?month&year&onlyWithCost` → `{ summary: { totalCircuits, totalCalls, totalMinutes, totalCost }, data: [...] }`.
+    - `GET /api/reports/cost-per-circuit/pdf?month&year&onlyWithCost` → `application/pdf`.
+11. **Extensibilidade:** Adicionar novo relatório requer apenas: card no índice + page Astro + endpoint Spring Boot. O template base não precisa ser modificado.
+
+---
+
+## US-048
+
+**Titulo:** Reestruturação da página de listagem de Usuários
+
+**Descrição:**
+Como administrador, quero que a página de listagem de Usuários seja redesenhada sem cards de resumo, busca, filtros ou paginação (sistema terá 1-5 usuários), com tabela de 7 colunas exibindo status, nome, username, role com badge colorido por nível de acesso e timestamps, clique na linha abrindo modal de edição.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **Header:** Título "Usuários" (22px, font-weight 500) + subtítulo "Controle de acesso e permissões do sistema" (13px, `#888`) à esquerda; botão "Novo usuário" (fundo `#1D9E75`, ícone `+` SVG, abre modal de criação) à direita.
+2. **Sem cards, busca, filtros ou paginação:** removidos por serem desnecessários para 1-5 registros.
+3. **Tabela em grid CSS:** Container com `border-radius 12px`, `border: 0.5px solid #e0e0e0`, `overflow: hidden`. Colunas: `grid-template-columns: 40px 68px minmax(0,1fr) minmax(0,1fr) 100px 140px 140px`, gap 8px, padding linhas 14px 16px. Header fundo `#f5f5f5`, font-size 11px, font-weight 500, cor `#888`. Colunas: ID, Status, Nome, Username, Role, Criado em, Atualizado em.
+4. **Coluna Status:** bolinha 7px + texto — Ativo (bolinha `#1D9E75`, texto `#085041`), Inativo (bolinha `#E24B4A`, texto `#791F1F`).
+5. **Coluna Nome:** font-size 13px, font-weight 500, cor primária.
+6. **Coluna Username:** font-size 12px, cor `#888`, com `text-overflow: ellipsis` para emails longos.
+7. **Coluna Role:** badge pill (border-radius 99px, font-size 11px, padding 2px 10px). Super Admin: fundo `#EEEDFE`, texto `#3C3489`. Admin: fundo `#E6F1FB`, texto `#0C447C`. Operador: fundo `#f5f5f5`, texto `#888`.
+8. **Colunas de data:** font-size 12px, cor `#888`, formato `dd/mm/aaaa, HH:mm`.
+9. **Linha inativa:** `opacity: 0.55` (hover: `0.75`).
+10. **Linha selecionada:** ao abrir modal, fundo `#E6F1FB` + `border-left: 2px solid #378ADD`; ao fechar, volta ao normal.
+11. **Rodapé contador:** texto "{n} usuários cadastrados" / "1 usuário cadastrado" (singular), font-size 12px, cor `#888`, alinhado à direita, margin-top 12px.
+12. **Endpoint backend:** `GET /api/users` retorna `List<UserDTO>` simples (sem paginação), cada item com `id`, `name`, `username`, `role` (`SUPER_ADMIN`, `ADMIN`, `OPERATOR`), `active`, `createdAt`, `updatedAt`.
+
+---
+
+## US-049
+
+**Titulo:** Reestruturação da página de Auditoria
+
+**Descrição:**
+Como administrador, quero que a página de Auditoria seja redesenhada seguindo o template base de relatórios, com card de contexto exibindo circuito/plano/período, tabela chamada a chamada com detalhes de billing (tipo, tarifa, minutos de pacote, acumulado e custo), toggle client-side para filtrar chamadas relevantes, e 5 totalizadores no rodapé com cores semânticas por tipo de tempo.
+
+**Estimativa:** 4 story points
+
+**Critérios de Aceite:**
+
+1. **Header:** Botão voltar (←) + título "Auditoria" (22px) na mesma linha; subtítulo "Simulação do cálculo de custo chamada a chamada para validar a lógica de billing" (13px, `#888`, margin-left 39px).
+2. **Card de filtros:** Circuito (select, min-width 240px, opções no formato `{código} — Cliente {nome}` carregadas via API), Mês (select), Ano (select), botão "Processar" (fundo `#1D9E75`). Itens 3-6 da estrutura aparecem apenas após processar.
+3. **Card de contexto (pós-processar):** Fundo branco, border 0.5px `#e0e0e0`, border-radius 12px, padding 16px. 3 blocos lado a lado (gap 32px): CIRCUITO (monospace), PLANO, PERÍODO. Labels 11px uppercase `#888`; valores 15px font-weight 500.
+4. **Barra de controles:** Toggle "Apenas chamadas relevantes" à esquerda + botão "Baixar PDF" à direita. Toggle custom (track 36x20, border-radius 99px): desligado `#e0e0e0`, ligado `#1D9E75`. Ao ligar, oculta client-side linhas onde `packageMinutes == null` E `cost == 0`.
+5. **Tabela somente leitura:** `grid-template-columns: 130px minmax(0,1fr) 80px 70px 80px 80px 100px 80px`, gap 4px, padding 10px 12px. Header fundo `#f5f5f5`, font-size 11px. Sem cursor pointer, sem modal. Colunas: Data/hora, Destino, Tipo, Duração, Tarifa R$/min, Min. pacote, Acum. pacote, Custo.
+6. **Coluna Tipo:** badge pill com mesmas cores da spec de Ligações (Fixo Local azul, Fixo DDD cinza, Móvel Local roxo, Móvel DDD coral).
+7. **Coluna Min. pacote:** `+N min` em `#085041` font-weight 500 quando consumiu; "—" em `#888` quando não se aplica.
+8. **Coluna Custo:** 3 casas decimais. Custo > 0: `#085041` font-weight 500. Custo = 0: `#888`.
+9. **Totalizadores (5 cards, `repeat(5, 1fr)`, text-align center, font-size valor 20px):** Total ligações (cinza `#f5f5f5`), Tempo faturável (cinza), Tempo do pacote (azul `#E6F1FB`/`#0C447C`), Tempo excedente (amber `#FAEEDA`/`#854F0B`), Custo total (verde `#E1F5EE`/`#085041`).
+10. **Endpoints backend:**
+    - `GET /api/reports/audit?circuitId&month&year` → `{ context: { circuitCode, planName, month, year }, summary: { totalCalls, billableMinutes, packageMinutes, excessMinutes, totalCost }, data: [...] }`.
+    - `GET /api/reports/audit/pdf?circuitId&month&year` → `application/pdf`.
+11. **Acesso:** página disponível em `/reports/audit` e acessível também via link no sidebar de navegação.
+
+---
+
+## US-050
+
+**Titulo:** Reestruturação do sidebar de navegação
+
+**Descrição:**
+Como administrador, quero que o sidebar de navegação seja redesenhado com agrupamento em seções lógicas (Operacional, Financeiro, Administração), menus colapsáveis com chevron animado, dropdown de perfil com modais de edição de dados cadastrais e alteração de senha, e visibilidade condicional da seção Administração baseada no papel do usuário.
+
+**Estimativa:** 4 story points
+
+**Critérios de Aceite:**
+
+1. **Container:** Sidebar fixo, 220px, fundo `#1a1a1a`, `height: 100vh`. Conteúdo principal com `margin-left: 220px`.
+2. **Logo:** "Astera" em `#5DCAA5` + "Comm" em branco, font-size 18px, font-weight 500, letter-spacing -0.5px.
+3. **Labels de seção:** "OPERACIONAL", "FINANCEIRO", "ADMINISTRAÇÃO" em 10px, uppercase, letter-spacing 1px, cor `rgba(255,255,255,0.35)`. Não clicáveis.
+4. **Item de menu direto:** Ícone SVG 16x16 + texto, padding 9px 12px, border-radius 6px, font-size 13px. Normal: `rgba(255,255,255,0.65)`. Hover: `rgba(255,255,255,0.05)`. Ativo: fundo `rgba(255,255,255,0.08)`, texto branco.
+5. **Menus colapsáveis:** "Cadastro" (ícone user) e "Configuração" (ícone settings) com chevron 14x14 à direita. Chevron rotaciona 180° ao expandir. Submenus animados via `max-height` (transição 0.25s ease).
+6. **Submenus:** Indentados com padding-left 38px, sem ícone. Ativo: texto branco.
+7. **Estrutura:** Dashboard (`/dashboard`). Seção Operacional: Cadastro colapsável (Circuitos, Clientes, DIDs) + Configuração colapsável (Troncos, Planos). Seção Financeiro: Ligações, Relatórios, Auditoria. Seção Administração: Usuários (condicional).
+8. **Auto-expansão:** Ao carregar, JS detecta URL atual, expande menu pai se for submenu e aplica `.active` ao item correspondente.
+9. **Seção Administração (condicional):** Renderizada via SSR Astro apenas para `SUPER_ADMIN` e `ADMIN`.
+10. **Rodapé — botão de perfil:** Avatar circular 28x28 (inicial do nome), nome (12px, branco, truncado), role (11px, `rgba(255,255,255,0.4)`), chevron que rotaciona ao abrir dropdown.
+11. **Dropdown do perfil (abre para cima):** Fundo `#2a2a2a`, border `rgba(255,255,255,0.1)`, animação opacity + translateY (0.15s). 3 itens: "Dados cadastrais", "Alterar senha", "Sair" (danger, hover vermelho, separado por borda superior). Fecha ao clicar fora ou Escape.
+12. **Modal "Dados cadastrais" (580px):** Campos ID, Nome (editável), Username, Role, Ativo, Criado em, Atualizado em. Campos não editáveis com fundo `#f5f5f5`. Footer: Salvar → `PUT /api/users/me { name }`, atualiza nome no rodapé do sidebar após sucesso.
+13. **Modal "Alterar senha" (420px):** 3 campos password com toggle de visibilidade (Senha atual, Nova senha, Confirmar nova senha). Validação client-side de coincidência. Botão Salvar desabilitado até campos preenchidos e senhas iguais. Footer: Salvar → `PUT /api/users/me/password { currentPassword, newPassword }`. Erro 400 exibe "Senha atual incorreta" abaixo do campo.
+14. **Ação "Sair":** `POST /api/auth/logout` → redireciona `/login`. Sem confirmação.
+
+---
+
+## US-052
+
+**Titulo:** Migrar frontend para 100% Tailwind CSS
+
+**Descrição:**
+Como desenvolvedor, quero eliminar todo CSS inline e classes globais desnecessárias das páginas Astro, migrando 100% para Tailwind CSS utility classes, para manter consistência visual e facilitar manutenção futura.
+
+**Estimativa:** 5 story points
+
+**Critérios de Aceite:**
+
+1. **Zero CSS inline:** Nenhum atributo `style=""` nas páginas Astro migradas.
+2. **Zero classes globais ad-hoc:** Nenhuma classe CSS adicionada ao `global.css` para uso pontual em uma única página.
+3. **Tailwind arbitrary values:** Cores e dimensões específicas do design system (`#1D9E75`, `#085041`, etc.) expressas via Tailwind arbitrary values (ex: `text-[#1D9E75]`, `bg-[#f5f5f5]`).
+4. **Cobertura:** Todas as páginas implementadas nas USs de reestruturação (US-041 a US-051) devem estar em conformidade.
+5. **Comportamento preservado:** Nenhuma alteração visual perceptível — layout, cores, espaçamentos e interações idênticos ao estado anterior.
+
+---
+
+## US-053
+
+**Titulo:** Botão "Novo circuito" abre modal de criação
+
+**Descrição:**
+Como administrador, ao clicar em "Novo circuito" na listagem de Circuitos, quero que um modal de criação seja aberto seguindo o layout predefinido dos modais, em vez de navegar para uma página separada.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **Abertura via modal:** O botão "Novo circuito" abre o modal de criação de circuito (campos vazios) sem navegação de página.
+2. **Layout padrão:** O modal segue o mesmo layout dos modais existentes (cabeçalho com título + botão fechar, corpo com campos, footer com botões Salvar/Cancelar).
+3. **Campos:** Mesmos campos do formulário de criação atual (Senha, Tronco, Cliente, Plano, Status).
+4. **Submissão:** `POST /api/circuit/circuits` com os dados preenchidos; em caso de sucesso, fecha o modal e recarrega a listagem.
+5. **Validação:** Campos obrigatórios validados client-side antes do envio.
+6. **Integração com sistema de modais:** Utiliza o `ModalSystem` existente para abertura, fechamento e empilhamento.
 

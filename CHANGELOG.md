@@ -4,6 +4,33 @@
 
 ---
 
+### US-041 — Reestruturação da página de listagem de Circuitos
+
+**Solução:**
+- Backend: novo endpoint `GET /api/circuits/summary` → `{ total, active, online, inactive }`.
+- Backend: `findAllCircuits` atualizado com filtros nullable `online` e `active` via `CAST(:param AS boolean) IS NULL`; `ORDER BY` hardcoded removido, sort delegado ao `Pageable`.
+- Backend: `CircuitSummaryDTO` criado como record; `CircuitService.getAll()` e `CircuitController.findAll()` atualizados com parâmetros `online` e `status`.
+- Frontend: `circuits/index.astro` reescrito com 100% Tailwind — 4 cards de resumo, busca com debounce 300ms e ícone integrado, button group Todos/Online/Offline/Inativos à esquerda, paginação com chevrons SVG.
+- Tabela em CSS Grid; header clicável com setas de sort; linhas com bg branco, status com bolinha colorida, Online com badge pill, linha selecionada highlight azul (`#E6F1FB` + `border-left: 2px solid #378ADD`), linha inativa `opacity: 0.55`.
+- Botão "Novo circuito" abre modal em modo criação com campos vazios.
+- Proxy `summary.ts` criado; `circuits.ts` atualizado para repassar params `online` e `status`.
+
+---
+
+### US-051 — Reestruturação da tela de Login
+
+**Solução:**
+- `login/index.astro` reescrito: fundo `#f5f5f5`, card branco 480px centralizado, `border: 0.5px solid #e0e0e0`, `border-radius 12px`.
+- Logo "Astera" (`#1D9E75`) + "Comm" (preto), font-size 36px, sem imagem PNG.
+- Campos Usuário e Senha com labels 12px e inputs padding 10px 12px, font-size 14px, borda `#d0d0d0`.
+- Toggle de visibilidade da senha com ícones olho/olho-riscado SVG.
+- Botão "Entrar" verde `#1D9E75`, largura 100%, com estado disabled e texto "Entrando..." durante o fetch.
+- Área de erro inline (`#FCEBEB`/`#791F1F`) para 401 e erro de rede, sem `alert()`.
+- Submissão por tecla Enter.
+- Redirecionamento para `/dashboard` em caso de sucesso.
+
+---
+
 ### US-039 — Sistema de modais empilhados para edição de registros (Circuito e Cliente)
 
 **Solução:**
