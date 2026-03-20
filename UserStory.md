@@ -8,8 +8,7 @@
 4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
 5. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
 6. [US-040 — Refatoração: extrair scripts de modal para arquivos `.ts` importáveis nas páginas Astro](#us-040)
-7. [US-045 — Reestruturação da página de listagem de Ligações (CDR)](#us-045)
-8. [US-046 — Reestruturação da página de listagem de Planos](#us-046)
+7. [US-046 — Reestruturação da página de listagem de Planos](#us-046)
 9. [US-047 — Reestruturação do sistema de Relatórios](#us-047)
 10. [US-048 — Reestruturação da página de listagem de Usuários](#us-048)
 11. [US-049 — Reestruturação da página de Auditoria](#us-049)
@@ -18,6 +17,7 @@
 14. [US-053 — Botão "Novo circuito" abre modal de criação](#us-053)
 15. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
 16. [US-055 — Excluir DID livre pela página de listagem de DIDs](#us-055)
+17. [US-056 — Contador de registros no rodapé das listagens de Circuitos, Clientes e DIDs](#us-056)
 
 ---
 
@@ -174,34 +174,6 @@ Como desenvolvedor, quero que a lógica dos modais (`ModalSystem`, `ChipSelect` 
 4. **Sem duplicação:** O sub-modal de cliente (aberto a partir do circuito) reutiliza a lógica de `customer-modal.ts`.
 5. **Comportamento preservado:** Todos os critérios da US-039 continuam funcionando após a refatoração.
 6. **Testes:** Os testes existentes de `ModalSystem` e `ChipSelect` continuam passando.
-
----
-
-## US-045
-
-**Titulo:** Reestruturação da página de listagem de Ligações (CDR)
-
-**Descrição:**
-Como administrador, quero que a página de listagem de Ligações seja redesenhada com cards de resumo dinâmicos, card de filtros avançados com 6 campos e paginação, e tabela compacta de 10 colunas com badges coloridos para tipo, status e custeio — sem botão de adição, sem modal de edição e sem cursor pointer, pois os registros de CDR são somente leitura.
-
-**Estimativa:** 5 story points
-
-**Critérios de Aceite:**
-
-1. **Header:** Título "Ligações" (22px, font-weight 500) + subtítulo "Histórico de chamadas processadas (CDR)" (13px, `#888`). Sem botão de ação no lado direito.
-2. **Cards de resumo (4):** Grid 4 colunas, fundo `#f5f5f5`, padding 14px 16px, border-radius 8px — Total de registros (cor primária), Atendidas (`#085041`), Sem resposta (`#854F0B`, amber), Ocupado (`#791F1F`). Os valores refletem os filtros aplicados. Dados de `GET /api/calls/summary` (aceita os mesmos parâmetros de filtro).
-3. **Card de filtros:** Container com `border: 0.5px solid #e0e0e0`, `border-radius 12px`, `padding 16px`. Linha superior com 6 campos (Origem, Destino, Circuito, Status, Data início, Data fim) em flex-wrap, gap 8px. Linha inferior com botões "Filtrar" (fundo `#1D9E75`, ícone lupa) e "Limpar" (borda `#d0d0d0`) à esquerda, paginação com chevrons à direita.
-4. **Filtros aplicados manualmente:** os filtros só são aplicados ao clicar "Filtrar" (não há debounce automático). "Limpar" zera todos os campos e recarrega sem filtros. Ambos os botões atualizam tabela e cards simultaneamente.
-5. **Campos de filtro:** Origem, Destino e Circuito são inputs monospace com busca parcial. Status é select com opções: Todos / Atendida / Sem resposta / Ocupado / Falha. Data início e Data fim são `input[type=date]`.
-6. **Tabela em grid CSS:** Container com `border-radius 12px`, `border: 0.5px solid #e0e0e0`. Colunas: `grid-template-columns: 44px 130px minmax(0,1fr) minmax(0,1fr) 70px 80px 60px 80px 80px 80px`, gap 4px, padding 10px 12px. Header fundo `#f5f5f5`, font-size 11px. Colunas: ID, Data/hora, Origem, Destino, Circuito, Tipo, Duração, Status, Custeio, Valor.
-7. **Somente leitura:** `cursor: default` nas linhas, sem hover de seleção, sem `border-left` azul, sem modal ao clicar.
-8. **Coluna Tipo:** badge pill com cores semânticas — Fixo Local (azul `#E6F1FB`/`#0C447C`), Fixo LD (cinza `#f5f5f5`/`#888`), Móvel Local (roxo `#EEEDFE`/`#3C3489`), Móvel LD (coral `#FAECE7`/`#712B13`).
-9. **Coluna Status:** badge pill — Atendida (`#E1F5EE`/`#085041`), Sem resp. (`#FAEEDA`/`#854F0B`), Ocupado (`#FCEBEB`/`#791F1F`), Falha (`#FCEBEB`/`#791F1F`).
-10. **Coluna Custeio:** badge pill para Processado, Pendente e Erro; "Sem circ." exibido como texto simples em cor `#888` (sem badge).
-11. **Coluna Duração:** formato `0s`, `4s`, `2m 6s`, `1h 2m 30s`. Duração > 0: font-weight 500, cor primária. Duração = 0: cor `#888`.
-12. **Endpoints backend:**
-    - `GET /api/calls?page&size&src&dst&circuit&disposition&dateFrom&dateTo` — lista paginada, somente leitura (sem PUT/DELETE/POST).
-    - `GET /api/calls/summary` (mesmos params) — `{ total, answered, noAnswer, busy }`.
 
 ---
 
@@ -419,3 +391,25 @@ Como administrador, quero poder excluir um DID que esteja livre (sem circuito vi
 8. **DID vinculado — proteção:** se o DID estiver vinculado, o botão "Excluir" não aparece; o modal é somente leitura (apenas visualização + fechar).
 9. **Endpoint backend:** `DELETE /api/dids/{id}` — retorna `204` se livre, `409 Conflict` se vinculado a um circuito.
 10. **Frontend API route:** `DELETE /api/did/[id].ts` já existente (verificar se está implementado; se não, criar).
+
+---
+
+## US-056
+
+**Titulo:** Contador de registros no rodapé das listagens de Circuitos, Clientes e DIDs
+
+**Descrição:**
+Como administrador, quero ver um contador de registros no rodapé das páginas de listagem de Circuitos, Clientes e DIDs, indicando o total de registros retornados pela consulta atual (com filtros aplicados), seguindo o mesmo padrão já implementado nas páginas de Troncos e Ligações.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Posição e estilo:** texto abaixo da tabela, alinhado à direita, `text-[12px] text-[#888]`, `margin-top: 12px` — idêntico ao padrão das demais listagens.
+2. **Formato singular/plural:**
+   - Circuitos: `"1 circuito cadastrado"` / `"N circuitos cadastrados"`
+   - Clientes: `"1 cliente cadastrado"` / `"N clientes cadastrados"`
+   - DIDs: `"1 DID cadastrado"` / `"N DIDs cadastrados"`
+3. **Separador de milhares:** número formatado em pt-BR (ex: `123.560 circuitos cadastrados`).
+4. **Reflete filtros:** o total exibido é o `totalElements` da página atual retornado pelo backend (já disponível na resposta paginada).
+5. **Páginas alvo:** `circuits/index.astro`, `customers/index.astro`, `dids/index.astro`.

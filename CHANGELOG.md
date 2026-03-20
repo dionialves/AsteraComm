@@ -4,6 +4,21 @@
 
 ---
 
+### US-045 — Reestruturação da página de listagem de Ligações (CDR)
+
+**Solução:**
+- Frontend: `cdrs/index.astro` reescrito com 100% Tailwind — header sem botão de ação, card de filtros com labels acima dos campos, 6 campos (Origem, Destino, Circuito, Status, Data início, Data fim) em duas linhas, botões "Filtrar" e "Limpar".
+- Filtro Status como button group (padrão dos Circuitos): Todos / Atendida / Sem resp. / Ocupado / Falha — aplicado apenas ao clicar "Filtrar".
+- Paginação com chevrons SVG dentro do card de filtros.
+- Tabela CSS Grid 10 colunas, `cursor:pointer`, hover `#fafafa`, `.row-selected` com `#E6F1FB` + `border-left: 2px solid #378ADD`.
+- Header da tabela com colunas ordenáveis (`sort-col`, seta SVG indicando campo e direção ativas).
+- Badges: Tipo (4 cores), Status (3 cores), Custeio (badge p/ PROCESSED/PENDING/ERROR, texto simples p/ sem circuito/plano).
+- Duração: `font-weight:500` se > 0, `#888` se = 0. Formato `Xs`, `Xm Xs`, `Xh Xm Xs`.
+- Modal de detalhe (somente leitura) no padrão do sistema: overlay + scale/opacity, subtítulo "Ligação" + título `#ID`, grid 2 colunas com badges.
+- Contador de rodapé à direita: "{n} ligações encontradas".
+
+---
+
 ### US-044 — Reestruturação da página de listagem de Troncos
 
 **Solução:**
