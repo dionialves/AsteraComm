@@ -8,16 +8,15 @@
 4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
 5. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
 6. [US-040 — Refatoração: extrair scripts de modal para arquivos `.ts` importáveis nas páginas Astro](#us-040)
-7. [US-042 — Reestruturação da página de listagem de Clientes](#us-042)
-8. [US-043 — Reestruturação da página de listagem de DIDs](#us-043)
-9. [US-044 — Reestruturação da página de listagem de Troncos](#us-044)
-10. [US-045 — Reestruturação da página de listagem de Ligações (CDR)](#us-045)
-11. [US-046 — Reestruturação da página de listagem de Planos](#us-046)
-12. [US-047 — Reestruturação do sistema de Relatórios](#us-047)
-13. [US-048 — Reestruturação da página de listagem de Usuários](#us-048)
-14. [US-049 — Reestruturação da página de Auditoria](#us-049)
-15. [US-050 — Reestruturação do sidebar de navegação](#us-050)
-16. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
+7. [US-043 — Reestruturação da página de listagem de DIDs](#us-043)
+8. [US-044 — Reestruturação da página de listagem de Troncos](#us-044)
+9. [US-045 — Reestruturação da página de listagem de Ligações (CDR)](#us-045)
+10. [US-046 — Reestruturação da página de listagem de Planos](#us-046)
+11. [US-047 — Reestruturação do sistema de Relatórios](#us-047)
+12. [US-048 — Reestruturação da página de listagem de Usuários](#us-048)
+13. [US-049 — Reestruturação da página de Auditoria](#us-049)
+14. [US-050 — Reestruturação do sidebar de navegação](#us-050)
+15. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
 17. [US-053 — Botão "Novo circuito" abre modal de criação](#us-053)
 
 ---
@@ -175,35 +174,6 @@ Como desenvolvedor, quero que a lógica dos modais (`ModalSystem`, `ChipSelect` 
 4. **Sem duplicação:** O sub-modal de cliente (aberto a partir do circuito) reutiliza a lógica de `customer-modal.ts`.
 5. **Comportamento preservado:** Todos os critérios da US-039 continuam funcionando após a refatoração.
 6. **Testes:** Os testes existentes de `ModalSystem` e `ChipSelect` continuam passando.
-
----
-
-## US-042
-
-**Titulo:** Reestruturação da página de listagem de Clientes
-
-**Descrição:**
-Como administrador, quero que a página de listagem de Clientes seja redesenhada com cards de resumo de métricas, filtros rápidos por segmento, paginação com chevrons, indicadores visuais na tabela (status com bolinha colorida, linhas inativas com opacidade reduzida) e clique na linha abrindo o modal de edição, seguindo o mesmo padrão visual da listagem de Circuitos.
-
-**Estimativa:** 3 story points
-
-**Critérios de Aceite:**
-
-1. **Header:** Título "Clientes" (22px, font-weight 500) + subtítulo "Cadastro de clientes vinculados a circuitos" (13px, `#888`) à esquerda; botão "Novo cliente" (fundo `#1D9E75`, ícone `+` SVG, abre modal de criação) à direita.
-2. **Cards de resumo (3):** Grid 3 colunas com cards `#f5f5f5`, padding 14px 16px, border-radius 8px — exibindo Total de clientes (cor primária), Ativos (`#085041`) e Inativos (`#791F1F`). Label 12px / valor 22px. Dados vindos de `GET /api/clients/summary` → `{ total, active, inactive }`.
-3. **Campo de busca:** Ícone de lupa integrado (left 10px), placeholder "Buscar por nome...", debounce 300ms, max-width 320px.
-4. **Button group de filtros (3):** Todos / Ativos / Inativos. Mapeados para: Todos (sem filtro), Ativos (`status=ACTIVE`), Inativos (`status=INACTIVE`). Estilo idêntico ao da listagem de Circuitos.
-5. **Paginação:** Texto "Página {n} de {total}" (12px, cor secundária) + chevrons SVG agrupados.
-6. **Tabela em grid CSS:** Container com `border-radius 12px`, `border: 0.5px solid #e0e0e0`, `overflow: hidden`. Header fundo `#f5f5f5`, font-size 11px, font-weight 500, cor `#888`. Colunas: `grid-template-columns: 48px minmax(0,1fr) 68px 90px 140px 140px`, gap 8px, padding linhas 11px 16px. Colunas: ID, Nome, Status, Circuitos, Criado em, Atualizado em.
-7. **Coluna Status:** bolinha 7px (`#1D9E75` ativo / `#E24B4A` inativo) + texto (`#085041` / `#791F1F`).
-8. **Coluna Circuitos:** contagem de circuitos vinculados — número (font-weight 500, cor primária) + sufixo "circ." (cor secundária). Exemplo: **3** circ.
-9. **Colunas de data:** "Criado em" e "Atualizado em" em font-size 12px, cor `#888`, formato `dd/mm/aaaa, HH:mm`.
-10. **Linha inativa:** `opacity: 0.55` (hover: `0.75`).
-11. **Linha selecionada:** ao abrir modal, fundo `#E6F1FB` + `border-left: 2px solid #378ADD`; ao fechar, volta ao normal.
-12. **Clique na linha:** abre modal de edição do cliente; após save/delete, `atualizarLinhaListagem` / `removerLinhaDaListagem` atualiza a UI e recarrega o summary.
-13. **Endpoints backend:**
-    - `GET /api/clients?page&size&status&search` — lista paginada com campo `circuitCount` no DTO.
-    - `GET /api/clients/summary` — `{ total, active, inactive }`.
 
 ---
 

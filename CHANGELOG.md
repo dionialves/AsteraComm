@@ -4,6 +4,20 @@
 
 ---
 
+### US-042 — Reestruturação da página de listagem de Clientes
+
+**Solução:**
+- Backend: `CustomerResponseDTO` criado com campo `circuitCount` (count de circuitos vinculados por cliente via `CircuitRepository.countByCustomerId()`).
+- Backend: `CustomerRepository` recebeu `findByEnabled()` e `findByEnabledAndNameContainingIgnoreCase()` para filtro por status.
+- Backend: `CustomerService.getAll()` atualizado para receber `Boolean enabled` e retornar `Page<CustomerResponseDTO>`.
+- Backend: `CustomerController.findAll()` aceita `?status=ACTIVE|INACTIVE`, mapeia para `Boolean` e delega ao serviço.
+- Frontend: `customers.ts` atualizado para repassar `status` ao backend.
+- Frontend: `customers/index.astro` reescrito com 100% Tailwind — header, busca com debounce 300ms e ícone integrado, button group Todos/Ativos/Inativos, paginação com chevrons SVG.
+- Tabela em CSS Grid 6 colunas (ID, Nome, Status com bolinha colorida, Circuitos com count, Criado em, Atualizado em); header clicável com setas de sort; linha selecionada `#E6F1FB` + `border-left: 2px solid #378ADD`; linha inativa `opacity: 0.55`.
+- Botão "Novo cliente" abre modal em modo criação (POST); `atualizarLinhaListagem` e `removerLinhaDaListagem` para atualização incremental da UI.
+
+---
+
 ### US-041 — Reestruturação da página de listagem de Circuitos
 
 **Solução:**
