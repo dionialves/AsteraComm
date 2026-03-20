@@ -8,8 +8,7 @@
 4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
 5. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
 6. [US-040 — Refatoração: extrair scripts de modal para arquivos `.ts` importáveis nas páginas Astro](#us-040)
-7. [US-043 — Reestruturação da página de listagem de DIDs](#us-043)
-8. [US-044 — Reestruturação da página de listagem de Troncos](#us-044)
+7. [US-044 — Reestruturação da página de listagem de Troncos](#us-044)
 9. [US-045 — Reestruturação da página de listagem de Ligações (CDR)](#us-045)
 10. [US-046 — Reestruturação da página de listagem de Planos](#us-046)
 11. [US-047 — Reestruturação do sistema de Relatórios](#us-047)
@@ -17,7 +16,8 @@
 13. [US-049 — Reestruturação da página de Auditoria](#us-049)
 14. [US-050 — Reestruturação do sidebar de navegação](#us-050)
 15. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
-17. [US-053 — Botão "Novo circuito" abre modal de criação](#us-053)
+16. [US-053 — Botão "Novo circuito" abre modal de criação](#us-053)
+17. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
 
 ---
 
@@ -174,35 +174,6 @@ Como desenvolvedor, quero que a lógica dos modais (`ModalSystem`, `ChipSelect` 
 4. **Sem duplicação:** O sub-modal de cliente (aberto a partir do circuito) reutiliza a lógica de `customer-modal.ts`.
 5. **Comportamento preservado:** Todos os critérios da US-039 continuam funcionando após a refatoração.
 6. **Testes:** Os testes existentes de `ModalSystem` e `ChipSelect` continuam passando.
-
----
-
-## US-043
-
-**Titulo:** Reestruturação da página de listagem de DIDs
-
-**Descrição:**
-Como administrador, quero que a página de listagem de DIDs seja redesenhada com cards de resumo de métricas, filtros rápidos por segmento, paginação com chevrons, badges de status no formato pill e clique na linha abrindo o modal de edição, seguindo o padrão visual das listagens de Circuitos e Clientes — com a particularidade de que DIDs livres não são exibidos com opacidade reduzida, pois disponibilidade não é um estado negativo.
-
-**Estimativa:** 3 story points
-
-**Critérios de Aceite:**
-
-1. **Header:** Título "DIDs" (22px, font-weight 500) + subtítulo "Numeração DID disponível e vínculos com circuitos" (13px, `#888`) à esquerda; botão "Novo DID" (fundo `#1D9E75`, ícone `+` SVG, abre modal de criação) à direita.
-2. **Cards de resumo (3):** Grid 3 colunas, fundo `#f5f5f5`, padding 14px 16px, border-radius 8px — Total de DIDs (cor primária), Em uso (`#085041`) e Livres (`#0C447C`, azul escuro — disponibilidade não é estado negativo). Dados vindos de `GET /api/dids/summary` → `{ total, inUse, free }`.
-3. **Campo de busca:** Ícone de lupa integrado, placeholder "Buscar por número...", debounce 300ms, max-width 320px.
-4. **Button group de filtros (3):** Todos / Em uso / Livres. Mapeados para: Todos (sem filtro), Em uso (`status=IN_USE`), Livres (`status=FREE`). Estilo idêntico às outras listagens.
-5. **Paginação:** Texto "Página {n} de {total}" (12px, cor secundária) + chevrons SVG agrupados.
-6. **Tabela em grid CSS:** Container com `border-radius 12px`, `border: 0.5px solid #e0e0e0`, `overflow: hidden`. Header fundo `#f5f5f5`, font-size 11px, font-weight 500, cor `#888`. Colunas: `grid-template-columns: 48px minmax(0,1fr) 80px minmax(0,1fr)`, gap 8px, padding 11px 16px. Colunas: ID, Número, Status, Circuito.
-7. **Coluna Número:** font-family monospace, font-size 13px, cor primária.
-8. **Coluna Status:** badge pill (border-radius 99px, font-size 11px, padding 2px 10px). "Em uso": fundo `#E1F5EE`, texto `#085041`. "Livre": fundo `#E6F1FB`, texto `#0C447C`.
-9. **Coluna Circuito:** se vinculado, exibe código do circuito em monospace, font-size 12px; se livre, exibe "—" (cor `#888`).
-10. **Sem opacidade reduzida:** DIDs livres não recebem `opacity: 0.55` — livre é disponibilidade, não estado degradado.
-11. **Linha selecionada:** ao abrir modal, fundo `#E6F1FB` + `border-left: 2px solid #378ADD`; ao fechar, volta ao normal.
-12. **Remoção do botão "Excluir" da tabela:** a deleção passa a ocorrer exclusivamente no footer do modal de edição (dois cliques para confirmar).
-13. **Endpoints backend:**
-    - `GET /api/dids?page&size&status&search` — lista paginada; cada item contém `id`, `number`, `status` (`IN_USE` / `FREE`) e `circuit` (`{ id, code }` ou `null`).
-    - `GET /api/dids/summary` — `{ total, inUse, free }`.
 
 ---
 
@@ -429,3 +400,23 @@ Como administrador, ao clicar em "Novo circuito" na listagem de Circuitos, quero
 5. **Validação:** Campos obrigatórios validados client-side antes do envio.
 6. **Integração com sistema de modais:** Utiliza o `ModalSystem` existente para abertura, fechamento e empilhamento.
 
+----
+
+## US-054
+
+**Titulo:** Criar circuito a partir do modal de cliente
+
+**Descrição:**
+Como administrador, quero poder criar um novo circuito diretamente pela aba "Circuitos" do modal de cliente, com o vínculo ao cliente já preenchido automaticamente, para agilizar o cadastro sem precisar sair da tela de clientes.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **Botão "+ Novo circuito":** Na aba "Circuitos" do modal de cliente, um botão "+ Novo circuito" abre o sub-modal em modo criação (campos vazios, exceto "Cliente" já preenchido e bloqueado).
+2. **Campo Cliente pré-preenchido:** O sub-modal em modo criação exibe o nome do cliente atual no chip de "Cliente" com estado fixo (não editável, sem botão de limpar).
+3. **Campos do formulário:** Senha (opcional), Tronco (obrigatório) e Plano (obrigatório) — os mesmos do sub-modal de edição. O campo "Código" não é exibido (gerado automaticamente pelo backend).
+4. **Validação:** Se Tronco ou Plano não estiverem selecionados ao salvar, exibe erro inline no sub-modal: "Tronco e Plano são obrigatórios."
+5. **Salvamento:** Ao salvar, envia `POST /api/circuit/circuits` com `{ password?, trunkName, planId, customerId }`. Em caso de sucesso, fecha o sub-modal, recarrega a lista de circuitos da aba e atualiza o `circuitCount` da linha na listagem.
+6. **Distinção visual:** O header do sub-modal exibe "Novo circuito" como título (em vez do código do circuito). O botão "Deletar" não é exibido no modo criação.
+7. **Comportamento preservado:** O fluxo de edição de circuito existente (clique no ícone de seta na linha) continua funcionando sem alterações.

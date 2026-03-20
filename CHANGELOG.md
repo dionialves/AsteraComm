@@ -18,6 +18,21 @@
 
 ---
 
+### US-043 — Reestruturação da página de listagem de DIDs
+
+**Solução:**
+- Backend: `DIDCircuitDTO` e `DIDResponseDTO` criados como records (campos: `id`, `number`, `status`, `circuit`).
+- Backend: `DIDRepository` recebeu 4 novos métodos paginados: `findByCircuitIsNull`, `findByCircuitIsNotNull`, e variantes com `NumberContaining` para busca.
+- Backend: `DIDService.getAll()` atualizado para retornar `Page<DIDResponseDTO>` com status computado (`IN_USE`/`FREE`) e `DIDCircuitDTO` aninhado.
+- Backend: `DIDController.findAll()` aceita `?status=IN_USE|FREE` e usa `@PageableDefault(size=20)`.
+- Frontend: `dids.ts` atualizado para repassar `status` ao backend.
+- Frontend: `dids/index.astro` reescrito com 100% Tailwind — header, busca com debounce 300ms e ícone integrado, button group Todos/Em uso/Livres, paginação com chevrons SVG.
+- Tabela em CSS Grid 4 colunas (ID, Número, Status badge pill, Circuito vinculado); header clicável com setas de sort; linha selecionada `#E6F1FB` + `border-left: 2px solid #378ADD`.
+- Badge pills diferenciados: Em uso (`#E1F5EE`/`#085041`), Livre (`#E6F1FB`/`#0C447C`).
+- Botão "Novo DID" abre modal em modo criação (POST) com máscara `(XX) XXXX-XXXX`; exclusão com confirmação em dois cliques; `removerLinhaDaListagem` para atualização incremental.
+
+---
+
 ### US-041 — Reestruturação da página de listagem de Circuitos
 
 **Solução:**
