@@ -8,16 +8,16 @@
 4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
 5. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
 6. [US-040 — Refatoração: extrair scripts de modal para arquivos `.ts` importáveis nas páginas Astro](#us-040)
-7. [US-044 — Reestruturação da página de listagem de Troncos](#us-044)
-9. [US-045 — Reestruturação da página de listagem de Ligações (CDR)](#us-045)
-10. [US-046 — Reestruturação da página de listagem de Planos](#us-046)
-11. [US-047 — Reestruturação do sistema de Relatórios](#us-047)
-12. [US-048 — Reestruturação da página de listagem de Usuários](#us-048)
-13. [US-049 — Reestruturação da página de Auditoria](#us-049)
-14. [US-050 — Reestruturação do sidebar de navegação](#us-050)
-15. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
-16. [US-053 — Botão "Novo circuito" abre modal de criação](#us-053)
-17. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
+7. [US-045 — Reestruturação da página de listagem de Ligações (CDR)](#us-045)
+8. [US-046 — Reestruturação da página de listagem de Planos](#us-046)
+9. [US-047 — Reestruturação do sistema de Relatórios](#us-047)
+10. [US-048 — Reestruturação da página de listagem de Usuários](#us-048)
+11. [US-049 — Reestruturação da página de Auditoria](#us-049)
+12. [US-050 — Reestruturação do sidebar de navegação](#us-050)
+13. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
+14. [US-053 — Botão "Novo circuito" abre modal de criação](#us-053)
+15. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
+16. [US-055 — Excluir DID livre pela página de listagem de DIDs](#us-055)
 
 ---
 
@@ -174,31 +174,6 @@ Como desenvolvedor, quero que a lógica dos modais (`ModalSystem`, `ChipSelect` 
 4. **Sem duplicação:** O sub-modal de cliente (aberto a partir do circuito) reutiliza a lógica de `customer-modal.ts`.
 5. **Comportamento preservado:** Todos os critérios da US-039 continuam funcionando após a refatoração.
 6. **Testes:** Os testes existentes de `ModalSystem` e `ChipSelect` continuam passando.
-
----
-
-## US-044
-
-**Titulo:** Reestruturação da página de listagem de Troncos
-
-**Descrição:**
-Como administrador, quero que a página de listagem de Troncos seja redesenhada com visual consistente às demais listagens, porém simplificada — sem cards de resumo, busca, filtros ou paginação, já que o sistema terá no máximo 2-3 troncos cadastrados. A tabela exibe 5 colunas com badge pill de status de registro e um contador de registros no rodapé.
-
-**Estimativa:** 2 story points
-
-**Critérios de Aceite:**
-
-1. **Header:** Título "Troncos" (22px, font-weight 500) + subtítulo "Conexões SIP com operadoras de telefonia" (13px, `#888`) à esquerda; botão "Novo tronco" (fundo `#1D9E75`, ícone `+` SVG, abre modal de criação) à direita.
-2. **Sem cards, busca, filtros ou paginação:** removidos por serem desnecessários para 2-3 registros.
-3. **Tabela em grid CSS:** Container com `border-radius 12px`, `border: 0.5px solid #e0e0e0`, `overflow: hidden`. Header fundo `#f5f5f5`, font-size 11px, font-weight 500, cor `#888`, padding 10px 16px. Colunas: `grid-template-columns: 48px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 120px`, gap 8px, padding linhas 14px 16px. Colunas: ID, Nome, Host, Usuário, Registro.
-4. **Coluna Nome:** font-size 13px, font-weight 500, cor primária (peso maior pois é o identificador principal).
-5. **Coluna Host:** font-family monospace, font-size 12px, cor primária, com `text-overflow: ellipsis` para hosts longos.
-6. **Coluna Registro:** badge pill (border-radius 99px, font-size 11px, padding 2px 10px). "Registrado": fundo `#E1F5EE`, texto `#085041`. "Não registrado": fundo `#FCEBEB`, texto `#791F1F` (vermelho — é um estado negativo que requer atenção).
-7. **Sem opacidade reduzida:** troncos não registrados não recebem `opacity: 0.55` — o estado precisa de atenção, não de atenuação visual.
-8. **Linha selecionada:** ao abrir modal, fundo `#E6F1FB` + `border-left: 2px solid #378ADD`; ao fechar, volta ao normal.
-9. **Rodapé contador:** texto "{n} troncos cadastrados" / "1 tronco cadastrado" (singular), font-size 12px, cor `#888`, alinhado à direita, margin-top 12px.
-10. **Endpoint backend:** `GET /api/trunks` retorna `List<TrunkDTO>` simples (sem paginação), cada item com `id`, `name`, `host`, `username`, `registered`.
-11. **Frontend:** `loadTrunks()` busca a lista completa e atualiza tabela + contador. Após delete no modal, `removerLinhaDaListagem(id)` remove a linha com fade e atualiza o contador.
 
 ---
 
@@ -420,3 +395,27 @@ Como administrador, quero poder criar um novo circuito diretamente pela aba "Cir
 5. **Salvamento:** Ao salvar, envia `POST /api/circuit/circuits` com `{ password?, trunkName, planId, customerId }`. Em caso de sucesso, fecha o sub-modal, recarrega a lista de circuitos da aba e atualiza o `circuitCount` da linha na listagem.
 6. **Distinção visual:** O header do sub-modal exibe "Novo circuito" como título (em vez do código do circuito). O botão "Deletar" não é exibido no modo criação.
 7. **Comportamento preservado:** O fluxo de edição de circuito existente (clique no ícone de seta na linha) continua funcionando sem alterações.
+
+---
+
+## US-055
+
+**Titulo:** Excluir DID livre pela página de listagem de DIDs
+
+**Descrição:**
+Como administrador, quero poder excluir um DID que esteja livre (sem circuito vinculado) diretamente pela página de listagem de DIDs. Ao clicar em uma linha, abre um modal no padrão visual do sistema exibindo os dados do DID com botões de "Cancelar" e "Excluir". DIDs vinculados a um circuito não podem ser excluídos — o botão "Excluir" não é exibido nesses casos.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **Clique na linha:** ao clicar em qualquer linha da tabela de DIDs, abre modal com os dados do DID selecionado. A linha recebe `.row-selected` enquanto o modal estiver aberto.
+2. **Modal — layout padrão:** segue o padrão do sistema (overlay com `bg-black/40`, modal centralizado, `border-radius: 12px`, `box-shadow`). Header com título "DID {número}" e botão de fechar (×).
+3. **Modal — dados exibidos:** Número (monospace, destaque), Status (badge pill "Livre" / "Vinculado"), Circuito vinculado (nome do circuito ou "—" se livre).
+4. **Botão "Excluir":** exibido somente se o DID estiver livre (`circuitId === null`). Fundo `#DC2626` (vermelho), texto branco.
+5. **Botão "Cancelar":** sempre visível. Fecha o modal e remove `.row-selected`.
+6. **Confirmação de exclusão:** ao clicar em "Excluir", exibe mensagem de confirmação inline no modal ("Tem certeza? Esta ação não pode ser desfeita.") com botões "Confirmar exclusão" e "Voltar".
+7. **Após exclusão bem-sucedida:** fecha o modal, exibe toast de sucesso, remove a linha da tabela com fade (`opacity: 0; transition: 0.2s`) e atualiza o contador de DIDs.
+8. **DID vinculado — proteção:** se o DID estiver vinculado, o botão "Excluir" não aparece; o modal é somente leitura (apenas visualização + fechar).
+9. **Endpoint backend:** `DELETE /api/dids/{id}` — retorna `204` se livre, `409 Conflict` se vinculado a um circuito.
+10. **Frontend API route:** `DELETE /api/did/[id].ts` já existente (verificar se está implementado; se não, criar).

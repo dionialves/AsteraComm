@@ -4,6 +4,15 @@
 
 ---
 
+### US-044 — Reestruturação da página de listagem de Troncos
+
+**Solução:**
+- Frontend: `trunks/index.astro` reescrito com 100% Tailwind — header com botão "Novo tronco" (`#1D9E75`), busca com debounce 300ms e ícone integrado, paginação condicional com chevrons SVG (oculta quando `totalPages <= 1`).
+- Tabela em CSS Grid 4 colunas (Nome, Host, Usuário, Registro); badge pill "Registrado" (`#E1F5EE`/`#085041`) e "Não registrado" (`#FCEBEB`/`#791F1F`); linha selecionada `#E6F1FB` + `border-left: 2px solid #378ADD`.
+- Contador de rodapé: "{n} troncos cadastrados" (singular/plural), alinhado à direita.
+
+---
+
 ### US-042 — Reestruturação da página de listagem de Clientes
 
 **Solução:**
