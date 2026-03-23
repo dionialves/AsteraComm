@@ -4,6 +4,29 @@
 
 ---
 
+### US-064 — Modais de perfil e senha no padrão do sistema
+
+**Solução:**
+- Frontend: `Layout.astro` — modais "Dados cadastrais" e "Alterar senha" migrados para classes canônicas do `global.css` (`.modal-overlay`, `.modal-main`, `.modal-header`, `.modal-body`, `.modal-footer`, `.form-group`, `.form-input`, `.input-password-wrap`, `.btn-eye`, `.modal-error`).
+- CSS customizado (`.layout-modal`, `.lm-*`) removido do `Layout.astro`.
+- Z-index dos modais do layout sobrescrito para 200/210 (acima do sidebar).
+- Form de dados cadastrais reorganizado em grid 2 colunas.
+
+---
+
+### US-050 — Reestruturação do sidebar de navegação
+
+**Solução:**
+- Frontend: `Layout.astro` reescrito com sidebar fixo 220px (`#1a1a1a`), logo centralizada 24px (`#5DCAA5` + branco).
+- Seções OPERACIONAL (Cadastro colapsável: Circuitos, Clientes, DIDs, Planos; Configuração colapsável: Troncos) e FINANCEIRO (Ligações, Relatórios).
+- Seção ADMINISTRAÇÃO (Usuários) renderizada via SSR apenas para `SUPER_ADMIN` e `ADMIN` (fetch server-side no frontmatter).
+- Menus colapsáveis com chevron animado (rotate 180°) e `max-height` (0.25s ease). Auto-expansão e `.active` via JS baseado na URL atual.
+- Rodapé: avatar 28px, nome, role, dropdown para cima (`#2a2a2a`) com Dados cadastrais, Alterar senha, Sair.
+- Modais Dados cadastrais (580px) e Alterar senha (420px) com campos no padrão `global.css`.
+- Proxy `api/auth/me/password.ts`: handler PUT adicionado com `{ currentPassword, newPassword }`.
+
+---
+
 ### US-063 — Modal de detalhes do circuito a partir da página de Auditoria
 
 **Solução:**

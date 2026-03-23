@@ -15,7 +15,6 @@
 11. [FIX-005 — Refatorar fetches com limite hardcoded no frontend](#fix-005)
 12. [FIX-006 — Modal de Planos com tamanho incorreto](#fix-006)
 13. [US-062 — Refatoração: organizar pacote `report` com sub-pacotes por relatório](#us-062)
-12. [US-050 — Reestruturação do sidebar de navegação](#us-050)
 13. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
 14. [US-053 — Botão "Novo circuito" abre modal de criação](#us-053)
 15. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
@@ -26,6 +25,7 @@
 20. [US-059 — Adicionar coluna ID na listagem de Troncos](#us-059)
 21. [US-060 — Excluir usuário pelo modal de edição](#us-060)
 22. [US-061 — Refatoração: controle de acesso ao menu por nível de usuário](#us-061)
+23. [US-064 — Modais de perfil e senha no padrão do sistema](#us-064)
 
 ---
 
@@ -329,34 +329,6 @@ report/
 
 ---
 
-## US-050
-
-**Titulo:** Reestruturação do sidebar de navegação
-
-**Descrição:**
-Como administrador, quero que o sidebar de navegação seja redesenhado com agrupamento em seções lógicas (Operacional, Financeiro, Administração), menus colapsáveis com chevron animado, dropdown de perfil com modais de edição de dados cadastrais e alteração de senha, e visibilidade condicional da seção Administração baseada no papel do usuário.
-
-**Estimativa:** 4 story points
-
-**Critérios de Aceite:**
-
-1. **Container:** Sidebar fixo, 220px, fundo `#1a1a1a`, `height: 100vh`. Conteúdo principal com `margin-left: 220px`.
-2. **Logo:** "Astera" em `#5DCAA5` + "Comm" em branco, font-size 18px, font-weight 500, letter-spacing -0.5px.
-3. **Labels de seção:** "OPERACIONAL", "FINANCEIRO", "ADMINISTRAÇÃO" em 10px, uppercase, letter-spacing 1px, cor `rgba(255,255,255,0.35)`. Não clicáveis.
-4. **Item de menu direto:** Ícone SVG 16x16 + texto, padding 9px 12px, border-radius 6px, font-size 13px. Normal: `rgba(255,255,255,0.65)`. Hover: `rgba(255,255,255,0.05)`. Ativo: fundo `rgba(255,255,255,0.08)`, texto branco.
-5. **Menus colapsáveis:** "Cadastro" (ícone user) e "Configuração" (ícone settings) com chevron 14x14 à direita. Chevron rotaciona 180° ao expandir. Submenus animados via `max-height` (transição 0.25s ease).
-6. **Submenus:** Indentados com padding-left 38px, sem ícone. Ativo: texto branco.
-7. **Estrutura:** Dashboard (`/dashboard`). Seção Operacional: Cadastro colapsável (Circuitos, Clientes, DIDs) + Configuração colapsável (Troncos, Planos). Seção Financeiro: Ligações, Relatórios, Auditoria. Seção Administração: Usuários (condicional).
-8. **Auto-expansão:** Ao carregar, JS detecta URL atual, expande menu pai se for submenu e aplica `.active` ao item correspondente.
-9. **Seção Administração (condicional):** Renderizada via SSR Astro apenas para `SUPER_ADMIN` e `ADMIN`.
-10. **Rodapé — botão de perfil:** Avatar circular 28x28 (inicial do nome), nome (12px, branco, truncado), role (11px, `rgba(255,255,255,0.4)`), chevron que rotaciona ao abrir dropdown.
-11. **Dropdown do perfil (abre para cima):** Fundo `#2a2a2a`, border `rgba(255,255,255,0.1)`, animação opacity + translateY (0.15s). 3 itens: "Dados cadastrais", "Alterar senha", "Sair" (danger, hover vermelho, separado por borda superior). Fecha ao clicar fora ou Escape.
-12. **Modal "Dados cadastrais" (580px):** Campos ID, Nome (editável), Username, Role, Ativo, Criado em, Atualizado em. Campos não editáveis com fundo `#f5f5f5`. Footer: Salvar → `PUT /api/users/me { name }`, atualiza nome no rodapé do sidebar após sucesso.
-13. **Modal "Alterar senha" (420px):** 3 campos password com toggle de visibilidade (Senha atual, Nova senha, Confirmar nova senha). Validação client-side de coincidência. Botão Salvar desabilitado até campos preenchidos e senhas iguais. Footer: Salvar → `PUT /api/users/me/password { currentPassword, newPassword }`. Erro 400 exibe "Senha atual incorreta" abaixo do campo.
-14. **Ação "Sair":** `POST /api/auth/logout` → redireciona `/login`. Sem confirmação.
-
----
-
 ## US-052
 
 **Titulo:** Migrar frontend para 100% Tailwind CSS
@@ -554,3 +526,24 @@ Como administrador, quero que os itens do sidebar de navegação sejam exibidos 
    - `USER` (Operador): acesso apenas a itens operacionais (Circuitos, Ligações, Auditoria) — sem acesso a Usuários, Clientes, Planos, Troncos ou DIDs.
 3. **Proteção de rota:** Além da visibilidade no menu, o middleware Astro (`src/middleware.ts`) nega acesso direto via URL a rotas restritas, redirecionando para `/dashboard` com mensagem de permissão insuficiente.
 4. **Sem impacto visual:** itens visíveis permanecem com aparência idêntica ao atual; apenas itens inacessíveis são ocultados.
+
+---
+
+## US-064
+
+**Titulo:** Modais de perfil e senha no padrão do sistema
+
+**Descrição:**
+Como administrador, quero que os modais "Dados cadastrais" e "Alterar senha", acessados pelo dropdown do sidebar, utilizem a interface padrão dos modais do sistema (`.modal-overlay`, `.modal-main`, `.modal-header`, `.modal-body`, `.modal-footer` do `global.css`), mantendo consistência visual com os demais modais da aplicação.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Overlay:** Usa a classe `.modal-overlay` do `global.css` (animação opacity, `rgba(0,0,0,0.18)`).
+2. **Container:** Usa a classe `.modal-main` — "Dados cadastrais" com `width: 580px`, "Alterar senha" com `width: 420px`, ambos com `height: auto` (sem altura fixa).
+3. **Header:** `.modal-header` + `.modal-header-top` com subtítulo "Meu perfil" (`.modal-subtitle`) + título dinâmico (`.modal-title`) + botão fechar (`.modal-btn-close`).
+4. **Body:** `.modal-body` com campos usando `.form-group`, `.form-label`, `.form-input`.
+5. **Footer:** `.modal-footer` com botões `.btn-modal-cancel` e `.btn-modal-save`.
+6. **CSS customizado removido:** As classes `.layout-modal`, `.lm-*` e o bloco `<style>` correspondente são eliminados do `Layout.astro`.
+7. **Comportamento preservado:** Lógica de abertura/fechamento, validação e chamadas de API permanecem idênticas.
