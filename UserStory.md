@@ -25,8 +25,6 @@
 20. [US-059 — Adicionar coluna ID na listagem de Troncos](#us-059)
 21. [US-060 — Excluir usuário pelo modal de edição](#us-060)
 22. [US-061 — Refatoração: controle de acesso ao menu por nível de usuário](#us-061)
-23. [US-064 — Modais de perfil e senha no padrão do sistema](#us-064)
-
 ---
 
 ## US-011
@@ -527,23 +525,3 @@ Como administrador, quero que os itens do sidebar de navegação sejam exibidos 
 3. **Proteção de rota:** Além da visibilidade no menu, o middleware Astro (`src/middleware.ts`) nega acesso direto via URL a rotas restritas, redirecionando para `/dashboard` com mensagem de permissão insuficiente.
 4. **Sem impacto visual:** itens visíveis permanecem com aparência idêntica ao atual; apenas itens inacessíveis são ocultados.
 
----
-
-## US-064
-
-**Titulo:** Modais de perfil e senha no padrão do sistema
-
-**Descrição:**
-Como administrador, quero que os modais "Dados cadastrais" e "Alterar senha", acessados pelo dropdown do sidebar, utilizem a interface padrão dos modais do sistema (`.modal-overlay`, `.modal-main`, `.modal-header`, `.modal-body`, `.modal-footer` do `global.css`), mantendo consistência visual com os demais modais da aplicação.
-
-**Estimativa:** 1 story point
-
-**Critérios de Aceite:**
-
-1. **Overlay:** Usa a classe `.modal-overlay` do `global.css` (animação opacity, `rgba(0,0,0,0.18)`).
-2. **Container:** Usa a classe `.modal-main` — "Dados cadastrais" com `width: 580px`, "Alterar senha" com `width: 420px`, ambos com `height: auto` (sem altura fixa).
-3. **Header:** `.modal-header` + `.modal-header-top` com subtítulo "Meu perfil" (`.modal-subtitle`) + título dinâmico (`.modal-title`) + botão fechar (`.modal-btn-close`).
-4. **Body:** `.modal-body` com campos usando `.form-group`, `.form-label`, `.form-input`.
-5. **Footer:** `.modal-footer` com botões `.btn-modal-cancel` e `.btn-modal-save`.
-6. **CSS customizado removido:** As classes `.layout-modal`, `.lm-*` e o bloco `<style>` correspondente são eliminados do `Layout.astro`.
-7. **Comportamento preservado:** Lógica de abertura/fechamento, validação e chamadas de API permanecem idênticas.
