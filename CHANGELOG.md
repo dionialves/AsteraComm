@@ -4,6 +4,14 @@
 
 ---
 
+### US-059 — Adicionar coluna ID na listagem de Troncos
+
+**Solução:**
+- Backend: migração `V6__add_id_to_trunks.sql` adiciona campo `id BIGSERIAL` como nova PK da tabela `asteracomm_trunks`, com `name` tornando-se `UNIQUE`. Entidade `Trunk` atualizada com `@GeneratedValue(IDENTITY)`. `TrunkProjection` expõe `getId()`. `TrunkRepository` migra para `JpaRepository<Trunk, Long>` com novos métodos `findByName` e `existsByName`. `TrunkService` e `DevDataSeeder` atualizados.
+- Frontend: `trunks/index.astro` — coluna `ID` adicionada como primeira coluna (`40px`, `font-mono text-[#888]`). Campo ID adicionado ao modal (desativado em criação e edição, populado com o valor real na edição).
+
+---
+
 ### US-058 — Ajustar cor do texto dos IDs nas páginas de Clientes e DIDs
 
 **Solução:**

@@ -19,7 +19,6 @@
 14. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
 16. [US-055 — Excluir DID livre pela página de listagem de DIDs](#us-055)
 17. [US-057 — Adicionar campo `active` ao Plano com filtro na listagem](#us-057)
-20. [US-059 — Adicionar coluna ID na listagem de Troncos](#us-059)
 21. [US-060 — Excluir usuário pelo modal de edição](#us-060)
 22. [US-061 — Refatoração: controle de acesso ao menu por nível de usuário](#us-061)
 23. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
@@ -408,24 +407,6 @@ Como administrador, quero que cada plano tenha um campo de status (ativo/inativo
 4. **Linha inativa na tabela:** Planos com `active = false` recebem a classe `.row-inactive` (`opacity: 0.55`).
 5. **Filtro na toolbar:** Grupo de botões (Todos / Ativos / Inativos) exibido à esquerda, acima da tabela. O botão ativo recebe fundo `#1a1a1a` e texto branco; os demais ficam com texto `#888`. Ao selecionar um filtro, a listagem é recarregada com o parâmetro correspondente.
 6. **Sem alteração no comportamento existente** de criação, edição e exclusão.
-
----
-
-## US-059
-
-**Titulo:** Adicionar coluna ID na listagem de Troncos
-
-**Descrição:**
-Como administrador, quero que a tabela de listagem de Troncos exiba a coluna ID, seguindo o mesmo padrão visual das demais listagens (`font-mono text-[#888]`).
-
-**Estimativa:** 1 story point
-
-**Critérios de Aceite:**
-
-1. **Coluna ID:** Adicionada como primeira coluna da tabela, com largura fixa (`40px`), estilo `font-mono text-[#888] text-[13px]`.
-2. **Header:** Label `"ID"` no cabeçalho, seguindo o padrão `text-[11px] font-medium text-[#888] uppercase tracking-wide`.
-3. **Grid atualizado:** `grid-template-columns` da `.trunk-row` atualizado para incluir a nova coluna.
-4. **Sem alteração** em qualquer outro campo, comportamento ou estilo da página.
 
 ---
 
