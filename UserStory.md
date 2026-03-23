@@ -15,14 +15,14 @@
 11. [FIX-005 — Refatorar fetches com limite hardcoded no frontend](#fix-005)
 12. [FIX-006 — Modal de Planos com tamanho incorreto](#fix-006)
 13. [US-062 — Refatoração: organizar pacote `report` com sub-pacotes por relatório](#us-062)
-13. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
-14. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
-17. [US-057 — Adicionar campo `active` ao Plano com filtro na listagem](#us-057)
-21. [US-060 — Excluir usuário pelo modal de edição](#us-060)
-22. [US-061 — Refatoração: controle de acesso ao menu por nível de usuário](#us-061)
-23. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
-24. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
-25. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
+14. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
+15. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
+16. [US-060 — Excluir usuário pelo modal de edição](#us-060)
+18. [US-061 — Refatoração: controle de acesso ao menu por nível de usuário](#us-061)
+19. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
+20. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
+21. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
+
 ---
 
 ## US-011
@@ -70,6 +70,7 @@ Como desenvolvedor, quero reorganizar os pacotes do backend introduzindo um paco
 6. **Sem alteração de comportamento:** Nenhuma lógica de negócio é alterada — apenas movimentação de pacotes/arquivos.
 
 **Nova estrutura resultante:**
+
 ```
 com.dionialves.AsteraComm/
 ├── AsteraCommApplication.java
@@ -305,6 +306,7 @@ Como desenvolvedor, quero reorganizar o backend para que o pacote `report` conte
 6. **Sem quebra de funcionalidade:** A aplicação compila e todos os testes existentes passam.
 
 **Estrutura resultante:**
+
 ```
 report/
 ├── audit/
@@ -362,26 +364,6 @@ Como administrador, quero poder criar um novo circuito diretamente pela aba "Cir
 5. **Salvamento:** Ao salvar, envia `POST /api/circuit/circuits` com `{ password?, trunkName, planId, customerId }`. Em caso de sucesso, fecha o sub-modal, recarrega a lista de circuitos da aba e atualiza o `circuitCount` da linha na listagem.
 6. **Distinção visual:** O header do sub-modal exibe "Novo circuito" como título (em vez do código do circuito). O botão "Deletar" não é exibido no modo criação.
 7. **Comportamento preservado:** O fluxo de edição de circuito existente (clique no ícone de seta na linha) continua funcionando sem alterações.
-
----
-
-## US-057
-
-**Titulo:** Adicionar campo `active` ao Plano com filtro na listagem
-
-**Descrição:**
-Como administrador, quero que cada plano tenha um campo de status (ativo/inativo), que seja exibido como linha esmaecida na tabela quando inativo, e que a listagem de planos ofereça um grupo de botões de filtro (Todos / Ativos / Inativos) para segmentar a visão.
-
-**Estimativa:** 2 story points
-
-**Critérios de Aceite:**
-
-1. **Campo `active` no backend:** A entidade `Plan` passa a ter o campo `active` (boolean, não nulo, padrão `true`). Migração Flyway adiciona a coluna `active` com valor `true` para registros existentes.
-2. **API:** O campo `active` é retornado no JSON do plano. O endpoint `GET /api/plans` aceita o parâmetro opcional `active` (true/false/ausente = todos) para filtrar os resultados.
-3. **Toggle no modal:** O modal de edição exibe um toggle "Ativo / Inativo" que permite alterar o status do plano.
-4. **Linha inativa na tabela:** Planos com `active = false` recebem a classe `.row-inactive` (`opacity: 0.55`).
-5. **Filtro na toolbar:** Grupo de botões (Todos / Ativos / Inativos) exibido à esquerda, acima da tabela. O botão ativo recebe fundo `#1a1a1a` e texto branco; os demais ficam com texto `#888`. Ao selecionar um filtro, a listagem é recarregada com o parâmetro correspondente.
-6. **Sem alteração no comportamento existente** de criação, edição e exclusão.
 
 ---
 

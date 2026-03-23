@@ -4,6 +4,14 @@
 
 ---
 
+### US-057 — Adicionar campo `active` ao Plano com filtro na listagem
+
+**Solução:**
+- Backend: migração `V7__add_active_to_plans.sql` adiciona coluna `active BOOLEAN NOT NULL DEFAULT TRUE` na tabela `asteracomm_plans`. Entidade `Plan` recebe campo `boolean active = true`. `PlanUpdateDTO` recebe campo `Boolean active`. `PlanRepository` ganha `findByActive()` e `findByActiveAndNameContainingIgnoreCase()`. `PlanService.getAll()` passa a aceitar `Boolean active` como parâmetro de filtro (null = todos, true = ativos, false = inativos). `PlanController` expõe o parâmetro `?active` no endpoint `GET /api/plans`.
+- Frontend: `plans/index.astro` — coluna "Status" adicionada após "Nome" (bolinha colorida + texto, padrão de Circuitos); filtro Todos/Ativos/Inativos na toolbar (padrão `bg-white`); paginação sempre visível; modal reestruturado com tamanho padrão (`780×680`), linha 1 ID + Nome, linha 2 toggle Ativo/Inativo (disponível também na criação). `plans.ts` repassa parâmetro `active` ao backend.
+
+---
+
 ### US-055 — Excluir DID livre pela página de listagem de DIDs
 
 **Solução:**
