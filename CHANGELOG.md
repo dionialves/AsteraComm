@@ -4,6 +4,13 @@
 
 ---
 
+### US-060 — Excluir usuário pelo modal de edição
+
+**Solução:**
+- Frontend: `users/index.astro` — botão "Excluir" no rodapé do modal (apenas em modo edição) com padrão de dois cliques: 1º clique muda texto para "Confirmar exclusão" com timer de 3s para reverter automaticamente; 2º clique executa `DELETE /api/users/{id}`, fecha o modal e exibe toast de sucesso. Removidos `#confirm-body`, `#btn-confirm-delete` e toda a lógica de troca de painel (`showConfirmBody`/`showFormBody`/`confirmMode`).
+
+---
+
 ### US-057 — Adicionar campo `active` ao Plano com filtro na listagem
 
 **Solução:**

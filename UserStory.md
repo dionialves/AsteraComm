@@ -11,17 +11,18 @@
 7. [FIX-001 — Erro ao desativar/ativar usuário](#fix-001)
 8. [FIX-002 — Modais fora do tamanho correto nas páginas de Ligações e Planos](#fix-002)
 9. [FIX-003 — Botões do modal desalinhados no modo de criação](#fix-003)
-10. [FIX-004 — Padrão de exclusão do modal de Usuários](#fix-004)
-11. [FIX-005 — Refatorar fetches com limite hardcoded no frontend](#fix-005)
-12. [FIX-006 — Modal de Planos com tamanho incorreto](#fix-006)
-13. [US-062 — Refatoração: organizar pacote `report` com sub-pacotes por relatório](#us-062)
-14. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
-15. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
-16. [US-060 — Excluir usuário pelo modal de edição](#us-060)
-18. [US-061 — Refatoração: controle de acesso ao menu por nível de usuário](#us-061)
-19. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
-20. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
-21. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
+10. [FIX-005 — Refatorar fetches com limite hardcoded no frontend](#fix-005)
+11. [FIX-006 — Modal de Planos com tamanho incorreto](#fix-006)
+12. [US-062 — Refatoração: organizar pacote `report` com sub-pacotes por relatório](#us-062)
+13. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
+14. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
+15. [US-060 — Excluir usuário pelo modal de edição](#us-060)
+16. [US-061 — Refatoração: controle de acesso ao menu por nível de usuário](#us-061)
+17. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
+18. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
+19. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
+20. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
+21. [FIX-011 — Desativar cliente automaticamente quando seu último circuito ativo for desativado](#fix-011)
 
 ---
 
@@ -233,25 +234,6 @@ Ao abrir o modal para adicionar um novo registro, o botão "Excluir" (visível a
 
 ---
 
-## FIX-004
-
-**Titulo:** Padrão de exclusão do modal de Usuários
-
-**Descrição:**
-O modal de edição de usuários implementa a exclusão com uma tela de confirmação separada (`confirmBody`), diferente do padrão adotado nos demais modais do sistema. O padrão correto é: ao clicar em "Excluir", o botão muda seu texto para "Confirmar exclusão" (com timeout de 3 segundos para cancelar automaticamente); somente ao clicar novamente a exclusão é executada.
-
-**Estimativa:** 1 story point
-
-**Critérios de Aceite:**
-
-1. **Primeiro clique em "Excluir":** o botão muda o texto para "Confirmar exclusão" e adiciona a classe `confirm`. Um timer de 3 segundos redefine o botão ao estado original se não houver segundo clique.
-2. **Segundo clique:** executa `DELETE /api/users/{id}`, fecha o modal, atualiza a lista e exibe toast de sucesso.
-3. **Cancelamento automático:** se o usuário não clicar novamente em 3 segundos, o botão volta ao texto "Excluir" e remove a classe `confirm`.
-4. **Remoção do `confirm-body`:** a tela de confirmação separada (`#confirm-body`, `#btn-confirm-delete`, lógica `showConfirmBody`/`showFormBody`/`confirmMode`) é removida por completo.
-5. **Comportamento do "Cancelar":** sempre fecha o modal, pois não há mais estado de confirmação intermediário.
-
----
-
 ## FIX-005
 
 **Titulo:** Refatorar fetches com limite hardcoded no frontend
@@ -379,7 +361,7 @@ Como administrador, quero poder excluir um usuário diretamente pelo modal de ed
 **Critérios de Aceite:**
 
 1. **Botão "Excluir":** exibido apenas no modal de edição, posicionado à esquerda no rodapé do header do modal (separado dos botões Salvar/Cancelar), texto `#791F1F`, hover `bg-[#FEE2E2]`, border `#e0e0e0`.
-2. **Confirmação inline:** ao clicar, o body do modal exibe mensagem "Tem certeza? Esta ação não pode ser desfeita." com botões "Confirmar exclusão" (vermelho) e "Cancelar" (cinza); os campos do formulário ficam ocultos durante a confirmação.
+2. **Confirmação por dois cliques:** ao clicar em "Excluir", o botão muda seu texto para "Confirmar exclusão" e adiciona a classe `confirm`. Um timer de 3 segundos redefine o botão ao estado original se não houver segundo clique. Somente ao clicar novamente a exclusão é executada. O `confirm-body`, `btn-confirm-delete` e toda a lógica de troca de painel são removidos.
 3. **Execução:** confirmar chama `DELETE /api/users/{id}`, fecha o modal, remove o usuário da tabela e exibe toast de sucesso.
 4. **Proteção:** o botão "Excluir" é oculto quando o usuário logado é o mesmo que está sendo editado (sem auto-exclusão).
 
@@ -456,3 +438,40 @@ Atualmente o sistema aceita cadastrar um cliente sem informar o nome, tanto pelo
 2. **Frontend — validação client-side:** ao tentar salvar sem nome preenchido (ou apenas espaços), exibe mensagem de erro inline no modal: "O campo Nome é obrigatório." O envio ao backend não ocorre.
 3. **Backend — validação server-side:** o endpoint `POST /api/customer/customers` (e `PUT` de edição, se aplicável) rejeita requisições com `name` nulo, vazio ou somente espaços, retornando `400 Bad Request` com mensagem descritiva.
 4. **Comportamento de edição preservado:** a validação não interfere no fluxo de edição de clientes que já possuem nome.
+
+---
+
+## FIX-010
+
+**Titulo:** Planos e clientes inativos aparecendo nos seletores do modal de Circuito
+
+**Descrição:**
+No modal de criação/edição de Circuito, os seletores de Plano e Cliente exibem todos os registros, incluindo planos com `active = false` e clientes com `enabled = false`. Registros inativos não devem ser selecionáveis.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Seletor de Plano:** o endpoint utilizado para popular o seletor (`GET /api/plans/all` ou equivalente) passa a retornar apenas planos com `active = true`.
+2. **Seletor de Cliente:** o endpoint utilizado para popular o seletor (`GET /api/customer/customers/all` ou equivalente) passa a retornar apenas clientes com `enabled = true`.
+3. **Comportamento:** planos e clientes inativos não aparecem na lista de opções do modal de Circuito (criação e edição).
+4. **Sem impacto em circuitos existentes:** um circuito já vinculado a um plano/cliente que foi posteriormente desativado continua exibindo corretamente esses dados em modo de visualização/edição — apenas a seleção de novos registros é restrita.
+
+---
+
+## FIX-011
+
+**Titulo:** Desativar cliente automaticamente quando seu último circuito ativo for desativado
+
+**Descrição:**
+Quando um circuito é desativado (`active = false`), o sistema deve verificar se o cliente associado ainda possui outros circuitos ativos. Caso não possua, o cliente deve ser desativado automaticamente (`enabled = false`).
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Gatilho:** a verificação ocorre sempre que um circuito é desativado via `PUT /api/circuits/{id}` com `active = false`.
+2. **Lógica:** após desativar o circuito, o serviço verifica se o cliente vinculado ainda possui ao menos um circuito com `active = true`. Se não houver, o cliente é desativado automaticamente.
+3. **Sem efeito colateral:** reativar um circuito (`active = true`) não reativa automaticamente o cliente — a reativação do cliente é sempre manual.
+4. **Clientes sem circuito:** circuitos sem cliente vinculado (`customerId = null`) não disparam nenhuma verificação.
+5. **Testes:** testes unitários cobrem: desativação do cliente ao desativar o último circuito ativo; não desativação quando ainda existem outros circuitos ativos; não reativação ao reativar um circuito.
