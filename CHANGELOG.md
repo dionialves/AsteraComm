@@ -4,6 +4,27 @@
 
 ---
 
+### US-063 — Modal de detalhes do circuito a partir da página de Auditoria
+
+**Solução:**
+- Frontend: `reports/audit.astro` — botão de link do `SearchSelect` de circuito passa a abrir modal de detalhes do circuito diretamente na página, sem navegar para `/circuits?modal=...`.
+- Adicionados overlay (`#circuit-modal-overlay`), CSS para modal de seleção de DID e modal DID (`csub-modal-did`).
+- Modal com tabs Detalhes/DIDs/Histórico, `SearchSelect` de Tronco, Plano e Cliente, toggle de status, toggle de senha.
+- Botões Salvar (`PUT /api/circuit/{number}`), Deletar (dois cliques, timer 3s), Cancelar/✕ e Escape.
+- Tab DIDs: lista de DIDs vinculados, desvincular com confirmação, adicionar DID livre via modal de seleção.
+
+---
+
+### US-049 — Reestruturação da página de Auditoria
+
+**Solução:**
+- Backend: `AuditSimulationService` e `AuditController` com endpoint `GET /api/audit/simulate?circuitNumber&month&year`.
+- Frontend: `reports/audit.astro` reescrito com header (botão voltar + título + subtítulo), card de filtros (SearchSelect de circuito, Mês, Ano, botão Processar), card de contexto (Circuito/Plano/Período), toggle "Apenas chamadas relevantes", botão "Baixar PDF", tabela CSS Grid 8 colunas somente leitura e 5 totalizadores semânticos.
+- Geração de PDF client-side via jsPDF + autoTable.
+- Proxy Astro `api/audit/simulate.ts` criado.
+
+---
+
 ### US-048 — Reestruturação da página de listagem de Usuários
 
 **Solução:**

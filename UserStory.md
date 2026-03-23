@@ -11,7 +11,10 @@
 7. [FIX-001 — Erro ao desativar/ativar usuário](#fix-001)
 8. [FIX-002 — Modais fora do tamanho correto nas páginas de Ligações e Planos](#fix-002)
 9. [FIX-003 — Botões do modal desalinhados no modo de criação](#fix-003)
-10. [US-049 — Reestruturação da página de Auditoria](#us-049)
+10. [FIX-004 — Padrão de exclusão do modal de Usuários](#fix-004)
+11. [FIX-005 — Refatorar fetches com limite hardcoded no frontend](#fix-005)
+12. [FIX-006 — Modal de Planos com tamanho incorreto](#fix-006)
+13. [US-062 — Refatoração: organizar pacote `report` com sub-pacotes por relatório](#us-062)
 12. [US-050 — Reestruturação do sidebar de navegação](#us-050)
 13. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
 14. [US-053 — Botão "Novo circuito" abre modal de criação](#us-053)
@@ -233,30 +236,96 @@ Ao abrir o modal para adicionar um novo registro, o botão "Excluir" (visível a
 
 ---
 
-## US-049
+## FIX-004
 
-**Titulo:** Reestruturação da página de Auditoria
+**Titulo:** Padrão de exclusão do modal de Usuários
 
 **Descrição:**
-Como administrador, quero que a página de Auditoria seja redesenhada seguindo o template base de relatórios, com card de contexto exibindo circuito/plano/período, tabela chamada a chamada com detalhes de billing (tipo, tarifa, minutos de pacote, acumulado e custo), toggle client-side para filtrar chamadas relevantes, e 5 totalizadores no rodapé com cores semânticas por tipo de tempo.
+O modal de edição de usuários implementa a exclusão com uma tela de confirmação separada (`confirmBody`), diferente do padrão adotado nos demais modais do sistema. O padrão correto é: ao clicar em "Excluir", o botão muda seu texto para "Confirmar exclusão" (com timeout de 3 segundos para cancelar automaticamente); somente ao clicar novamente a exclusão é executada.
 
-**Estimativa:** 4 story points
+**Estimativa:** 1 story point
 
 **Critérios de Aceite:**
 
-1. **Header:** Botão voltar (←) + título "Auditoria" (22px) na mesma linha; subtítulo "Simulação do cálculo de custo chamada a chamada para validar a lógica de billing" (13px, `#888`, margin-left 39px).
-2. **Card de filtros:** Circuito (select, min-width 240px, opções no formato `{código} — Cliente {nome}` carregadas via API), Mês (select), Ano (select), botão "Processar" (fundo `#1D9E75`). Itens 3-6 da estrutura aparecem apenas após processar.
-3. **Card de contexto (pós-processar):** Fundo branco, border 0.5px `#e0e0e0`, border-radius 12px, padding 16px. 3 blocos lado a lado (gap 32px): CIRCUITO (monospace), PLANO, PERÍODO. Labels 11px uppercase `#888`; valores 15px font-weight 500.
-4. **Barra de controles:** Toggle "Apenas chamadas relevantes" à esquerda + botão "Baixar PDF" à direita. Toggle custom (track 36x20, border-radius 99px): desligado `#e0e0e0`, ligado `#1D9E75`. Ao ligar, oculta client-side linhas onde `packageMinutes == null` E `cost == 0`.
-5. **Tabela somente leitura:** `grid-template-columns: 130px minmax(0,1fr) 80px 70px 80px 80px 100px 80px`, gap 4px, padding 10px 12px. Header fundo `#f5f5f5`, font-size 11px. Sem cursor pointer, sem modal. Colunas: Data/hora, Destino, Tipo, Duração, Tarifa R$/min, Min. pacote, Acum. pacote, Custo.
-6. **Coluna Tipo:** badge pill com mesmas cores da spec de Ligações (Fixo Local azul, Fixo DDD cinza, Móvel Local roxo, Móvel DDD coral).
-7. **Coluna Min. pacote:** `+N min` em `#085041` font-weight 500 quando consumiu; "—" em `#888` quando não se aplica.
-8. **Coluna Custo:** 3 casas decimais. Custo > 0: `#085041` font-weight 500. Custo = 0: `#888`.
-9. **Totalizadores (5 cards, `repeat(5, 1fr)`, text-align center, font-size valor 20px):** Total ligações (cinza `#f5f5f5`), Tempo faturável (cinza), Tempo do pacote (azul `#E6F1FB`/`#0C447C`), Tempo excedente (amber `#FAEEDA`/`#854F0B`), Custo total (verde `#E1F5EE`/`#085041`).
-10. **Endpoints backend:**
-    - `GET /api/reports/audit?circuitId&month&year` → `{ context: { circuitCode, planName, month, year }, summary: { totalCalls, billableMinutes, packageMinutes, excessMinutes, totalCost }, data: [...] }`.
-    - `GET /api/reports/audit/pdf?circuitId&month&year` → `application/pdf`.
-11. **Acesso:** página disponível em `/reports/audit` e acessível também via link no sidebar de navegação.
+1. **Primeiro clique em "Excluir":** o botão muda o texto para "Confirmar exclusão" e adiciona a classe `confirm`. Um timer de 3 segundos redefine o botão ao estado original se não houver segundo clique.
+2. **Segundo clique:** executa `DELETE /api/users/{id}`, fecha o modal, atualiza a lista e exibe toast de sucesso.
+3. **Cancelamento automático:** se o usuário não clicar novamente em 3 segundos, o botão volta ao texto "Excluir" e remove a classe `confirm`.
+4. **Remoção do `confirm-body`:** a tela de confirmação separada (`#confirm-body`, `#btn-confirm-delete`, lógica `showConfirmBody`/`showFormBody`/`confirmMode`) é removida por completo.
+5. **Comportamento do "Cancelar":** sempre fecha o modal, pois não há mais estado de confirmação intermediário.
+
+---
+
+## FIX-005
+
+**Titulo:** Refatorar fetches com limite hardcoded no frontend
+
+**Descrição:**
+Vários fetches no frontend usam `size=200` ou `size=9999` para carregar listas completas (ex.: clientes no modal de circuito, planos, troncos). Esse padrão é frágil e não escala. A abordagem correta é usar endpoints dedicados de listagem simplificada (sem paginação) no backend, retornando apenas os campos necessários para populares os selects.
+
+**Estimativa:** 3 story points
+
+**Critérios de Aceite:**
+
+1. **Mapeamento:** Identificados todos os fetches com `size ≥ 200` ou `size=9999` nas páginas Astro e rotas de API do frontend.
+2. **Endpoints backend:** Para cada recurso afetado, criado endpoint `GET /api/{recurso}/all` retornando lista plana (sem `Page`) com apenas os campos necessários para o select (ex.: `id`, `name`, `number`).
+3. **Rotas frontend:** Criadas ou atualizadas rotas Astro correspondentes para os novos endpoints.
+4. **Fetches atualizados:** Todas as chamadas com limite hardcoded substituídas pelos novos endpoints.
+5. **Comportamento preservado:** A filtragem/busca no `SearchSelect` continua funcionando client-side sobre a lista retornada.
+
+---
+
+## FIX-006
+
+**Titulo:** Modal de Planos com tamanho incorreto
+
+**Descrição:**
+O modal da página de Planos (`/plans`) está com dimensões incorretas em relação ao padrão visual do sistema, causando inconsistência de layout.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Dimensões corrigidas:** Largura e altura ajustadas para seguir o padrão canônico dos demais modais do sistema.
+2. **Sem regressão:** Nenhuma alteração de conteúdo, lógica ou comportamento — apenas dimensões e espaçamentos corrigidos.
+
+---
+
+## US-062
+
+**Titulo:** Refatoração: organizar pacote `report` com sub-pacotes por relatório
+
+**Descrição:**
+Como desenvolvedor, quero reorganizar o backend para que o pacote `report` contenha um sub-pacote dedicado para cada relatório, e que os arquivos de Auditoria — atualmente dispersos no pacote `call/` — sejam movidos para `report/audit/`. Isso torna a estrutura mais coesa, facilita a adição de novos relatórios e elimina a mistura de responsabilidades no pacote `call/`.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **Sub-pacote `report/costpercircuit/`:** Os 7 arquivos atuais de `report/` são movidos para `report/costpercircuit/`. As classes `CallReportController`, `CallReportService` e `CallReportRepository` são renomeadas para `CostPerCircuitController`, `CostPerCircuitService` e `CostPerCircuitRepository`.
+2. **Sub-pacote `report/audit/`:** Os 5 arquivos de Auditoria (`AuditController`, `AuditService`, `AuditResultDTO`, `AuditCallLineDTO`, `AuditSummaryDTO`) são movidos de `call/` para `report/audit/`.
+3. **Imports atualizados:** Todos os imports afetados no código de produção e de teste são atualizados para os novos pacotes.
+4. **Testes movidos:** `CallReportControllerTest` e `CallReportServiceTest` movidos para `report/costpercircuit/` (renomeados); `AuditServiceTest` movido de `call/` para `report/audit/`.
+5. **Endpoints preservados:** Os mapeamentos HTTP (`/api/audit/cost-simulation`, `/api/reports/*`) permanecem inalterados — apenas a estrutura de pacotes muda.
+6. **Sem quebra de funcionalidade:** A aplicação compila e todos os testes existentes passam.
+
+**Estrutura resultante:**
+```
+report/
+├── audit/
+│   ├── AuditCallLineDTO.java
+│   ├── AuditController.java
+│   ├── AuditResultDTO.java
+│   ├── AuditService.java
+│   └── AuditSummaryDTO.java
+└── costpercircuit/
+    ├── CallCostReportDTO.java
+    ├── CallCostReportRow.java
+    ├── CostPerCircuitController.java
+    ├── CostPerCircuitRepository.java
+    ├── CostPerCircuitResponseDTO.java
+    ├── CostPerCircuitService.java
+    └── CostPerCircuitSummaryDTO.java
+```
 
 ---
 
