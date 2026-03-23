@@ -4,6 +4,14 @@
 
 ---
 
+### US-055 — Excluir DID livre pela página de listagem de DIDs
+
+**Solução:**
+- Backend: adicionada `ConflictException` (409) e handler no `GlobalExceptionHandler`. `DIDService.delete()` passa a lançar `ConflictException` em vez de `BusinessException` quando o DID está vinculado a um circuito.
+- Frontend: `dids/index.astro` — modal reestruturado com painéis `#panel-create` e `#panel-view`. Clique na linha abre visualização com Número (monospace), Status (badge pill) e Circuito vinculado. Botão "Excluir" visível apenas para DIDs livres, com padrão de dois cliques (1º clique → "Confirmar exclusão", 2º clique → executa). Após exclusão: fade da linha, contador atualizado e toast de sucesso.
+
+---
+
 ### US-059 — Adicionar coluna ID na listagem de Troncos
 
 **Solução:**

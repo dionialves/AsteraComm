@@ -17,7 +17,6 @@
 13. [US-062 — Refatoração: organizar pacote `report` com sub-pacotes por relatório](#us-062)
 13. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
 14. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
-16. [US-055 — Excluir DID livre pela página de listagem de DIDs](#us-055)
 17. [US-057 — Adicionar campo `active` ao Plano com filtro na listagem](#us-057)
 21. [US-060 — Excluir usuário pelo modal de edição](#us-060)
 22. [US-061 — Refatoração: controle de acesso ao menu por nível de usuário](#us-061)
@@ -363,30 +362,6 @@ Como administrador, quero poder criar um novo circuito diretamente pela aba "Cir
 5. **Salvamento:** Ao salvar, envia `POST /api/circuit/circuits` com `{ password?, trunkName, planId, customerId }`. Em caso de sucesso, fecha o sub-modal, recarrega a lista de circuitos da aba e atualiza o `circuitCount` da linha na listagem.
 6. **Distinção visual:** O header do sub-modal exibe "Novo circuito" como título (em vez do código do circuito). O botão "Deletar" não é exibido no modo criação.
 7. **Comportamento preservado:** O fluxo de edição de circuito existente (clique no ícone de seta na linha) continua funcionando sem alterações.
-
----
-
-## US-055
-
-**Titulo:** Excluir DID livre pela página de listagem de DIDs
-
-**Descrição:**
-Como administrador, quero poder excluir um DID que esteja livre (sem circuito vinculado) diretamente pela página de listagem de DIDs. Ao clicar em uma linha, abre um modal no padrão visual do sistema exibindo os dados do DID com botões de "Cancelar" e "Excluir". DIDs vinculados a um circuito não podem ser excluídos — o botão "Excluir" não é exibido nesses casos.
-
-**Estimativa:** 2 story points
-
-**Critérios de Aceite:**
-
-1. **Clique na linha:** ao clicar em qualquer linha da tabela de DIDs, abre modal com os dados do DID selecionado. A linha recebe `.row-selected` enquanto o modal estiver aberto.
-2. **Modal — layout padrão:** segue o padrão do sistema (overlay com `bg-black/40`, modal centralizado, `border-radius: 12px`, `box-shadow`). Header com título "DID {número}" e botão de fechar (×).
-3. **Modal — dados exibidos:** Número (monospace, destaque), Status (badge pill "Livre" / "Vinculado"), Circuito vinculado (nome do circuito ou "—" se livre).
-4. **Botão "Excluir":** exibido somente se o DID estiver livre (`circuitId === null`). Fundo `#DC2626` (vermelho), texto branco.
-5. **Botão "Cancelar":** sempre visível. Fecha o modal e remove `.row-selected`.
-6. **Confirmação de exclusão:** ao clicar em "Excluir", exibe mensagem de confirmação inline no modal ("Tem certeza? Esta ação não pode ser desfeita.") com botões "Confirmar exclusão" e "Voltar".
-7. **Após exclusão bem-sucedida:** fecha o modal, exibe toast de sucesso, remove a linha da tabela com fade (`opacity: 0; transition: 0.2s`) e atualiza o contador de DIDs.
-8. **DID vinculado — proteção:** se o DID estiver vinculado, o botão "Excluir" não aparece; o modal é somente leitura (apenas visualização + fechar).
-9. **Endpoint backend:** `DELETE /api/dids/{id}` — retorna `204` se livre, `409 Conflict` se vinculado a um circuito.
-10. **Frontend API route:** `DELETE /api/did/[id].ts` já existente (verificar se está implementado; se não, criar).
 
 ---
 
