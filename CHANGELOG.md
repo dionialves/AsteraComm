@@ -4,6 +4,17 @@
 
 ---
 
+### US-053 — Botão "Novo circuito" abre modal de criação
+
+**Solução:**
+- Frontend: `circuits/index.astro` — botão "Novo circuito" abre o modal existente em modo criação (campos vazios) via `openCircuitModal(null, null)`, sem navegação de página.
+- Abas "DIDs" e "Histórico" ocultadas no modo criação (irrelevantes antes do circuito existir); restauradas ao abrir em modo edição.
+- Após `POST` bem-sucedido, o modal é reaberto automaticamente em modo edição com os dados do circuito recém-criado (em vez de fechar a tela).
+- Labels dos campos obrigatórios (Senha, Tronco, Plano, Cliente) recebem `*` vermelho.
+- Validação client-side antes do envio: lista os campos obrigatórios não preenchidos via `showModalError`.
+
+---
+
 ### US-064 — Modais de perfil e senha no padrão do sistema
 
 **Solução:**

@@ -16,8 +16,7 @@
 12. [FIX-006 — Modal de Planos com tamanho incorreto](#fix-006)
 13. [US-062 — Refatoração: organizar pacote `report` com sub-pacotes por relatório](#us-062)
 13. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
-14. [US-053 — Botão "Novo circuito" abre modal de criação](#us-053)
-15. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
+14. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
 16. [US-055 — Excluir DID livre pela página de listagem de DIDs](#us-055)
 17. [US-056 — Contador de registros no rodapé das listagens de Circuitos, Clientes e DIDs](#us-056)
 18. [US-057 — Adicionar campo `active` ao Plano com filtro na listagem](#us-057)
@@ -25,6 +24,8 @@
 20. [US-059 — Adicionar coluna ID na listagem de Troncos](#us-059)
 21. [US-060 — Excluir usuário pelo modal de edição](#us-060)
 22. [US-061 — Refatoração: controle de acesso ao menu por nível de usuário](#us-061)
+23. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
+24. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
 ---
 
 ## US-011
@@ -346,26 +347,6 @@ Como desenvolvedor, quero eliminar todo CSS inline e classes globais desnecessá
 
 ---
 
-## US-053
-
-**Titulo:** Botão "Novo circuito" abre modal de criação
-
-**Descrição:**
-Como administrador, ao clicar em "Novo circuito" na listagem de Circuitos, quero que um modal de criação seja aberto seguindo o layout predefinido dos modais, em vez de navegar para uma página separada.
-
-**Estimativa:** 2 story points
-
-**Critérios de Aceite:**
-
-1. **Abertura via modal:** O botão "Novo circuito" abre o modal de criação de circuito (campos vazios) sem navegação de página.
-2. **Layout padrão:** O modal segue o mesmo layout dos modais existentes (cabeçalho com título + botão fechar, corpo com campos, footer com botões Salvar/Cancelar).
-3. **Campos:** Mesmos campos do formulário de criação atual (Senha, Tronco, Cliente, Plano, Status).
-4. **Submissão:** `POST /api/circuit/circuits` com os dados preenchidos; em caso de sucesso, fecha o modal e recarrega a listagem.
-5. **Validação:** Campos obrigatórios validados client-side antes do envio.
-6. **Integração com sistema de modais:** Utiliza o `ModalSystem` existente para abertura, fechamento e empilhamento.
-
-----
-
 ## US-054
 
 **Titulo:** Criar circuito a partir do modal de cliente
@@ -525,3 +506,37 @@ Como administrador, quero que os itens do sidebar de navegação sejam exibidos 
 3. **Proteção de rota:** Além da visibilidade no menu, o middleware Astro (`src/middleware.ts`) nega acesso direto via URL a rotas restritas, redirecionando para `/dashboard` com mensagem de permissão insuficiente.
 4. **Sem impacto visual:** itens visíveis permanecem com aparência idêntica ao atual; apenas itens inacessíveis são ocultados.
 
+---
+
+## FIX-007
+
+**Titulo:** btn-prev habilitado na primeira página da listagem de Circuitos
+
+**Descrição:**
+Na página de listagem de Circuitos, o botão de página anterior (`btn-prev`) aparece habilitado mesmo quando o usuário está na primeira página (`currentPage === 0`), permitindo clique sem efeito.
+
+**Estimativa:** 0,5 story points
+
+**Critérios de Aceite:**
+
+1. **Estado inicial:** ao carregar a listagem, `btn-prev` está desabilitado (`disabled`) quando `currentPage === 0`.
+2. **Navegação:** ao avançar para a página 2 ou além, `btn-prev` é habilitado corretamente.
+3. **Consistência:** o comportamento de `btn-next` (já correto) serve de referência — `btn-prev` deve seguir a mesma lógica simétrica.
+
+---
+
+## FIX-008
+
+**Titulo:** Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+
+
+**Descrição:**
+Ao criar um novo circuito, o campo `number` (código do circuito) deveria ser gerado pelo backend como um sequencial a partir de `100000`. Porém, está sendo atribuído um valor no formato de número de telefone (ex: `49xxxxxxxx`), provavelmente reutilizando lógica errada ou lendo de outra fonte.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Geração sequencial:** o `number` do primeiro circuito criado é `100000`; o segundo `100001`; e assim por diante, independentemente de outros campos.
+2. **Sem colisão:** dois circuitos nunca recebem o mesmo `number`.
+3. **Sem interferência de DID/telefone:** nenhum dado de DID, tronco ou cliente influencia o valor gerado.
+4. **Exibição correta no modal:** após salvar, o modal reaberto exibe o `number` correto (ex: `100000`) no título e no campo de código.
