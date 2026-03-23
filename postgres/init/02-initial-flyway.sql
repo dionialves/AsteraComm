@@ -186,3 +186,8 @@ BEGIN
         ALTER TABLE asteracomm_trunks ADD CONSTRAINT uq_trunks_name UNIQUE (name);
     END IF;
 END $$;
+
+
+
+
+ALTER TABLE asteracomm_plans ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE;
