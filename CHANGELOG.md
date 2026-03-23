@@ -4,6 +4,22 @@
 
 ---
 
+### US-058 — Ajustar cor do texto dos IDs nas páginas de Clientes e DIDs
+
+**Solução:**
+- Frontend: `customers/index.astro` e `dids/index.astro` — células de ID alteradas de `text-[#1a1a1a]` para `text-[#888]`, alinhando ao padrão visual da página de Circuitos (`font-mono text-[#888]`).
+
+---
+
+### US-056 — Contador de registros no rodapé das listagens de Circuitos, Clientes e DIDs
+
+**Solução:**
+- Frontend: `circuits/index.astro`, `customers/index.astro`, `dids/index.astro` — adicionado `<p id="counter">` abaixo da tabela (alinhado à direita, `text-[12px] text-[#888] mt-3`).
+- Cada página rastreia `totalElements` a partir da resposta paginada e exibe singular/plural formatado em pt-BR (`toLocaleString('pt-BR')`).
+- Contador atualiza a cada fetch (carga inicial, filtros, busca e navegação de página).
+
+---
+
 ### US-053 — Botão "Novo circuito" abre modal de criação
 
 **Solução:**

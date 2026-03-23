@@ -18,14 +18,13 @@
 13. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
 14. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
 16. [US-055 — Excluir DID livre pela página de listagem de DIDs](#us-055)
-17. [US-056 — Contador de registros no rodapé das listagens de Circuitos, Clientes e DIDs](#us-056)
-18. [US-057 — Adicionar campo `active` ao Plano com filtro na listagem](#us-057)
-19. [US-058 — Ajustar cor do texto dos IDs nas páginas de Clientes e DIDs](#us-058)
+17. [US-057 — Adicionar campo `active` ao Plano com filtro na listagem](#us-057)
 20. [US-059 — Adicionar coluna ID na listagem de Troncos](#us-059)
 21. [US-060 — Excluir usuário pelo modal de edição](#us-060)
 22. [US-061 — Refatoração: controle de acesso ao menu por nível de usuário](#us-061)
 23. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
 24. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
+25. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
 ---
 
 ## US-011
@@ -392,28 +391,6 @@ Como administrador, quero poder excluir um DID que esteja livre (sem circuito vi
 
 ---
 
-## US-056
-
-**Titulo:** Contador de registros no rodapé das listagens de Circuitos, Clientes e DIDs
-
-**Descrição:**
-Como administrador, quero ver um contador de registros no rodapé das páginas de listagem de Circuitos, Clientes e DIDs, indicando o total de registros retornados pela consulta atual (com filtros aplicados), seguindo o mesmo padrão já implementado nas páginas de Troncos e Ligações.
-
-**Estimativa:** 1 story point
-
-**Critérios de Aceite:**
-
-1. **Posição e estilo:** texto abaixo da tabela, alinhado à direita, `text-[12px] text-[#888]`, `margin-top: 12px` — idêntico ao padrão das demais listagens.
-2. **Formato singular/plural:**
-   - Circuitos: `"1 circuito cadastrado"` / `"N circuitos cadastrados"`
-   - Clientes: `"1 cliente cadastrado"` / `"N clientes cadastrados"`
-   - DIDs: `"1 DID cadastrado"` / `"N DIDs cadastrados"`
-3. **Separador de milhares:** número formatado em pt-BR (ex: `123.560 circuitos cadastrados`).
-4. **Reflete filtros:** o total exibido é o `totalElements` da página atual retornado pelo backend (já disponível na resposta paginada).
-5. **Páginas alvo:** `circuits/index.astro`, `customers/index.astro`, `dids/index.astro`.
-
----
-
 ## US-057
 
 **Titulo:** Adicionar campo `active` ao Plano com filtro na listagem
@@ -431,23 +408,6 @@ Como administrador, quero que cada plano tenha um campo de status (ativo/inativo
 4. **Linha inativa na tabela:** Planos com `active = false` recebem a classe `.row-inactive` (`opacity: 0.55`).
 5. **Filtro na toolbar:** Grupo de botões (Todos / Ativos / Inativos) exibido à esquerda, acima da tabela. O botão ativo recebe fundo `#1a1a1a` e texto branco; os demais ficam com texto `#888`. Ao selecionar um filtro, a listagem é recarregada com o parâmetro correspondente.
 6. **Sem alteração no comportamento existente** de criação, edição e exclusão.
-
----
-
-## US-058
-
-**Titulo:** Ajustar cor do texto dos IDs nas páginas de Clientes e DIDs
-
-**Descrição:**
-Como administrador, quero que o campo ID nas listagens de Clientes e DIDs use a mesma cor e estilo da página de Circuitos (`font-mono text-[#888]`), garantindo consistência visual entre as páginas de listagem.
-
-**Estimativa:** 1 story point
-
-**Critérios de Aceite:**
-
-1. **Página de Clientes:** A célula de ID na tabela passa a usar `font-mono text-[#888]`, igual ao padrão da tabela de Circuitos.
-2. **Página de DIDs:** A célula de ID na tabela passa a usar `font-mono text-[#888]`, igual ao padrão da tabela de Circuitos.
-3. **Sem alteração** em qualquer outro campo, comportamento ou estilo das páginas.
 
 ---
 
@@ -540,3 +500,21 @@ Ao criar um novo circuito, o campo `number` (código do circuito) deveria ser ge
 2. **Sem colisão:** dois circuitos nunca recebem o mesmo `number`.
 3. **Sem interferência de DID/telefone:** nenhum dado de DID, tronco ou cliente influencia o valor gerado.
 4. **Exibição correta no modal:** após salvar, o modal reaberto exibe o `number` correto (ex: `100000`) no título e no campo de código.
+
+---
+
+## FIX-009
+
+**Titulo:** Permitir criação de cliente sem nome
+
+**Descrição:**
+Atualmente o sistema aceita cadastrar um cliente sem informar o nome, tanto pelo frontend (sem feedback visual de obrigatoriedade) quanto pelo backend (sem validação). O campo Nome deve ser obrigatório nas duas camadas.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Frontend — indicação visual:** o label "Nome" exibe `*` vermelho, sinalizando campo obrigatório.
+2. **Frontend — validação client-side:** ao tentar salvar sem nome preenchido (ou apenas espaços), exibe mensagem de erro inline no modal: "O campo Nome é obrigatório." O envio ao backend não ocorre.
+3. **Backend — validação server-side:** o endpoint `POST /api/customer/customers` (e `PUT` de edição, se aplicável) rejeita requisições com `name` nulo, vazio ou somente espaços, retornando `400 Bad Request` com mensagem descritiva.
+4. **Comportamento de edição preservado:** a validação não interfere no fluxo de edição de clientes que já possuem nome.
