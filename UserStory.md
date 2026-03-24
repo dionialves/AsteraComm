@@ -12,13 +12,12 @@
 8. [FIX-002 — Modais fora do tamanho correto nas páginas de Ligações e Planos](#fix-002)
 9. [FIX-003 — Botões do modal desalinhados no modo de criação](#fix-003)
 10. [FIX-005 — Refatorar fetches com limite hardcoded no frontend](#fix-005)
-11. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
-12. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
-13. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
-14. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
-15. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
-16. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
-17. [FIX-011 — Desativar cliente automaticamente quando seu último circuito ativo for desativado](#fix-011)
+11. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
+12. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
+13. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
+14. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
+15. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
+16. [FIX-011 — Desativar cliente automaticamente quando seu último circuito ativo for desativado](#fix-011)
 
 ---
 
@@ -246,25 +245,6 @@ Vários fetches no frontend usam `size=200` ou `size=9999` para carregar listas 
 3. **Rotas frontend:** Criadas ou atualizadas rotas Astro correspondentes para os novos endpoints.
 4. **Fetches atualizados:** Todas as chamadas com limite hardcoded substituídas pelos novos endpoints.
 5. **Comportamento preservado:** A filtragem/busca no `SearchSelect` continua funcionando client-side sobre a lista retornada.
-
----
-
-## US-052
-
-**Titulo:** Migrar frontend para 100% Tailwind CSS
-
-**Descrição:**
-Como desenvolvedor, quero eliminar todo CSS inline e classes globais desnecessárias das páginas Astro, migrando 100% para Tailwind CSS utility classes, para manter consistência visual e facilitar manutenção futura.
-
-**Estimativa:** 5 story points
-
-**Critérios de Aceite:**
-
-1. **Zero CSS inline:** Nenhum atributo `style=""` nas páginas Astro migradas.
-2. **Zero classes globais ad-hoc:** Nenhuma classe CSS adicionada ao `global.css` para uso pontual em uma única página.
-3. **Tailwind arbitrary values:** Cores e dimensões específicas do design system (`#1D9E75`, `#085041`, etc.) expressas via Tailwind arbitrary values (ex: `text-[#1D9E75]`, `bg-[#f5f5f5]`).
-4. **Cobertura:** Todas as páginas implementadas nas USs de reestruturação (US-041 a US-051) devem estar em conformidade.
-5. **Comportamento preservado:** Nenhuma alteração visual perceptível — layout, cores, espaçamentos e interações idênticos ao estado anterior.
 
 ---
 

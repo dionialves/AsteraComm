@@ -4,6 +4,23 @@
 
 ---
 
+### US-052 — Migrar frontend para 100% Tailwind CSS
+
+**Solução:**
+- Frontend: eliminados todos os atributos `style=""` estáticos de 14 arquivos Astro
+  (`Layout.astro`, `index.astro`, `login/index.astro`, `cdrs/index.astro`,
+  `circuits/index.astro`, `circuits/[id].astro`, `customers/index.astro`,
+  `dids/index.astro`, `plans/index.astro`, `reports/audit.astro`,
+  `reports/cost-per-circuit.astro`, `trunks/index.astro`, `users/index.astro`).
+  Conversões JS (`style.display`, `style.opacity`, `style.cursor`,
+  `style.visibility`) substituídas por `classList.toggle/add/remove`.
+  Bloco `<style>` do `Layout.astro` (~95 linhas) removido integralmente.
+  11 classes globais ad-hoc removidas do `global.css`. `@keyframes dropUp`
+  movido para `global.css` e referenciado via `animate-[dropUp_0.15s_ease]`.
+  Regra de CSS obrigatória documentada no `CLAUDE.md`.
+
+---
+
 ### US-062 — Refatoração: organizar pacote `report` com sub-pacotes por relatório
 
 **Solução:**
