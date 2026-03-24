@@ -8,16 +8,14 @@
 4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
 5. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
 6. [US-040 — Refatoração: extrair scripts de modal para arquivos `.ts` importáveis nas páginas Astro](#us-040)
-7. [FIX-002 — Modais fora do tamanho correto nas páginas de Ligações e Planos](#fix-002)
-8. [FIX-003 — Botões do modal desalinhados no modo de criação](#fix-003)
-9. [FIX-005 — Refatorar fetches com limite hardcoded no frontend](#fix-005)
-10. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
-11. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
-12. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
-13. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
-14. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
-15. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
-16. [US-066 — Refatoração: menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
+7. [FIX-005 — Refatorar fetches com limite hardcoded no frontend](#fix-005)
+8. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
+9. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
+10. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
+11. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
+12. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
+13. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
+14. [US-066 — Refatoração: menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
 
 ---
 
@@ -175,40 +173,6 @@ Como desenvolvedor, quero que a lógica dos modais (`ModalSystem`, `ChipSelect` 
 4. **Sem duplicação:** O sub-modal de cliente (aberto a partir do circuito) reutiliza a lógica de `customer-modal.ts`.
 5. **Comportamento preservado:** Todos os critérios da US-039 continuam funcionando após a refatoração.
 6. **Testes:** Os testes existentes de `ModalSystem` e `ChipSelect` continuam passando.
-
----
-
-## FIX-002
-
-**Titulo:** Modais fora do tamanho correto nas páginas de Ligações e Planos
-
-**Descrição:**
-Como administrador, os modais das páginas de Ligações (`/calls`) e Planos (`/plans`) estão com dimensões incorretas em relação ao padrão visual do sistema, causando inconsistência de layout.
-
-**Estimativa:** 1 story point
-
-**Critérios de Aceite:**
-
-1. **Modal de Planos:** largura e altura ajustadas para seguir o padrão canônico (`max-w-md` ou `max-w-lg` conforme quantidade de campos), sem overflow nem compressão de conteúdo.
-2. **Modal de Ligações:** idem — dimensões corrigidas para exibir todos os campos sem scroll desnecessário ou espaço excessivo.
-3. **Sem alteração** de conteúdo, lógica ou comportamento dos modais — apenas dimensões e espaçamentos corrigidos.
-
----
-
-## FIX-003
-
-**Titulo:** Botões do modal desalinhados no modo de criação
-
-**Descrição:**
-Ao abrir o modal para adicionar um novo registro, o botão "Excluir" (visível apenas no modo edição) ocupa espaço no layout mesmo quando oculto, fazendo com que os botões "Cancelar" e "Salvar" não fiquem totalmente à direita.
-
-**Estimativa:** 1 story point
-
-**Critérios de Aceite:**
-
-1. **Modo criação:** os botões "Cancelar" e "Salvar" ficam alinhados à direita (`justify-content: flex-end`) quando não há botão "Excluir" visível.
-2. **Modo edição:** o layout permanece com "Excluir" à esquerda e "Cancelar"/"Salvar" à direita (`space-between`), sem alteração.
-3. **Escopo:** corrigir em todas as páginas que utilizam o padrão de modal com footer (`modal-footer`) — Circuitos, Clientes, Planos, DIDs, Troncos e Usuários.
 
 ---
 

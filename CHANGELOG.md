@@ -4,6 +4,22 @@
 
 ---
 
+### FIX-003 — Botões do modal desalinhados no modo de criação
+
+**Solução:**
+- Frontend: `.modal-footer` alterado para `justify-content: flex-end`; `.btn-modal-delete` recebe `margin-right: auto` para empurrar os botões à direita quando visível e sumir do layout quando `hidden`.
+- Frontend: `plans/index.astro` — botão Excluir trocado de `invisible` para `hidden` (HTML e JS) para ser removido do fluxo de layout.
+
+---
+
+### FIX-002 — Modais fora do tamanho correto nas páginas de Ligações e Planos
+
+**Solução:**
+- Frontend: modal de Planos convertido para `modal-main modal-plan`; `.modal-plan` sobrescreve para `height: auto; max-height: 85vh` mantendo largura 780px.
+- Frontend: modal de Ligações convertido de CSS customizado (`width: 540px`) para `modal-main modal-cdr-detail`; overlay trocado para `modal-overlay` (padrão global); header/body/footer padronizados com as classes do sistema; footer adicionado com botão "Cancelar".
+
+---
+
 ### FIX-001 — Ativação/desativação de usuário via edição
 
 **Solução:**
