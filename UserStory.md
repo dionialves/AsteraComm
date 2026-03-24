@@ -8,16 +8,15 @@
 4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
 5. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
 6. [US-040 — Refatoração: extrair scripts de modal para arquivos `.ts` importáveis nas páginas Astro](#us-040)
-7. [FIX-001 — Erro ao desativar/ativar usuário](#fix-001)
-8. [FIX-002 — Modais fora do tamanho correto nas páginas de Ligações e Planos](#fix-002)
-9. [FIX-003 — Botões do modal desalinhados no modo de criação](#fix-003)
-10. [FIX-005 — Refatorar fetches com limite hardcoded no frontend](#fix-005)
-11. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
-12. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
-13. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
-14. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
-15. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
-16. [FIX-011 — Desativar cliente automaticamente quando seu último circuito ativo for desativado](#fix-011)
+7. [FIX-002 — Modais fora do tamanho correto nas páginas de Ligações e Planos](#fix-002)
+8. [FIX-003 — Botões do modal desalinhados no modo de criação](#fix-003)
+9. [FIX-005 — Refatorar fetches com limite hardcoded no frontend](#fix-005)
+10. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
+11. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
+12. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
+13. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
+14. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
+15. [FIX-011 — Desativar cliente automaticamente quando seu último circuito ativo for desativado](#fix-011)
 
 ---
 
@@ -175,23 +174,6 @@ Como desenvolvedor, quero que a lógica dos modais (`ModalSystem`, `ChipSelect` 
 4. **Sem duplicação:** O sub-modal de cliente (aberto a partir do circuito) reutiliza a lógica de `customer-modal.ts`.
 5. **Comportamento preservado:** Todos os critérios da US-039 continuam funcionando após a refatoração.
 6. **Testes:** Os testes existentes de `ModalSystem` e `ChipSelect` continuam passando.
-
----
-
-## FIX-001
-
-**Titulo:** Erro ao desativar/ativar usuário
-
-**Descrição:**
-Como administrador, ao clicar em "Desativar usuário" ou "Ativar usuário" no modal de edição, o sistema retorna erro porque as rotas Astro `PATCH /api/users/[id]/disable` e `PATCH /api/users/[id]/enable` não existem no frontend.
-
-**Estimativa:** 1 story point
-
-**Critérios de Aceite:**
-
-1. **Rota disable:** Criar `frontend/src/pages/api/users/[id]/disable.ts` com handler `PATCH` que proxia para `PATCH /api/users/{id}/disable` no backend com o token de autenticação.
-2. **Rota enable:** Criar `frontend/src/pages/api/users/[id]/enable.ts` com handler `PATCH` que proxia para `PATCH /api/users/{id}/enable` no backend com o token de autenticação.
-3. **Comportamento:** O toggle Ativar/Desativar no modal funciona sem erro, a tabela atualiza imediatamente e exibe toast de sucesso.
 
 ---
 

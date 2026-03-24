@@ -4,7 +4,7 @@
 
 ---
 
-### FIX-002 — Ativação/desativação de usuário via edição
+### FIX-001 — Ativação/desativação de usuário via edição
 
 **Solução:**
 - Backend: `UserService.update()` corrigido para aplicar os campos `name` e `enabled` do `UserUpdateDTO` antes de salvar (antes salvava sem alterar nada).
