@@ -4,6 +4,14 @@
 
 ---
 
+### FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos
+
+Solução:
+
+- Frontend: Existia uma propriedade no html que não aceitava a desativação do button via JS (`btnPrev.disabled = true`)
+
+---
+
 ### FIX-005 — Refatorar fetches com limite hardcoded no frontend
 
 Solução:

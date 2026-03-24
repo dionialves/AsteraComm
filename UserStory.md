@@ -9,12 +9,11 @@
 5. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
 6. [US-040 — Refatoração: extrair scripts de modal para arquivos `.ts` importáveis nas páginas Astro](#us-040)
 7. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
-8. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
-9. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
-10. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
-11. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
-12. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
-13. [US-066 — Refatoração: menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
+8. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
+9. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
+10. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
+11. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
+12. [US-066 — Refatoração: menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
 
 ---
 
