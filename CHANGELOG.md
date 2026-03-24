@@ -4,6 +4,16 @@
 
 ---
 
+### FIX-002 — Ativação/desativação de usuário via edição
+
+**Solução:**
+- Backend: `UserService.update()` corrigido para aplicar os campos `name` e `enabled` do `UserUpdateDTO` antes de salvar (antes salvava sem alterar nada).
+- Backend: endpoints `PATCH /{id}/disable` e `PATCH /{id}/enable` removidos do `UserController`.
+- Backend: métodos `disable()` e `enable()` removidos do `UserService`.
+- A ativação/desativação agora ocorre exclusivamente via `PUT /api/users/{id}`, alinhado com o que o frontend já envia.
+
+---
+
 ### US-052 — Migrar frontend para 100% Tailwind CSS
 
 **Solução:**
