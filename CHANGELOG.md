@@ -4,6 +4,15 @@
 
 ---
 
+### FIX-009 — Permitir criação de cliente sem nome
+
+Solução:
+
+- Backend: Transformar dto record em classe para permitir validação customizada. `CustomerCreateDTO` agora é classe com construtor e validação manual: se `name` for null ou vazio, atribui "Cliente sem nome". `CustomerController` permanece inalterado, pois o DTO ainda é recebido normalmente.
+- Frontend: Melhorei a validação de erros vindos do backend no modal de criação de cliente, exibindo mensagens específicas para campos obrigatórios (ex: "O nome do cliente é obrigatório") em vez de um erro genérico.
+
+---
+
 ### FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+
 
 Solução:

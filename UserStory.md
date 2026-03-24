@@ -9,10 +9,9 @@
 5. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
 6. [US-040 — Refatoração: extrair scripts de modal para arquivos `.ts` importáveis nas páginas Astro](#us-040)
 7. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
-8. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
-9. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
-10. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
-11. [US-066 — Refatoração: menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
+8. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
+9. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
+10. [US-066 — Refatoração: menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
 
 ---
 
@@ -208,24 +207,6 @@ Na página de listagem de Circuitos, o botão de página anterior (`btn-prev`) a
 1. **Estado inicial:** ao carregar a listagem, `btn-prev` está desabilitado (`disabled`) quando `currentPage === 0`.
 2. **Navegação:** ao avançar para a página 2 ou além, `btn-prev` é habilitado corretamente.
 3. **Consistência:** o comportamento de `btn-next` (já correto) serve de referência — `btn-prev` deve seguir a mesma lógica simétrica.
-
----
-
-## FIX-009
-
-**Titulo:** Permitir criação de cliente sem nome
-
-**Descrição:**
-Atualmente o sistema aceita cadastrar um cliente sem informar o nome, tanto pelo frontend (sem feedback visual de obrigatoriedade) quanto pelo backend (sem validação). O campo Nome deve ser obrigatório nas duas camadas.
-
-**Estimativa:** 1 story point
-
-**Critérios de Aceite:**
-
-1. **Frontend — indicação visual:** o label "Nome" exibe `*` vermelho, sinalizando campo obrigatório.
-2. **Frontend — validação client-side:** ao tentar salvar sem nome preenchido (ou apenas espaços), exibe mensagem de erro inline no modal: "O campo Nome é obrigatório." O envio ao backend não ocorre.
-3. **Backend — validação server-side:** o endpoint `POST /api/customer/customers` (e `PUT` de edição, se aplicável) rejeita requisições com `name` nulo, vazio ou somente espaços, retornando `400 Bad Request` com mensagem descritiva.
-4. **Comportamento de edição preservado:** a validação não interfere no fluxo de edição de clientes que já possuem nome.
 
 ---
 
