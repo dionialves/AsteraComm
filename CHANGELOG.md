@@ -4,6 +4,14 @@
 
 ---
 
+### US-061 — Simplificação de roles: manter apenas ADMIN
+
+**Solução:**
+- Backend: `UserRole` reduzido a apenas `ADMIN`. `User.getAuthorities()` simplificado para retornar sempre `ROLE_ADMIN`. `SecurityConfigurations` remove restrição `hasRole("SUPER_ADMIN")`. `SuperUserInitializer` e `DevDataSeeder` atualizados para `UserRole.ADMIN`. `UserCreateDTO` e `UserUpdateDTO` removem campo `role`; `UserService` hardcoda `UserRole.ADMIN`. Migração `V8__simplify_roles.sql` atualiza registros existentes. Testes atualizados.
+- Frontend: `users/index.astro` — seletor "Nível de Acesso" removido do modal; coluna "Role" e função `buildRoleBadge` removidas da tabela; campo `role` removido dos payloads de criação e atualização.
+
+---
+
 ### US-060 — Excluir usuário pelo modal de edição
 
 **Solução:**

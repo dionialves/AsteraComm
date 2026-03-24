@@ -191,3 +191,8 @@ END $$;
 
 
 ALTER TABLE asteracomm_plans ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE;
+
+
+
+UPDATE asteracomm_users SET role = 'ADMIN' WHERE role IN ('SUPER_ADMIN', 'USER');
+

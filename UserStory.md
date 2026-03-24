@@ -17,8 +17,7 @@
 13. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
 14. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
 15. [US-060 — Excluir usuário pelo modal de edição](#us-060)
-16. [US-061 — Refatoração: controle de acesso ao menu por nível de usuário](#us-061)
-17. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
+16. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
 18. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
 19. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
 20. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
@@ -364,27 +363,6 @@ Como administrador, quero poder excluir um usuário diretamente pelo modal de ed
 2. **Confirmação por dois cliques:** ao clicar em "Excluir", o botão muda seu texto para "Confirmar exclusão" e adiciona a classe `confirm`. Um timer de 3 segundos redefine o botão ao estado original se não houver segundo clique. Somente ao clicar novamente a exclusão é executada. O `confirm-body`, `btn-confirm-delete` e toda a lógica de troca de painel são removidos.
 3. **Execução:** confirmar chama `DELETE /api/users/{id}`, fecha o modal, remove o usuário da tabela e exibe toast de sucesso.
 4. **Proteção:** o botão "Excluir" é oculto quando o usuário logado é o mesmo que está sendo editado (sem auto-exclusão).
-
----
-
-## US-061
-
-**Titulo:** Refatoração: controle de acesso ao menu por nível de usuário
-
-**Descrição:**
-Como administrador, quero que os itens do sidebar de navegação sejam exibidos de acordo com o nível de acesso do usuário logado, ocultando seções restritas para perfis com menos privilégios.
-
-**Estimativa:** 2 story points
-
-**Critérios de Aceite:**
-
-1. **Leitura do perfil logado:** O frontend obtém o `role` do usuário autenticado (via endpoint existente ou JWT decodificado no middleware) e o disponibiliza para as decisões de visibilidade do menu.
-2. **Regras de visibilidade por role:**
-   - `SUPER_ADMIN`: acesso a todos os itens do menu.
-   - `ADMIN`: acesso a todos os itens, exceto o menu de **Usuários**.
-   - `USER` (Operador): acesso apenas a itens operacionais (Circuitos, Ligações, Auditoria) — sem acesso a Usuários, Clientes, Planos, Troncos ou DIDs.
-3. **Proteção de rota:** Além da visibilidade no menu, o middleware Astro (`src/middleware.ts`) nega acesso direto via URL a rotas restritas, redirecionando para `/dashboard` com mensagem de permissão insuficiente.
-4. **Sem impacto visual:** itens visíveis permanecem com aparência idêntica ao atual; apenas itens inacessíveis são ocultados.
 
 ---
 
