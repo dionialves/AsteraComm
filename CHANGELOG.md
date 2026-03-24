@@ -4,6 +4,15 @@
 
 ---
 
+### FIX-012 — Top 10 circuitos por consumo ignora planos por categoria
+
+Solução:
+
+- Backend: `DashboardService` mescla UNIFIED e PER_CATEGORY no ranking de top 10. Para PER_CATEGORY, `usedMinutes` é a soma de todas as categorias e `limitMinutes` a soma dos limites > 0. Resultado ordenado por `usedMinutes` decrescente antes de limitar a 10. Novo método `toTopCircuitPerCategory`. 3 novos testes unitários.
+- Frontend: corrigido label do eixo Y de `customerName` para `circuit`. Removido `.reverse()` que invertia a ordem (Chart.js com `indexAxis: "y"` renderiza índice 0 no topo).
+
+---
+
 ### US-067 — Refatoração: remover métricas de faturamento do dashboard
 
 Solução:
