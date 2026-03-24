@@ -9,11 +9,10 @@
 5. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
 6. [US-040 — Refatoração: extrair scripts de modal para arquivos `.ts` importáveis nas páginas Astro](#us-040)
 7. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
-8. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
-9. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
-10. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
-11. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
-12. [US-066 — Refatoração: menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
+8. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
+9. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
+10. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
+11. [US-066 — Refatoração: menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
 
 ---
 
@@ -209,24 +208,6 @@ Na página de listagem de Circuitos, o botão de página anterior (`btn-prev`) a
 1. **Estado inicial:** ao carregar a listagem, `btn-prev` está desabilitado (`disabled`) quando `currentPage === 0`.
 2. **Navegação:** ao avançar para a página 2 ou além, `btn-prev` é habilitado corretamente.
 3. **Consistência:** o comportamento de `btn-next` (já correto) serve de referência — `btn-prev` deve seguir a mesma lógica simétrica.
-
----
-
-## FIX-008
-
-**Titulo:** Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+
-
-**Descrição:**
-Ao criar um novo circuito, o campo `number` (código do circuito) deveria ser gerado pelo backend como um sequencial a partir de `100000`. Porém, está sendo atribuído um valor no formato de número de telefone (ex: `49xxxxxxxx`), provavelmente reutilizando lógica errada ou lendo de outra fonte.
-
-**Estimativa:** 1 story point
-
-**Critérios de Aceite:**
-
-1. **Geração sequencial:** o `number` do primeiro circuito criado é `100000`; o segundo `100001`; e assim por diante, independentemente de outros campos.
-2. **Sem colisão:** dois circuitos nunca recebem o mesmo `number`.
-3. **Sem interferência de DID/telefone:** nenhum dado de DID, tronco ou cliente influencia o valor gerado.
-4. **Exibição correta no modal:** após salvar, o modal reaberto exibe o `number` correto (ex: `100000`) no título e no campo de código.
 
 ---
 

@@ -4,6 +4,14 @@
 
 ---
 
+### FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+
+
+Solução:
+
+- BAckend: Foi ajustado select para retornar circuitos criados com código numérico sequencial (100000+) em vez de retornar o maios numero, que conflitava com inserts manuais.
+
+---
+
 ### FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos
 
 Solução:
