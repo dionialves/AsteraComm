@@ -9,9 +9,8 @@
 5. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
 6. [US-040 — Refatoração: extrair scripts de modal para arquivos `.ts` importáveis nas páginas Astro](#us-040)
 7. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
-8. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
-9. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
-10. [US-066 — Refatoração: menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
+8. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
+9. [US-066 — Refatoração: menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
 
 ---
 
@@ -193,41 +192,6 @@ Como administrador, quero poder criar um novo circuito diretamente pela aba "Cir
 
 ---
 
-## FIX-007
-
-**Titulo:** btn-prev habilitado na primeira página da listagem de Circuitos
-
-**Descrição:**
-Na página de listagem de Circuitos, o botão de página anterior (`btn-prev`) aparece habilitado mesmo quando o usuário está na primeira página (`currentPage === 0`), permitindo clique sem efeito.
-
-**Estimativa:** 0,5 story points
-
-**Critérios de Aceite:**
-
-1. **Estado inicial:** ao carregar a listagem, `btn-prev` está desabilitado (`disabled`) quando `currentPage === 0`.
-2. **Navegação:** ao avançar para a página 2 ou além, `btn-prev` é habilitado corretamente.
-3. **Consistência:** o comportamento de `btn-next` (já correto) serve de referência — `btn-prev` deve seguir a mesma lógica simétrica.
-
----
-
-## FIX-010
-
-**Titulo:** Planos e clientes inativos aparecendo nos seletores do modal de Circuito
-
-**Descrição:**
-No modal de criação/edição de Circuito, os seletores de Plano e Cliente exibem todos os registros, incluindo planos com `active = false` e clientes com `enabled = false`. Registros inativos não devem ser selecionáveis.
-
-**Estimativa:** 1 story point
-
-**Critérios de Aceite:**
-
-1. **Seletor de Plano:** o endpoint utilizado para popular o seletor (`GET /api/plans/all` ou equivalente) passa a retornar apenas planos com `active = true`.
-2. **Seletor de Cliente:** o endpoint utilizado para popular o seletor (`GET /api/customer/customers/all` ou equivalente) passa a retornar apenas clientes com `enabled = true`.
-3. **Comportamento:** planos e clientes inativos não aparecem na lista de opções do modal de Circuito (criação e edição).
-4. **Sem impacto em circuitos existentes:** um circuito já vinculado a um plano/cliente que foi posteriormente desativado continua exibindo corretamente esses dados em modo de visualização/edição — apenas a seleção de novos registros é restrita.
-
----
-
 ## US-065
 
 **Titulo:** Relatório: clientes sem circuitos vinculados
@@ -265,3 +229,4 @@ Como administrador, quero que o menu lateral tenha uma seção "Operacional" que
 3. **Estado ativo:** o link do relatório atual aparece destacado no padrão visual dos demais itens ativos do menu.
 4. **Remoção da página de índice:** `frontend/src/pages/reports/index.astro` é excluída. Qualquer link que apontava para `/reports` é removido ou redirecionado.
 5. **Escopo:** `Layout.astro` (ou componente de menu) + remoção de `reports/index.astro` — zero impacto nas páginas de relatório individuais.
+

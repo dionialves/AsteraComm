@@ -4,6 +4,24 @@
 
 ---
 
+### FIX-011 — Gráfico de consumo próximo ao limite: suporte a pacotes por categoria
+
+Solução:
+
+- Backend: Adicionada query `findPerCategoryCircuitConsumption` no `CallRepository`, retornando uma linha por circuito com plano `PER_CATEGORY` com os 4 limites por categoria e os minutos usados por `call_type` (via `SUM CASE WHEN`).
+- Backend: `DashboardService` mescla os resultados UNIFIED e PER_CATEGORY antes de calcular `nearLimitCircuits` e `circuitOverage`. Para planos `PER_CATEGORY`, exibe a categoria mais crítica (maior percentual), com `planName` sufixado (ex: `"Plano X — Fixo Local"`).
+- Testes: 4 novos testes unitários cobrindo os cenários de planos por categoria.
+
+---
+
+### FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito
+
+Solução:
+
+- Corrigido na FIX-005
+
+---
+
 ### FIX-009 — Permitir criação de cliente sem nome
 
 Solução:
