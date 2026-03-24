@@ -12,15 +12,13 @@
 8. [FIX-002 — Modais fora do tamanho correto nas páginas de Ligações e Planos](#fix-002)
 9. [FIX-003 — Botões do modal desalinhados no modo de criação](#fix-003)
 10. [FIX-005 — Refatorar fetches com limite hardcoded no frontend](#fix-005)
-11. [FIX-006 — Modal de Planos com tamanho incorreto](#fix-006)
-12. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
-14. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
-15. [US-060 — Excluir usuário pelo modal de edição](#us-060)
-16. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
-18. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
-19. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
-20. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
-21. [FIX-011 — Desativar cliente automaticamente quando seu último circuito ativo for desativado](#fix-011)
+11. [US-052 — Migrar frontend para 100% Tailwind CSS](#us-052)
+12. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
+13. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
+14. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
+15. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
+16. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
+17. [FIX-011 — Desativar cliente automaticamente quando seu último circuito ativo for desativado](#fix-011)
 
 ---
 
@@ -251,22 +249,6 @@ Vários fetches no frontend usam `size=200` ou `size=9999` para carregar listas 
 
 ---
 
-## FIX-006
-
-**Titulo:** Modal de Planos com tamanho incorreto
-
-**Descrição:**
-O modal da página de Planos (`/plans`) está com dimensões incorretas em relação ao padrão visual do sistema, causando inconsistência de layout.
-
-**Estimativa:** 1 story point
-
-**Critérios de Aceite:**
-
-1. **Dimensões corrigidas:** Largura e altura ajustadas para seguir o padrão canônico dos demais modais do sistema.
-2. **Sem regressão:** Nenhuma alteração de conteúdo, lógica ou comportamento — apenas dimensões e espaçamentos corrigidos.
-
----
-
 ## US-052
 
 **Titulo:** Migrar frontend para 100% Tailwind CSS
@@ -304,24 +286,6 @@ Como administrador, quero poder criar um novo circuito diretamente pela aba "Cir
 5. **Salvamento:** Ao salvar, envia `POST /api/circuit/circuits` com `{ password?, trunkName, planId, customerId }`. Em caso de sucesso, fecha o sub-modal, recarrega a lista de circuitos da aba e atualiza o `circuitCount` da linha na listagem.
 6. **Distinção visual:** O header do sub-modal exibe "Novo circuito" como título (em vez do código do circuito). O botão "Deletar" não é exibido no modo criação.
 7. **Comportamento preservado:** O fluxo de edição de circuito existente (clique no ícone de seta na linha) continua funcionando sem alterações.
-
----
-
-## US-060
-
-**Titulo:** Excluir usuário pelo modal de edição
-
-**Descrição:**
-Como administrador, quero poder excluir um usuário diretamente pelo modal de edição, com confirmação antes de executar a ação, para remover contas que não serão mais utilizadas.
-
-**Estimativa:** 1 story point
-
-**Critérios de Aceite:**
-
-1. **Botão "Excluir":** exibido apenas no modal de edição, posicionado à esquerda no rodapé do header do modal (separado dos botões Salvar/Cancelar), texto `#791F1F`, hover `bg-[#FEE2E2]`, border `#e0e0e0`.
-2. **Confirmação por dois cliques:** ao clicar em "Excluir", o botão muda seu texto para "Confirmar exclusão" e adiciona a classe `confirm`. Um timer de 3 segundos redefine o botão ao estado original se não houver segundo clique. Somente ao clicar novamente a exclusão é executada. O `confirm-body`, `btn-confirm-delete` e toda a lógica de troca de painel são removidos.
-3. **Execução:** confirmar chama `DELETE /api/users/{id}`, fecha o modal, remove o usuário da tabela e exibe toast de sucesso.
-4. **Proteção:** o botão "Excluir" é oculto quando o usuário logado é o mesmo que está sendo editado (sem auto-exclusão).
 
 ---
 
