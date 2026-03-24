@@ -4,6 +4,16 @@
 
 ---
 
+### US-067 — Refatoração: remover métricas de faturamento do dashboard
+
+Solução:
+
+- Backend: Removidos `sumMonthlyPrices()` do `CircuitRepository`, campos `currentMonthCost` e `subscriptions` do `BillingStats`, campo `subscriptions` do `MonthlyBillingStat`. `buildMonthlyBilling` simplificado.
+- Frontend: Card "Faturamento mês" renomeado para "Excedentes mês" exibindo apenas excedente atual e comparativo com mês anterior. Gráfico renomeado para "Excedente mensal — últimos 12 meses" com série de mensalidades removida.
+- Testes: ajustados para refletir novo contrato do `BillingStats`.
+
+---
+
 ### FIX-011 — Gráfico de consumo próximo ao limite: suporte a pacotes por categoria
 
 Solução:
