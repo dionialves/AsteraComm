@@ -4,6 +4,13 @@
 
 ---
 
+### US-062 — Refatoração: organizar pacote `report` com sub-pacotes por relatório
+
+**Solução:**
+- Backend: arquivos de `report/` movidos para `report/costpercircuit/` com renomeação de `CallReportController` → `CostPerCircuitController`, `CallReportService` → `CostPerCircuitService` e `CallReportRepository` → `CostPerCircuitRepository`. Arquivos de Auditoria (`AuditController`, `AuditService`, `AuditResultDTO`, `AuditCallLineDTO`, `AuditSummaryDTO`) movidos de `call/` para `report/audit/`. `CallCostingService.calculateFractionCost` alterado para `public` (necessário pelo novo pacote de auditoria). Testes movidos e renomeados correspondentemente. Endpoints HTTP preservados.
+
+---
+
 ### US-061 — Simplificação de roles: manter apenas ADMIN
 
 **Solução:**
