@@ -4,9 +4,20 @@
 
 ---
 
+### FIX-005 — Refatorar fetches com limite hardcoded no frontend
+
+Solução:
+
+- Criado no backend endpoints que retornam todos os objetos de uma classe(Customer. Circuit, Trunk, Plan) sem paginação: `GET /api/[resource]/summary` (ex: `GET /api/customers/summary`).
+- Nos endpoints retornam apenas objetos ativos e no no caso de DIDs os numeros livres.
+- No Frontend, os fetches para popular os selects de Cliente, Tronco e Plano no modal de Circuitos foram alterados para usar os novos endpoints summary, eliminando os limite de 200 e 900 itens e a necessidade de paginação.
+
+---
+
 ### FIX-003 — Botões do modal desalinhados no modo de criação
 
 **Solução:**
+
 - Frontend: `.modal-footer` alterado para `justify-content: flex-end`; `.btn-modal-delete` recebe `margin-right: auto` para empurrar os botões à direita quando visível e sumir do layout quando `hidden`.
 - Frontend: `plans/index.astro` — botão Excluir trocado de `invisible` para `hidden` (HTML e JS) para ser removido do fluxo de layout.
 
@@ -15,6 +26,7 @@
 ### FIX-002 — Modais fora do tamanho correto nas páginas de Ligações e Planos
 
 **Solução:**
+
 - Frontend: modal de Planos convertido para `modal-main modal-plan`; `.modal-plan` sobrescreve para `height: auto; max-height: 85vh` mantendo largura 780px.
 - Frontend: modal de Ligações convertido de CSS customizado (`width: 540px`) para `modal-main modal-cdr-detail`; overlay trocado para `modal-overlay` (padrão global); header/body/footer padronizados com as classes do sistema; footer adicionado com botão "Cancelar".
 
@@ -23,6 +35,7 @@
 ### FIX-001 — Ativação/desativação de usuário via edição
 
 **Solução:**
+
 - Backend: `UserService.update()` corrigido para aplicar os campos `name` e `enabled` do `UserUpdateDTO` antes de salvar (antes salvava sem alterar nada).
 - Backend: endpoints `PATCH /{id}/disable` e `PATCH /{id}/enable` removidos do `UserController`.
 - Backend: métodos `disable()` e `enable()` removidos do `UserService`.
@@ -33,6 +46,7 @@
 ### US-052 — Migrar frontend para 100% Tailwind CSS
 
 **Solução:**
+
 - Frontend: eliminados todos os atributos `style=""` estáticos de 14 arquivos Astro
   (`Layout.astro`, `index.astro`, `login/index.astro`, `cdrs/index.astro`,
   `circuits/index.astro`, `circuits/[id].astro`, `customers/index.astro`,
@@ -50,6 +64,7 @@
 ### US-062 — Refatoração: organizar pacote `report` com sub-pacotes por relatório
 
 **Solução:**
+
 - Backend: arquivos de `report/` movidos para `report/costpercircuit/` com renomeação de `CallReportController` → `CostPerCircuitController`, `CallReportService` → `CostPerCircuitService` e `CallReportRepository` → `CostPerCircuitRepository`. Arquivos de Auditoria (`AuditController`, `AuditService`, `AuditResultDTO`, `AuditCallLineDTO`, `AuditSummaryDTO`) movidos de `call/` para `report/audit/`. `CallCostingService.calculateFractionCost` alterado para `public` (necessário pelo novo pacote de auditoria). Testes movidos e renomeados correspondentemente. Endpoints HTTP preservados.
 
 ---
@@ -57,6 +72,7 @@
 ### US-061 — Simplificação de roles: manter apenas ADMIN
 
 **Solução:**
+
 - Backend: `UserRole` reduzido a apenas `ADMIN`. `User.getAuthorities()` simplificado para retornar sempre `ROLE_ADMIN`. `SecurityConfigurations` remove restrição `hasRole("SUPER_ADMIN")`. `SuperUserInitializer` e `DevDataSeeder` atualizados para `UserRole.ADMIN`. `UserCreateDTO` e `UserUpdateDTO` removem campo `role`; `UserService` hardcoda `UserRole.ADMIN`. Migração `V8__simplify_roles.sql` atualiza registros existentes. Testes atualizados.
 - Frontend: `users/index.astro` — seletor "Nível de Acesso" removido do modal; coluna "Role" e função `buildRoleBadge` removidas da tabela; campo `role` removido dos payloads de criação e atualização.
 
@@ -65,6 +81,7 @@
 ### US-060 — Excluir usuário pelo modal de edição
 
 **Solução:**
+
 - Frontend: `users/index.astro` — botão "Excluir" no rodapé do modal (apenas em modo edição) com padrão de dois cliques: 1º clique muda texto para "Confirmar exclusão" com timer de 3s para reverter automaticamente; 2º clique executa `DELETE /api/users/{id}`, fecha o modal e exibe toast de sucesso. Removidos `#confirm-body`, `#btn-confirm-delete` e toda a lógica de troca de painel (`showConfirmBody`/`showFormBody`/`confirmMode`).
 
 ---
@@ -72,6 +89,7 @@
 ### US-057 — Adicionar campo `active` ao Plano com filtro na listagem
 
 **Solução:**
+
 - Backend: migração `V7__add_active_to_plans.sql` adiciona coluna `active BOOLEAN NOT NULL DEFAULT TRUE` na tabela `asteracomm_plans`. Entidade `Plan` recebe campo `boolean active = true`. `PlanUpdateDTO` recebe campo `Boolean active`. `PlanRepository` ganha `findByActive()` e `findByActiveAndNameContainingIgnoreCase()`. `PlanService.getAll()` passa a aceitar `Boolean active` como parâmetro de filtro (null = todos, true = ativos, false = inativos). `PlanController` expõe o parâmetro `?active` no endpoint `GET /api/plans`.
 - Frontend: `plans/index.astro` — coluna "Status" adicionada após "Nome" (bolinha colorida + texto, padrão de Circuitos); filtro Todos/Ativos/Inativos na toolbar (padrão `bg-white`); paginação sempre visível; modal reestruturado com tamanho padrão (`780×680`), linha 1 ID + Nome, linha 2 toggle Ativo/Inativo (disponível também na criação). `plans.ts` repassa parâmetro `active` ao backend.
 
@@ -80,6 +98,7 @@
 ### US-055 — Excluir DID livre pela página de listagem de DIDs
 
 **Solução:**
+
 - Backend: adicionada `ConflictException` (409) e handler no `GlobalExceptionHandler`. `DIDService.delete()` passa a lançar `ConflictException` em vez de `BusinessException` quando o DID está vinculado a um circuito.
 - Frontend: `dids/index.astro` — modal reestruturado com painéis `#panel-create` e `#panel-view`. Clique na linha abre visualização com Número (monospace), Status (badge pill) e Circuito vinculado. Botão "Excluir" visível apenas para DIDs livres, com padrão de dois cliques (1º clique → "Confirmar exclusão", 2º clique → executa). Após exclusão: fade da linha, contador atualizado e toast de sucesso.
 
@@ -88,6 +107,7 @@
 ### US-059 — Adicionar coluna ID na listagem de Troncos
 
 **Solução:**
+
 - Backend: migração `V6__add_id_to_trunks.sql` adiciona campo `id BIGSERIAL` como nova PK da tabela `asteracomm_trunks`, com `name` tornando-se `UNIQUE`. Entidade `Trunk` atualizada com `@GeneratedValue(IDENTITY)`. `TrunkProjection` expõe `getId()`. `TrunkRepository` migra para `JpaRepository<Trunk, Long>` com novos métodos `findByName` e `existsByName`. `TrunkService` e `DevDataSeeder` atualizados.
 - Frontend: `trunks/index.astro` — coluna `ID` adicionada como primeira coluna (`40px`, `font-mono text-[#888]`). Campo ID adicionado ao modal (desativado em criação e edição, populado com o valor real na edição).
 
@@ -96,6 +116,7 @@
 ### US-058 — Ajustar cor do texto dos IDs nas páginas de Clientes e DIDs
 
 **Solução:**
+
 - Frontend: `customers/index.astro` e `dids/index.astro` — células de ID alteradas de `text-[#1a1a1a]` para `text-[#888]`, alinhando ao padrão visual da página de Circuitos (`font-mono text-[#888]`).
 
 ---
@@ -103,6 +124,7 @@
 ### US-056 — Contador de registros no rodapé das listagens de Circuitos, Clientes e DIDs
 
 **Solução:**
+
 - Frontend: `circuits/index.astro`, `customers/index.astro`, `dids/index.astro` — adicionado `<p id="counter">` abaixo da tabela (alinhado à direita, `text-[12px] text-[#888] mt-3`).
 - Cada página rastreia `totalElements` a partir da resposta paginada e exibe singular/plural formatado em pt-BR (`toLocaleString('pt-BR')`).
 - Contador atualiza a cada fetch (carga inicial, filtros, busca e navegação de página).
@@ -112,6 +134,7 @@
 ### US-053 — Botão "Novo circuito" abre modal de criação
 
 **Solução:**
+
 - Frontend: `circuits/index.astro` — botão "Novo circuito" abre o modal existente em modo criação (campos vazios) via `openCircuitModal(null, null)`, sem navegação de página.
 - Abas "DIDs" e "Histórico" ocultadas no modo criação (irrelevantes antes do circuito existir); restauradas ao abrir em modo edição.
 - Após `POST` bem-sucedido, o modal é reaberto automaticamente em modo edição com os dados do circuito recém-criado (em vez de fechar a tela).
@@ -123,6 +146,7 @@
 ### US-064 — Modais de perfil e senha no padrão do sistema
 
 **Solução:**
+
 - Frontend: `Layout.astro` — modais "Dados cadastrais" e "Alterar senha" migrados para classes canônicas do `global.css` (`.modal-overlay`, `.modal-main`, `.modal-header`, `.modal-body`, `.modal-footer`, `.form-group`, `.form-input`, `.input-password-wrap`, `.btn-eye`, `.modal-error`).
 - CSS customizado (`.layout-modal`, `.lm-*`) removido do `Layout.astro`.
 - Z-index dos modais do layout sobrescrito para 200/210 (acima do sidebar).
@@ -133,6 +157,7 @@
 ### US-050 — Reestruturação do sidebar de navegação
 
 **Solução:**
+
 - Frontend: `Layout.astro` reescrito com sidebar fixo 220px (`#1a1a1a`), logo centralizada 24px (`#5DCAA5` + branco).
 - Seções OPERACIONAL (Cadastro colapsável: Circuitos, Clientes, DIDs, Planos; Configuração colapsável: Troncos) e FINANCEIRO (Ligações, Relatórios).
 - Seção ADMINISTRAÇÃO (Usuários) renderizada via SSR apenas para `SUPER_ADMIN` e `ADMIN` (fetch server-side no frontmatter).
@@ -146,6 +171,7 @@
 ### US-063 — Modal de detalhes do circuito a partir da página de Auditoria
 
 **Solução:**
+
 - Frontend: `reports/audit.astro` — botão de link do `SearchSelect` de circuito passa a abrir modal de detalhes do circuito diretamente na página, sem navegar para `/circuits?modal=...`.
 - Adicionados overlay (`#circuit-modal-overlay`), CSS para modal de seleção de DID e modal DID (`csub-modal-did`).
 - Modal com tabs Detalhes/DIDs/Histórico, `SearchSelect` de Tronco, Plano e Cliente, toggle de status, toggle de senha.
@@ -157,6 +183,7 @@
 ### US-049 — Reestruturação da página de Auditoria
 
 **Solução:**
+
 - Backend: `AuditSimulationService` e `AuditController` com endpoint `GET /api/audit/simulate?circuitNumber&month&year`.
 - Frontend: `reports/audit.astro` reescrito com header (botão voltar + título + subtítulo), card de filtros (SearchSelect de circuito, Mês, Ano, botão Processar), card de contexto (Circuito/Plano/Período), toggle "Apenas chamadas relevantes", botão "Baixar PDF", tabela CSS Grid 8 colunas somente leitura e 5 totalizadores semânticos.
 - Geração de PDF client-side via jsPDF + autoTable.
@@ -167,6 +194,7 @@
 ### US-048 — Reestruturação da página de listagem de Usuários
 
 **Solução:**
+
 - Frontend: `users/index.astro` reescrito com 100% Tailwind + classes canônicas do `global.css`.
 - Header com título "Usuários" + subtítulo + botão "Novo usuário" (`#1D9E75`).
 - Toolbar com busca (debounce 300ms, client-side por nome e username), filtros Todos/Ativos/Inativos e paginação condicional (oculta quando ≤ 20 registros).
@@ -183,6 +211,7 @@
 ### US-047 — Reestruturação do sistema de Relatórios
 
 **Solução:**
+
 - Backend: dependência OpenPDF adicionada. Novos records `CostPerCircuitSummaryDTO` e `CostPerCircuitResponseDTO`. `CallReportService` com métodos `getCostPerCircuit()` e `generateCostPerCircuitPdf()` (geração server-side). `CallReportController` com endpoints `GET /api/reports/cost-per-circuit` e `GET /api/reports/cost-per-circuit/pdf`.
 - Frontend: `ReportCard.astro` criado em `src/components/` como componente reutilizável para cards do índice. `reports/index.astro` redesenhado com header + grid 3 colunas. `reports/cost-per-circuit.astro` criado com header (botão voltar + título + subtítulo), card de filtros (Mês, Ano, checkbox), 4 totalizadores em grid, botão "Baixar PDF" e tabela somente leitura CSS Grid 5 colunas. Proxies Astro `api/reports/cost-per-circuit.ts` e `cost-per-circuit-pdf.ts` criados.
 - Endpoints antigos (`/api/reports/call-cost`, `/reports/call-cost`) mantidos sem alteração.
@@ -192,6 +221,7 @@
 ### US-046 — Reestruturação da página de listagem de Planos
 
 **Solução:**
+
 - Frontend: `plans/index.astro` reescrito com 100% Tailwind — header com botão "Novo plano", toolbar com busca (debounce 300ms) à esquerda e paginação condicional (visível apenas quando totalPages > 1) à direita.
 - Tabela CSS Grid 8 colunas: ID · Nome · Mensalidade · Fixo Local · Fixo LD · Móvel Local · Móvel LD · Pacote.
 - Colunas de tarifa em `font-mono`, 4 casas decimais; Mensalidade em `font-mono font-medium` com prefixo `R$`.
@@ -207,6 +237,7 @@
 ### US-045 — Reestruturação da página de listagem de Ligações (CDR)
 
 **Solução:**
+
 - Frontend: `cdrs/index.astro` reescrito com 100% Tailwind — header sem botão de ação, card de filtros com labels acima dos campos, 6 campos (Origem, Destino, Circuito, Status, Data início, Data fim) em duas linhas, botões "Filtrar" e "Limpar".
 - Filtro Status como button group (padrão dos Circuitos): Todos / Atendida / Sem resp. / Ocupado / Falha — aplicado apenas ao clicar "Filtrar".
 - Paginação com chevrons SVG dentro do card de filtros.
@@ -222,6 +253,7 @@
 ### US-044 — Reestruturação da página de listagem de Troncos
 
 **Solução:**
+
 - Frontend: `trunks/index.astro` reescrito com 100% Tailwind — header com botão "Novo tronco" (`#1D9E75`), busca com debounce 300ms e ícone integrado, paginação condicional com chevrons SVG (oculta quando `totalPages <= 1`).
 - Tabela em CSS Grid 4 colunas (Nome, Host, Usuário, Registro); badge pill "Registrado" (`#E1F5EE`/`#085041`) e "Não registrado" (`#FCEBEB`/`#791F1F`); linha selecionada `#E6F1FB` + `border-left: 2px solid #378ADD`.
 - Contador de rodapé: "{n} troncos cadastrados" (singular/plural), alinhado à direita.
@@ -231,6 +263,7 @@
 ### US-042 — Reestruturação da página de listagem de Clientes
 
 **Solução:**
+
 - Backend: `CustomerResponseDTO` criado com campo `circuitCount` (count de circuitos vinculados por cliente via `CircuitRepository.countByCustomerId()`).
 - Backend: `CustomerRepository` recebeu `findByEnabled()` e `findByEnabledAndNameContainingIgnoreCase()` para filtro por status.
 - Backend: `CustomerService.getAll()` atualizado para receber `Boolean enabled` e retornar `Page<CustomerResponseDTO>`.
@@ -245,6 +278,7 @@
 ### US-043 — Reestruturação da página de listagem de DIDs
 
 **Solução:**
+
 - Backend: `DIDCircuitDTO` e `DIDResponseDTO` criados como records (campos: `id`, `number`, `status`, `circuit`).
 - Backend: `DIDRepository` recebeu 4 novos métodos paginados: `findByCircuitIsNull`, `findByCircuitIsNotNull`, e variantes com `NumberContaining` para busca.
 - Backend: `DIDService.getAll()` atualizado para retornar `Page<DIDResponseDTO>` com status computado (`IN_USE`/`FREE`) e `DIDCircuitDTO` aninhado.
@@ -260,6 +294,7 @@
 ### US-041 — Reestruturação da página de listagem de Circuitos
 
 **Solução:**
+
 - Backend: novo endpoint `GET /api/circuits/summary` → `{ total, active, online, inactive }`.
 - Backend: `findAllCircuits` atualizado com filtros nullable `online` e `active` via `CAST(:param AS boolean) IS NULL`; `ORDER BY` hardcoded removido, sort delegado ao `Pageable`.
 - Backend: `CircuitSummaryDTO` criado como record; `CircuitService.getAll()` e `CircuitController.findAll()` atualizados com parâmetros `online` e `status`.
@@ -273,6 +308,7 @@
 ### US-051 — Reestruturação da tela de Login
 
 **Solução:**
+
 - `login/index.astro` reescrito: fundo `#f5f5f5`, card branco 480px centralizado, `border: 0.5px solid #e0e0e0`, `border-radius 12px`.
 - Logo "Astera" (`#1D9E75`) + "Comm" (preto), font-size 36px, sem imagem PNG.
 - Campos Usuário e Senha com labels 12px e inputs padding 10px 12px, font-size 14px, borda `#d0d0d0`.
@@ -287,6 +323,7 @@
 ### US-039 — Sistema de modais empilhados para edição de registros (Circuito e Cliente)
 
 **Solução:**
+
 - `ModalSystem` class (inline) com dois níveis de overlay/modal, animações CSS, URL sync via `history.pushState` e suporte a Escape.
 - `SearchSelect` substituindo `ChipSelect` nos chips do modal — modo chip visual (`.cs-chip`) ao selecionar, modo busca ao limpar; visibilidade dos botões gerenciada via `style.display` para evitar conflito de classes.
 - **Página de Circuitos:** clique na linha abre modal principal com abas Detalhes / DIDs / Histórico. Detalhes: campos editáveis (senha com toggle olho, tronco/plano/cliente com SearchSelect). DIDs: lista com desvincular (confirm) + botão "+ Adicionar" que filtra apenas DIDs livres via `/api/did/free`. Chips com `setLinkClickHandler` abrindo sub-modal para edição de Tronco, Plano e Cliente.
@@ -299,6 +336,7 @@
 ### US-036 — Redesenhar layout da página de detalhe do circuito
 
 **Solução:**
+
 - Container principal: `max-w-[1100px] mx-auto`.
 - Header: breadcrumb (`Circuitos › {código}`) + `h1` + botões Voltar/Salvar. Deletar removido do header.
 - Card Identificação: grid 3 colunas — ID (disabled), Código (disabled), Status com toggle button group colorido (Ativo = verde, Inativo = vermelho).
@@ -312,6 +350,7 @@
 ### US-035 — Travar seleção e exibir ações ao selecionar item no SearchSelect
 
 **Solução:**
+
 - Ao selecionar um item, o trigger do SearchSelect fica travado (não abre o dropdown).
 - Ícone **X** aparece ao lado: limpa a seleção e reabre o dropdown automaticamente.
 - Ícone **seta** aparece ao lado quando `onNavigate` está definido no config: navega para a URL retornada com `?from=[caminho atual]` para que o "Voltar" funcione.
@@ -325,6 +364,7 @@
 ### US-033 — Botão "Adicionar circuito" na página de detalhe do cliente
 
 **Solução:**
+
 - Botão "Adicionar" inserido no cabeçalho da tabela de circuitos em `customers/[id].astro`; navega para `circuits/new?customerId=${customerId}`.
 - Em `circuits/new.astro`, se `customerId` estiver presente na URL: campo Cliente é pré-selecionado via `setValue()` e desabilitado via `setDisabled(true)`.
 - Após salvar com sucesso, redireciona para `customers/${customerId}` em vez de `circuits/${created.number}`.
@@ -336,6 +376,7 @@
 ### US-032 — Navegação contextual: voltar para cliente ao acessar circuito via página de cliente
 
 **Solução:**
+
 - Em `customers/[id].astro`, o clique em uma linha de circuito passa `?from=customers/${customerId}` na URL de destino.
 - Em `circuits/[id].astro`, o botão "Voltar" lê o parâmetro `from`: se presente, navega para `/${from}`; caso contrário, mantém o comportamento padrão (`/circuits`).
 
@@ -344,6 +385,7 @@
 ### US-034 — Ajustar colunas da tabela de DIDs vinculados no circuito
 
 **Solução:**
+
 - Tabela de DIDs em `circuits/[id].astro` passa a exibir apenas as colunas `ID` e `Número`, removendo a coluna `Status`.
 - Coluna `ID` com largura fixa `w-16`; coluna `Número` sem largura fixa, ocupando o restante da tabela.
 - Checkboxes de seleção e comportamento do botão Desvincular preservados.
@@ -353,6 +395,7 @@
 ### US-031 — Componente de seleção com pesquisa integrada (SearchSelect)
 
 **Solução:**
+
 - Componente `SearchSelect` implementado em `src/lib/search-select.ts` como classe TypeScript reutilizável.
 - Aparência fechada simula `<select>` nativo com ícone de seta e label do item selecionado (ou placeholder em cinza).
 - Ao clicar, abre dropdown com campo de pesquisa no topo e lista de até 10 opções filtradas em tempo real (case-insensitive, client-side).
@@ -368,6 +411,7 @@
 ### US-030 — Página de detalhe do cliente
 
 **Solução:**
+
 - Clicar em uma linha da listagem de clientes navega para `customers/[id]`.
 - Página de detalhe exibe: ID, Nome (editável), Ativo (radio Sim/Não, editável), Criado em, Atualizado em.
 - Botão Salvar persiste Nome e Ativo via PUT sem recarregar a página.
@@ -380,6 +424,7 @@
 ### US-029 — Padronizar largura de colunas nas listagens do sistema
 
 **Solução:**
+
 - Colunas sem largura fixa: usam `whitespace-nowrap`, layout determina o espaço conforme conteúdo.
 - Alinhamento à esquerda; espaço excedente fica à direita da última coluna.
 - Tabela usa `w-full` sem `table-fixed`.
@@ -393,6 +438,7 @@
 ### US-028 — Reorganizar colunas e padronizar status na listagem de clientes
 
 **Solução:**
+
 - Coluna ID adicionada como primeira coluna.
 - Ordem das colunas: `ID | Nome | Status | Criado em | Atualizado em`.
 - Coluna Status padronizada: `Ativo` (verde, `text-green-600`) / `Inativo` (vermelho, `text-red-600`) com `font-semibold`, removendo o badge anterior.
@@ -403,6 +449,7 @@
 ### US-024 — Padronizar estilo dos botões de ação em todo o sistema
 
 **Solução:**
+
 - Verde (Adicionar, Salvar, Vincular): `bg-green-600 hover:bg-green-700` — corrigido em circuits, customers, dids, plans, trunks e users.
 - Cinza (Cancelar, Voltar, Fechar, Anterior, Próximo): `bg-gray-200 hover:bg-gray-300` — corrigido nos modais de todas as páginas e no `.listing-page-btn` do CSS global (de `#f3f4f6` → `#e5e7eb`).
 - Azul (Filtrar, Editar): `bg-blue-500 hover:bg-blue-600` — corrigido em cdrs e plans.
@@ -413,6 +460,7 @@
 ### US-023 — Reordenar e ajustar colunas da listagem de circuitos
 
 **Solução:**
+
 - Colunas reordenadas para: `ID | Status | Código | Cliente | Plano | Tronco | Online | IP | RTT`.
 - Coluna `Senha` removida da listagem.
 - Coluna Status exibe `Ativo` (verde) / `Inativo` (vermelho) baseado no campo `active`.
@@ -425,6 +473,7 @@
 ### US-027 — Refatoração: DID referencia circuito por ID em vez de número
 
 **Solução:**
+
 - `DID` passa a ter `@ManyToOne Circuit` com `@JoinColumn(name = "circuit_id")`, expondo `circuitId` e `circuitNumber` via `@JsonProperty`.
 - Migração Flyway V5 converte `circuit_number` (VARCHAR) para `circuit_id` (BIGINT FK), preservando vínculos existentes via JOIN por número.
 - Endpoints ajustados: `GET /api/dids/free`, `GET /api/dids/by-circuit/{circuitNumber}` e `PUT /api/dids/{id}/link/{circuitNumber}`.
@@ -439,6 +488,7 @@
 O modal de vínculo de DID no formulário do circuito não exibia os DIDs disponíveis porque o frontend carregava todos os DIDs e filtrava no cliente via `!d.circuitNumber`, o que falhava silenciosamente quando o parâmetro `sort` era codificado incorretamente pelo `URLSearchParams` (vírgula → `%2C`), gerando erro no Pageable do Spring.
 
 **Solução:**
+
 - Backend: novo endpoint `GET /api/dids/free` retorna lista simples de DIDs sem circuito vinculado.
 - Frontend: nova rota Astro `src/pages/api/did/free.ts` proxia o endpoint.
 - `openModal()` em `circuits/[id].astro` atualizado para usar `/api/did/free` diretamente, eliminando o filtro cliente.

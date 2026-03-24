@@ -8,14 +8,13 @@
 4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
 5. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
 6. [US-040 — Refatoração: extrair scripts de modal para arquivos `.ts` importáveis nas páginas Astro](#us-040)
-7. [FIX-005 — Refatorar fetches com limite hardcoded no frontend](#fix-005)
-8. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
-9. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
-10. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
-11. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
-12. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
-13. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
-14. [US-066 — Refatoração: menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
+7. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
+8. [FIX-007 — btn-prev habilitado na primeira página da listagem de Circuitos](#fix-007)
+9. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
+10. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
+11. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
+12. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
+13. [US-066 — Refatoração: menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
 
 ---
 
@@ -173,25 +172,6 @@ Como desenvolvedor, quero que a lógica dos modais (`ModalSystem`, `ChipSelect` 
 4. **Sem duplicação:** O sub-modal de cliente (aberto a partir do circuito) reutiliza a lógica de `customer-modal.ts`.
 5. **Comportamento preservado:** Todos os critérios da US-039 continuam funcionando após a refatoração.
 6. **Testes:** Os testes existentes de `ModalSystem` e `ChipSelect` continuam passando.
-
----
-
-## FIX-005
-
-**Titulo:** Refatorar fetches com limite hardcoded no frontend
-
-**Descrição:**
-Vários fetches no frontend usam `size=200` ou `size=9999` para carregar listas completas (ex.: clientes no modal de circuito, planos, troncos). Esse padrão é frágil e não escala. A abordagem correta é usar endpoints dedicados de listagem simplificada (sem paginação) no backend, retornando apenas os campos necessários para populares os selects.
-
-**Estimativa:** 3 story points
-
-**Critérios de Aceite:**
-
-1. **Mapeamento:** Identificados todos os fetches com `size ≥ 200` ou `size=9999` nas páginas Astro e rotas de API do frontend.
-2. **Endpoints backend:** Para cada recurso afetado, criado endpoint `GET /api/{recurso}/all` retornando lista plana (sem `Page`) com apenas os campos necessários para o select (ex.: `id`, `name`, `number`).
-3. **Rotas frontend:** Criadas ou atualizadas rotas Astro correspondentes para os novos endpoints.
-4. **Fetches atualizados:** Todas as chamadas com limite hardcoded substituídas pelos novos endpoints.
-5. **Comportamento preservado:** A filtragem/busca no `SearchSelect` continua funcionando client-side sobre a lista retornada.
 
 ---
 
