@@ -16,7 +16,8 @@
 12. [FIX-008 — Código gerado automaticamente ao criar circuito usa número de telefone em vez de sequência 100000+](#fix-008)
 13. [FIX-009 — Permitir criação de cliente sem nome](#fix-009)
 14. [FIX-010 — Planos e clientes inativos aparecendo nos seletores do modal de Circuito](#fix-010)
-15. [FIX-011 — Desativar cliente automaticamente quando seu último circuito ativo for desativado](#fix-011)
+15. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
+16. [US-066 — Refatoração: menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
 
 ---
 
@@ -322,19 +323,40 @@ No modal de criação/edição de Circuito, os seletores de Plano e Cliente exib
 
 ---
 
-## FIX-011
+## US-065
 
-**Titulo:** Desativar cliente automaticamente quando seu último circuito ativo for desativado
+**Titulo:** Relatório: clientes sem circuitos vinculados
 
 **Descrição:**
-Quando um circuito é desativado (`active = false`), o sistema deve verificar se o cliente associado ainda possui outros circuitos ativos. Caso não possua, o cliente deve ser desativado automaticamente (`enabled = false`).
+Como administrador, quero acessar um relatório que lista todos os clientes que não possuem nenhum circuito vinculado, para identificar cadastros ociosos e tomar ações comerciais ou de limpeza.
 
-**Estimativa:** 1 story point
+**Estimativa:** 2 story points
 
 **Critérios de Aceite:**
 
-1. **Gatilho:** a verificação ocorre sempre que um circuito é desativado via `PUT /api/circuits/{id}` com `active = false`.
-2. **Lógica:** após desativar o circuito, o serviço verifica se o cliente vinculado ainda possui ao menos um circuito com `active = true`. Se não houver, o cliente é desativado automaticamente.
-3. **Sem efeito colateral:** reativar um circuito (`active = true`) não reativa automaticamente o cliente — a reativação do cliente é sempre manual.
-4. **Clientes sem circuito:** circuitos sem cliente vinculado (`customerId = null`) não disparam nenhuma verificação.
-5. **Testes:** testes unitários cobrem: desativação do cliente ao desativar o último circuito ativo; não desativação quando ainda existem outros circuitos ativos; não reativação ao reativar um circuito.
+1. **Endpoint backend:** `GET /api/reports/customers-without-circuits` retorna lista paginada de clientes (`id`, `name`, `document`, `enabled`, `createdAt`) que não possuem nenhum circuito vinculado (independente do estado `active`).
+2. **Parâmetros:** suporta `page`, `size`, `sort` e `search` (por nome ou documento).
+3. **Página frontend:** nova rota `/reports/customers-without-circuits` com listagem no padrão de layout canônico (header, toolbar com busca + paginação, tabela CSS Grid).
+4. **Menu lateral:** item "Sem circuito" adicionado dentro da seção "Operacional" (ver US-066).
+5. **Testes:** testes unitários no backend cobrem: cliente sem circuito aparece; cliente com ao menos um circuito não aparece.
+
+---
+
+## US-066
+
+**Titulo:** Refatoração: menu lateral com seção "Operacional" e relatórios como links diretos
+
+**Descrição:**
+Como administrador, quero que o menu lateral tenha uma seção "Operacional" que, ao clicar, expande e exibe os relatórios disponíveis como links diretos, eliminando a página de índice de relatórios com cards.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **Item "Operacional" no menu:** exibido com ícone e seta indicando expansão. Ao clicar, expande/colapsa inline exibindo os relatórios disponíveis como links diretos:
+   - Auditoria → `/reports/audit`
+   - Custo por Circuito → `/reports/cost-per-circuit`
+2. **Expansão automática:** se a rota atual for `/reports/*`, "Operacional" já inicia expandido.
+3. **Estado ativo:** o link do relatório atual aparece destacado no padrão visual dos demais itens ativos do menu.
+4. **Remoção da página de índice:** `frontend/src/pages/reports/index.astro` é excluída. Qualquer link que apontava para `/reports` é removido ou redirecionado.
+5. **Escopo:** `Layout.astro` (ou componente de menu) + remoção de `reports/index.astro` — zero impacto nas páginas de relatório individuais.
