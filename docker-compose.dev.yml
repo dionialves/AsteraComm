@@ -53,6 +53,7 @@ services:
     container_name: backend
     ports:
       - "8090:8090"
+      - "35729:35729"
     volumes:
       - ./backend:/app
       - maven-cache:/root/.m2

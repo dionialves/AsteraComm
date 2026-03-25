@@ -6,12 +6,14 @@
 # Inicia o ambiente de desenvolvimento com hot reload
 #
 # Uso:
-#   ./dev.sh          # Inicia todos os serviços
-#   ./dev.sh build    # Reconstrói os containers antes de iniciar
-#   ./dev.sh stop     # Para todos os serviços
-#   ./dev.sh logs     # Mostra logs de todos os serviços
-#   ./dev.sh logs backend   # Mostra logs do backend
-#   ./dev.sh logs frontend  # Mostra logs do frontend
+#   ./dev.sh                    # Inicia todos os serviços
+#   ./dev.sh build              # Reconstrói os containers antes de iniciar
+#   ./dev.sh rebuild            # Reconstrói tudo do zero (--no-cache) e reinicia
+#   ./dev.sh rebuild backend    # Reconstrói um serviço específico do zero
+#   ./dev.sh stop               # Para todos os serviços
+#   ./dev.sh logs               # Mostra logs de todos os serviços
+#   ./dev.sh logs backend       # Mostra logs do backend
+#   ./dev.sh logs frontend      # Mostra logs do frontend
 # =============================================================================
 
 set -e
@@ -96,6 +98,28 @@ start_services() {
     echo ""
 }
 
+rebuild_service() {
+    local SERVICE="$1"
+    print_header
+    check_docker
+    check_submodules
+
+    if [ -n "$SERVICE" ]; then
+        print_status "Reconstruindo '$SERVICE' do zero..."
+        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME stop "$SERVICE"
+        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME rm -f "$SERVICE"
+        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME build --no-cache "$SERVICE"
+        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME up -d "$SERVICE"
+        print_status "Serviço '$SERVICE' reconstruído e reiniciado."
+    else
+        print_status "Reconstruindo todos os serviços do zero..."
+        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME down
+        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME build --no-cache
+        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME up -d
+        print_status "Todos os serviços reconstruídos e reiniciados."
+    fi
+}
+
 stop_services() {
     print_header
     print_status "Parando serviços de desenvolvimento..."
@@ -115,11 +139,12 @@ show_help() {
     echo "Uso: ./dev.sh [comando]"
     echo ""
     echo "Comandos:"
-    echo "  (sem argumento)    Inicia todos os serviços"
-    echo "  build              Reconstrói os containers e inicia"
-    echo "  stop               Para todos os serviços"
-    echo "  logs [serviço]     Mostra logs (opcional: backend, frontend, postgres, asterisk)"
-    echo "  help               Mostra esta ajuda"
+    echo "  (sem argumento)        Inicia todos os serviços"
+    echo "  build                  Reconstrói os containers e inicia"
+    echo "  rebuild [serviço]      Reconstrói do zero (--no-cache); opcional: nome do serviço"
+    echo "  stop                   Para todos os serviços"
+    echo "  logs [serviço]         Mostra logs (opcional: backend, frontend, postgres, asterisk)"
+    echo "  help                   Mostra esta ajuda"
     echo ""
 }
 
@@ -130,6 +155,9 @@ start)
     ;;
 build)
     start_services "build"
+    ;;
+rebuild)
+    rebuild_service "$2"
     ;;
 stop)
     stop_services
