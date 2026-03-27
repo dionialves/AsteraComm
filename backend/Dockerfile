@@ -16,8 +16,19 @@ WORKDIR /build
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
 
-# Copia código fonte e compila
+# Copia código fonte, config Tailwind e binário
 COPY src ./src
+COPY tailwind.config.js .
+COPY tools/tailwindcss ./tools/tailwindcss
+RUN chmod +x ./tools/tailwindcss
+
+# Gera o CSS antes do build Maven (output vai para static/css/ dentro do JAR)
+RUN ./tools/tailwindcss \
+    -i src/main/resources/static/css/input.css \
+    -o src/main/resources/static/css/output.css \
+    --minify
+
+# Compila o projeto
 RUN mvn clean package -DskipTests -B
 
 # Stage 2: Runtime (imagem leve, apenas JRE)

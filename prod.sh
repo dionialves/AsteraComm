@@ -60,17 +60,9 @@ check_docker() {
     fi
 }
 
-check_submodules() {
-    if [ ! -f "backend/pom.xml" ] || [ ! -f "frontend/package.json" ]; then
-        print_warning "Submodules não inicializados. Inicializando..."
-        git submodule update --init --recursive
-    fi
-}
-
 start_services() {
     print_header
     check_docker
-    check_submodules
 
     print_status "Iniciando serviços de produção..."
 
@@ -86,9 +78,7 @@ start_services() {
     echo ""
     echo -e "${BLUE}Acesso aos serviços:${NC}"
     echo "  • Aplicação (NGINX):   http://localhost"
-    echo "  • Frontend (direto):   http://localhost:4321"
-    echo "  • Backend API:         http://localhost:8090"
-    echo "  • API via NGINX:       http://localhost/api/"
+    echo "  • Backend (direto):    http://localhost:8090"
     echo "  • PostgreSQL:          localhost:5432"
     echo "  • Asterisk AMI:        localhost:5038"
     echo ""
@@ -130,7 +120,7 @@ show_help() {
     echo "  (sem argumento)    Inicia todos os serviços"
     echo "  build              Reconstrói as imagens e inicia"
     echo "  stop               Para todos os serviços"
-    echo "  logs [serviço]     Mostra logs (opcional: backend, frontend, postgres, asterisk, nginx)"
+    echo "  logs [serviço]     Mostra logs (opcional: backend, postgres, asterisk, nginx)"
     echo "  status             Mostra status dos containers"
     echo "  help               Mostra esta ajuda"
     echo ""

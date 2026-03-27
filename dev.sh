@@ -13,7 +13,6 @@
 #   ./dev.sh stop               # Para todos os serviços
 #   ./dev.sh logs               # Mostra logs de todos os serviços
 #   ./dev.sh logs backend       # Mostra logs do backend
-#   ./dev.sh logs frontend      # Mostra logs do frontend
 # =============================================================================
 
 set -e
@@ -60,17 +59,9 @@ check_docker() {
     fi
 }
 
-check_submodules() {
-    if [ ! -f "backend/pom.xml" ] || [ ! -f "frontend/package.json" ]; then
-        print_warning "Submodules não inicializados. Inicializando..."
-        git submodule update --init --recursive
-    fi
-}
-
 start_services() {
     print_header
     check_docker
-    check_submodules
 
     print_status "Iniciando serviços de desenvolvimento..."
 
@@ -85,14 +76,13 @@ start_services() {
     print_status "Serviços iniciados com sucesso!"
     echo ""
     echo -e "${BLUE}Acesso aos serviços:${NC}"
-    echo "  • Frontend (Astro):    http://localhost:4321"
-    echo "  • Backend (API):       http://localhost:8090"
+    echo "  • Aplicação:           http://localhost:8090"
     echo "  • PostgreSQL:          localhost:5432"
     echo "  • Asterisk AMI:        localhost:5038"
     echo ""
     echo -e "${YELLOW}Dicas:${NC}"
-    echo "  • Alterações no frontend refletem automaticamente (hot reload)"
-    echo "  • Alterações no backend requerem que spring-boot-devtools esteja no pom.xml"
+    echo "  • Alterações no backend recarregam automaticamente via spring-boot-devtools"
+    echo "  • Para recompilar o CSS: ./backend/tailwind-watch.sh"
     echo "  • Use './dev.sh logs' para ver os logs"
     echo "  • Use './dev.sh stop' para parar os serviços"
     echo ""
@@ -102,7 +92,6 @@ rebuild_service() {
     local SERVICE="$1"
     print_header
     check_docker
-    check_submodules
 
     if [ -n "$SERVICE" ]; then
         print_status "Reconstruindo '$SERVICE' do zero..."
@@ -143,7 +132,7 @@ show_help() {
     echo "  build                  Reconstrói os containers e inicia"
     echo "  rebuild [serviço]      Reconstrói do zero (--no-cache); opcional: nome do serviço"
     echo "  stop                   Para todos os serviços"
-    echo "  logs [serviço]         Mostra logs (opcional: backend, frontend, postgres, asterisk)"
+    echo "  logs [serviço]         Mostra logs (opcional: backend, postgres, asterisk)"
     echo "  help                   Mostra esta ajuda"
     echo ""
 }
