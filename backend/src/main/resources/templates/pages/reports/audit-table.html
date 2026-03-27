@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="table">
+
+  <!-- Erro -->
+  <div th:if="${errorMsg != null}"
+       class="px-4 py-3 bg-[#fee2e2] text-[#dc2626] rounded-lg text-[13px]"
+       th:text="${errorMsg}">
+  </div>
+
+  <th:block th:if="${result != null}">
+
+    <!-- Card de contexto -->
+    <div class="bg-white rounded-xl p-4 mb-4 border border-[#e0e0e0]">
+      <div class="flex gap-8">
+        <div>
+          <p class="text-[11px] font-medium uppercase tracking-wide text-[#888] mb-1">Circuito</p>
+          <p class="text-[15px] font-medium text-[#1a1a1a] font-mono" th:text="${result.circuitNumber}">—</p>
+        </div>
+        <div>
+          <p class="text-[11px] font-medium uppercase tracking-wide text-[#888] mb-1">Plano</p>
+          <p class="text-[15px] font-medium text-[#1a1a1a]" th:text="${result.planName}">—</p>
+        </div>
+        <div>
+          <p class="text-[11px] font-medium uppercase tracking-wide text-[#888] mb-1">Período</p>
+          <p class="text-[15px] font-medium text-[#1a1a1a]" th:text="${month + '/' + year}">—</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5 Totalizadores (acima da tabela) -->
+    <div class="grid grid-cols-5 gap-3 mb-4">
+      <div class="bg-[#f5f5f5] rounded-lg px-4 py-[14px]">
+        <p class="text-[12px] text-[#888] mb-1">Total ligações</p>
+        <p class="text-[20px] font-medium text-[#1a1a1a]" th:text="${result.summary.totalCalls}">0</p>
+      </div>
+      <div class="bg-[#f5f5f5] rounded-lg px-4 py-[14px]">
+        <p class="text-[12px] text-[#888] mb-1">Tempo faturável</p>
+        <p class="text-[20px] font-medium text-[#1a1a1a]" th:text="${result.summary.totalMinutes + ' min'}">0</p>
+      </div>
+      <div class="bg-[#E6F1FB] rounded-lg px-4 py-[14px]">
+        <p class="text-[12px] text-[#0C447C] mb-1">Tempo do pacote</p>
+        <p class="text-[20px] font-medium text-[#0C447C]" th:text="${result.summary.quotaMinutesUsed + ' min'}">0</p>
+      </div>
+      <div class="bg-[#FAEEDA] rounded-lg px-4 py-[14px]">
+        <p class="text-[12px] text-[#854F0B] mb-1">Tempo excedente</p>
+        <p class="text-[20px] font-medium text-[#854F0B]" th:text="${result.summary.excessMinutes + ' min'}">0</p>
+      </div>
+      <div class="bg-[#E1F5EE] rounded-lg px-4 py-[14px]">
+        <p class="text-[12px] text-[#085041] mb-1">Custo total</p>
+        <p class="text-[20px] font-medium text-[#085041]"
+           th:text="${'R$ ' + #numbers.formatDecimal(result.summary.totalCost, 1, 'POINT', 2, 'COMMA')}">R$ 0,00</p>
+      </div>
+    </div>
+
+    <!-- Barra de controles -->
+    <div class="flex items-center justify-between mb-3">
+      <!-- Toggle: apenas chamadas relevantes -->
+      <div class="flex items-center gap-2">
+        <button id="toggle-relevant" role="switch" aria-checked="false"
+                class="relative shrink-0 w-9 h-5 rounded-[99px] bg-[#e0e0e0] border-none cursor-pointer p-0 outline-none transition-colors duration-200">
+          <span id="toggle-thumb"
+                class="absolute top-[2px] left-[2px] w-4 h-4 rounded-full bg-white block transition-transform duration-200">
+          </span>
+        </button>
+        <span class="text-[13px] text-[#1a1a1a] select-none">Apenas chamadas relevantes</span>
+      </div>
+      <!-- PDF -->
+      <a id="btn-pdf-audit" th:href="${'/reports/audit/pdf?circuitNumber=' + result.circuitNumber + '&month=' + month + '&year=' + year}"
+         class="flex items-center gap-1.5 bg-white border border-[#e0e0e0] text-[#1a1a1a] text-[13px] font-medium px-3 py-[9px] rounded-md hover:bg-[#f5f5f5] transition-colors no-underline">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Baixar PDF
+      </a>
+    </div>
+
+    <!-- Tabela de chamadas -->
+    <div class="rounded-xl border border-[#e0e0e0] overflow-hidden mb-4">
+
+      <!-- Header (fundo branco) -->
+      <div class="audit-row bg-white border-b border-[#e0e0e0]">
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Data/hora</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Destino</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Tipo</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Duração</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Tarifa R$/min</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Min. pacote</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Acum. pacote</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide text-right">Custo</span>
+      </div>
+
+      <!-- Vazio -->
+      <div th:if="${result.lines.empty}" class="py-10 text-center text-[13px] text-[#aaa]">
+        Nenhuma chamada no período.
+      </div>
+
+      <!-- Linhas -->
+      <div th:each="line, stat : ${result.lines}"
+           th:attr="data-relevant=${line.quotaUsedThisCall > 0 or line.cost.signum() > 0}"
+           th:class="|audit-row bg-white ${stat.last ? '' : 'border-b border-[#f0f0f0]'}|">
+
+        <span class="text-[13px] font-mono text-[#1a1a1a]"
+              th:text="${#temporals.format(line.callDate, 'dd/MM/yy HH:mm')}"></span>
+
+        <span class="text-[13px] font-mono text-[#1a1a1a]" th:text="${line.dst}"></span>
+
+        <span th:class="|rounded-[99px] text-[11px] px-[8px] py-[2px] font-medium whitespace-nowrap
+                         ${line.callType?.name() == 'FIXED_LOCAL'          ? 'bg-[#E6F1FB] text-[#0C447C]' :
+                           line.callType?.name() == 'MOBILE_LOCAL'         ? 'bg-[#EEEDFE] text-[#3C3489]' :
+                           line.callType?.name() == 'FIXED_LONG_DISTANCE'  ? 'bg-[#f5f5f5] text-[#888]'    :
+                           line.callType?.name() == 'MOBILE_LONG_DISTANCE' ? 'bg-[#FAECE7] text-[#712B13]' : 'bg-[#f5f5f5] text-[#888]'}|"
+              th:text="${line.callType?.name() == 'FIXED_LOCAL'          ? 'Fixo Local'  :
+                         line.callType?.name() == 'MOBILE_LOCAL'         ? 'Móvel Local' :
+                         line.callType?.name() == 'FIXED_LONG_DISTANCE'  ? 'Fixo LD'     :
+                         line.callType?.name() == 'MOBILE_LONG_DISTANCE' ? 'Móvel LD'    : '—'}">
+        </span>
+
+        <span class="text-[13px] font-mono text-[#1a1a1a]"
+              th:with="sec=${line.billSeconds ?: 0}, h=${sec / 3600}, m=${(sec % 3600) / 60}, s=${sec % 60}"
+              th:text="${(h > 0 ? h + ':' : '') + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s}"></span>
+
+        <span class="text-[13px] font-mono text-[#1a1a1a]"
+              th:text="${'R$ ' + #numbers.formatDecimal(line.ratePerMinute, 1, 'POINT', 4, 'COMMA')}"></span>
+
+        <!-- Min. pacote: — quando zero, +N min em verde quando > 0 -->
+        <span th:if="${line.quotaUsedThisCall > 0}"
+              class="text-[13px] font-mono text-[#085041] font-medium"
+              th:text="${'+' + line.quotaUsedThisCall + ' min'}"></span>
+        <span th:unless="${line.quotaUsedThisCall > 0}"
+              class="text-[13px] font-mono text-[#aaa]">—</span>
+
+        <span class="text-[13px] font-mono text-[#1a1a1a]" th:text="${line.quotaAccumulated}"></span>
+
+        <!-- Custo: verde quando > 0, cinza quando zero -->
+        <span class="text-[13px] font-mono text-right"
+              th:class="${line.cost.signum() > 0 ? 'text-[13px] font-mono text-right text-[#085041] font-medium' : 'text-[13px] font-mono text-right text-[#aaa]'}"
+              th:text="${'R$ ' + #numbers.formatDecimal(line.cost, 1, 'POINT', 2, 'COMMA')}"></span>
+
+      </div>
+    </div>
+
+  </th:block>
+
+  <script>
+    (function () {
+      var btn    = document.getElementById('toggle-relevant');
+      var thumb  = document.getElementById('toggle-thumb');
+      var pdfBtn = document.getElementById('btn-pdf-audit');
+      if (!btn) return;
+
+      var baseHref = pdfBtn ? pdfBtn.getAttribute('href') : '';
+      var active = false;
+
+      btn.addEventListener('click', function () {
+        active = !active;
+        btn.setAttribute('aria-checked', String(active));
+
+        if (active) {
+          btn.style.backgroundColor = '#1D9E75';
+          thumb.style.transform = 'translateX(16px)';
+        } else {
+          btn.style.backgroundColor = '#e0e0e0';
+          thumb.style.transform = 'translateX(0)';
+        }
+
+        document.querySelectorAll('.audit-row[data-relevant]').forEach(function (row) {
+          row.style.display = (active && row.dataset.relevant === 'false') ? 'none' : '';
+        });
+
+        if (pdfBtn) {
+          pdfBtn.setAttribute('href', active ? baseHref + '&onlyRelevant=true' : baseHref);
+        }
+      });
+    })();
+  </script>
+
+</div>
+
+</body>
+</html>

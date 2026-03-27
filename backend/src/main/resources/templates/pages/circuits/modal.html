@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<body>
+
+<div th:fragment="modal" class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center"
+     onclick="closeModal()">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-[780px] h-[700px] flex flex-col"
+       onclick="event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="flex-shrink-0 flex items-center justify-between px-5 pt-4 pb-4 border-b border-[#e5e7eb]">
+      <div>
+        <p class="text-[11px] text-[#888] uppercase tracking-wide font-medium">Circuito</p>
+        <h2 class="text-[18px] font-medium text-[#1a1a1a] font-mono mt-0.5"
+            th:text="${circuit != null} ? ${circuit.number} : 'Novo Circuito'">Circuito</h2>
+      </div>
+      <button type="button" onclick="closeModal()"
+              class="w-7 h-7 flex items-center justify-center text-[#888] hover:text-[#1a1a1a] rounded-md transition-colors">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Tab bar (apenas em modo edição) -->
+    <div th:if="${circuit != null}"
+         class="flex-shrink-0 flex border-b border-[#e5e7eb] px-5 gap-1">
+      <button type="button" id="tab-btn-detalhes"
+              class="px-3 py-[10px] text-[13px] font-medium text-[#1a1a1a] border-b-2 border-[#1D9E75] -mb-px"
+              onclick="switchCircuitTab('detalhes')">
+        Detalhes
+      </button>
+      <button type="button" id="tab-btn-dids"
+              class="px-3 py-[10px] text-[13px] text-[#888] hover:text-[#1a1a1a] border-b-2 border-transparent -mb-px transition-colors"
+              onclick="switchCircuitTab('dids')">
+        DIDs
+      </button>
+      <button type="button" id="tab-btn-historico"
+              class="px-3 py-[10px] text-[13px] text-[#888] hover:text-[#1a1a1a] border-b-2 border-transparent -mb-px transition-colors"
+              onclick="switchCircuitTab('historico')">
+        Histórico
+      </button>
+    </div>
+
+    <!-- Form (wraps body + footer) -->
+    <form th:attr="hx-post=${circuit == null ? '/circuits' : null},
+                  hx-put=${circuit != null ? '/circuits/' + circuit.number : null},
+                  hx-target='#modal-container'"
+          hx-swap="innerHTML"
+          class="flex flex-col flex-1 min-h-0">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+      <!-- Body com painéis de tabs -->
+      <div class="flex-1 overflow-y-auto p-5">
+
+        <!-- Tab: Detalhes (sempre renderizado) -->
+        <div id="tab-panel-detalhes">
+          <div th:replace="~{pages/circuits/tab-detalhes :: detalhes}"></div>
+        </div>
+
+        <!-- Tab: DIDs (lazy, apenas em modo edição) -->
+        <div id="tab-panel-dids" class="hidden" th:if="${circuit != null}"></div>
+
+        <!-- Tab: Histórico (lazy, apenas em modo edição) -->
+        <div id="tab-panel-historico" class="hidden" th:if="${circuit != null}"></div>
+
+      </div>
+
+      <!-- Footer -->
+      <div class="modal-footer">
+        <div th:if="${circuit != null}" class="contents">
+          <div th:replace="~{fragments/confirm-delete :: confirm-delete(
+              deleteUrl=${'/circuits/' + circuit.number},
+              hxTarget='#modal-container',
+              hxInclude='.circuit-filter',
+              label=${'o circuito ' + circuit.number})}">
+          </div>
+        </div>
+        <button type="button" onclick="closeModal()" class="btn-modal-cancel">Cancelar</button>
+        <button id="btn-circuit-save" type="submit" class="btn-modal-save">Salvar</button>
+      </div>
+    </form>
+
+  </div>
+
+  <!-- OOB: toast -->
+  <th:block th:if="${toastMsg}">
+    <div th:replace="~{fragments/toast :: toast(toastMessage=${toastMsg}, toastType=${toastType})}"></div>
+  </th:block>
+
+  <!-- Trigger: recarrega tabela após criação -->
+  <div th:if="${refreshTable}"
+       hx-get="/circuits/table"
+       hx-target="#table-container"
+       hx-swap="innerHTML"
+       hx-trigger="load"
+       class="hidden"></div>
+
+  <script th:if="${circuit != null}" th:inline="javascript">
+    (function () {
+      var circuitNumber = /*[[${circuit.number}]]*/ '';
+      var tabs = ['detalhes', 'dids', 'historico'];
+      var loaded = {detalhes: true, dids: false, historico: false};
+
+      function switchCircuitTab(tabId) {
+        tabs.forEach(function (t) {
+          var panel = document.getElementById('tab-panel-' + t);
+          var btn   = document.getElementById('tab-btn-' + t);
+          if (!panel || !btn) return;
+          if (t === tabId) {
+            panel.classList.remove('hidden');
+            btn.classList.add('text-[#1a1a1a]', 'font-medium', 'border-[#1D9E75]');
+            btn.classList.remove('text-[#888]', 'border-transparent');
+          } else {
+            panel.classList.add('hidden');
+            btn.classList.remove('text-[#1a1a1a]', 'font-medium', 'border-[#1D9E75]');
+            btn.classList.add('text-[#888]', 'border-transparent');
+          }
+        });
+
+        // Lazy load tabs (dids e historico)
+        if (!loaded[tabId] && tabId !== 'detalhes') {
+          loaded[tabId] = true;
+          htmx.ajax('GET', '/circuits/' + circuitNumber + '/tab/' + tabId,
+                    {target: '#tab-panel-' + tabId, swap: 'innerHTML'});
+        }
+
+
+      }
+
+      // Expor globalmente para o onclick inline
+      window.switchCircuitTab = switchCircuitTab;
+    })();
+  </script>
+</div>
+
+</body>
+</html>

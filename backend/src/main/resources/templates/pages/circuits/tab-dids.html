@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="dids" class="flex flex-col gap-4">
+
+  <!-- ── Cabeçalho da seção ────────────────────────────────────────────────── -->
+  <div class="flex items-center justify-between">
+    <p class="text-[12px] font-semibold text-[#888] uppercase tracking-wide">DIDs Vinculados</p>
+    <button type="button" id="btn-open-did-modal"
+            class="flex items-center gap-1 text-[12px] font-medium text-[#555] border border-[#d0d0d0] px-2.5 py-[5px] rounded-md hover:bg-[#f5f5f5] transition-colors">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+           stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      Adicionar
+    </button>
+  </div>
+
+  <!-- ── Tabela (header sempre visível) ───────────────────────────────────── -->
+  <div class="rounded-xl border border-[#e0e0e0] overflow-hidden">
+    <!-- Header -->
+    <div class="grid grid-cols-[60px_minmax(0,1fr)_110px_44px] gap-2 px-4 py-[9px] bg-[#f5f5f5] border-b border-[#e0e0e0] items-center">
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">ID</span>
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Número</span>
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Vinculado em</span>
+      <span></span>
+    </div>
+
+    <!-- Linhas -->
+    <div th:each="did : ${linkedDids}"
+         class="grid grid-cols-[60px_minmax(0,1fr)_110px_44px] gap-2 px-4 py-[9px] bg-white border-b border-[#f0f0f0] last:border-b-0 items-center">
+      <span class="text-[12px] font-mono text-[#888]" th:text="${did.id}"></span>
+      <span class="text-[13px] font-mono text-[#1a1a1a]" th:text="${did.number != null and did.number.length() == 10 ? '(' + #strings.substring(did.number,0,2) + ') ' + #strings.substring(did.number,2,6) + '-' + #strings.substring(did.number,6,10) : did.number}"></span>
+      <span class="text-[12px] text-[#888]">—</span>
+      <div class="flex justify-end">
+        <button type="button"
+                th:attr="hx-delete=${'/circuits/' + circuitNumber + '/dids/' + did.id}"
+                hx-target="#tab-panel-dids"
+                hx-swap="innerHTML"
+                class="w-[28px] h-[28px] flex items-center justify-center text-[#aaa] hover:text-[#ef4444] hover:bg-[#fee2e2] rounded transition-colors"
+                title="Desvincular">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Estado vazio (dentro da tabela, abaixo do header) -->
+    <div th:if="${linkedDids == null or linkedDids.isEmpty()}"
+         class="py-8 text-center text-[13px] text-[#aaa]">
+      Nenhum DID vinculado.
+    </div>
+  </div>
+
+  <!-- OOB: toast -->
+  <th:block th:if="${toastMsg}">
+    <div th:replace="~{fragments/toast :: toast(toastMessage=${toastMsg}, toastType=${toastType})}"></div>
+  </th:block>
+
+  <!-- ── Modal Adicionar DID ────────────────────────────────────────────────
+       Idêntico ao Astro: overlay + modal centralizado com animação scale,
+       busca client-side sobre os freeDids pré-carregados no fragment.
+  ─────────────────────────────────────────────────────────────────────────── -->
+
+  <!-- Overlay -->
+  <div id="did-modal-overlay"
+       style="position:fixed;inset:0;background:rgba(0,0,0,0.15);z-index:110;opacity:0;pointer-events:none;transition:opacity 250ms ease"></div>
+
+  <!-- Modal 480×480 centralizado -->
+  <div id="did-modal"
+       style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.95);opacity:0;pointer-events:none;width:480px;height:480px;background:#fff;border-radius:12px;box-shadow:0 12px 60px rgba(0,0,0,0.28);z-index:115;display:flex;flex-direction:column;transition:transform 250ms cubic-bezier(0.4,0,0.2,1),opacity 250ms cubic-bezier(0.4,0,0.2,1)">
+
+    <!-- Header -->
+    <div class="flex-shrink-0 flex items-center justify-between px-5 pt-4 pb-4 border-b border-[#e5e7eb]">
+      <div>
+        <p class="text-[11px] text-[#888] uppercase tracking-wide font-medium">Circuito</p>
+        <h2 class="text-[18px] font-medium text-[#1a1a1a] mt-0.5">Adicionar DID</h2>
+      </div>
+      <button type="button" id="did-btn-close"
+              class="w-7 h-7 flex items-center justify-center text-[#888] hover:text-[#1a1a1a] rounded-md transition-colors">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div class="flex-1 flex flex-col gap-3 overflow-hidden px-5 py-4">
+      <div class="relative flex-shrink-0">
+        <svg class="absolute left-[10px] top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none"
+             width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input id="did-search-input" type="text" placeholder="Pesquisar número..."
+               class="w-full pl-[34px] pr-3 py-[9px] text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] bg-white transition-colors"/>
+      </div>
+      <div id="did-available-list" class="flex-1 overflow-y-auto"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="modal-footer">
+      <button type="button" id="did-btn-cancel" class="btn-modal-cancel">Cancelar</button>
+      <button type="button" id="did-btn-confirm" class="btn-modal-save" disabled
+              style="opacity:0.5;cursor:default">Adicionar</button>
+    </div>
+  </div>
+
+  <script th:inline="javascript">
+    (function () {
+      var circuitNumber = /*[[${circuitNumber}]]*/ '';
+
+      // DIDs livres pré-carregados pelo servidor — evita fetch separado com JWT
+      var allDids = /*[[${freeDids}]]*/ [];
+
+      var overlay     = document.getElementById('did-modal-overlay');
+      var modal       = document.getElementById('did-modal');
+      var searchInput = document.getElementById('did-search-input');
+      var listEl      = document.getElementById('did-available-list');
+      var btnOpen     = document.getElementById('btn-open-did-modal');
+      var btnClose    = document.getElementById('did-btn-close');
+      var btnCancel   = document.getElementById('did-btn-cancel');
+      var btnConfirm  = document.getElementById('did-btn-confirm');
+
+      var selectedId = null;
+
+      // ── Abrir / fechar ────────────────────────────────────────────────────
+
+      function openModal() {
+        selectedId = null;
+        searchInput.value = '';
+        setConfirm(false);
+        renderList('');
+
+        overlay.style.opacity = '1';
+        overlay.style.pointerEvents = 'auto';
+        modal.style.opacity = '1';
+        modal.style.pointerEvents = 'auto';
+        modal.style.transform = 'translate(-50%,-50%) scale(1)';
+
+        setTimeout(function () { searchInput.focus(); }, 50);
+      }
+
+      function closeModal() {
+        overlay.style.opacity = '0';
+        overlay.style.pointerEvents = 'none';
+        modal.style.opacity = '0';
+        modal.style.pointerEvents = 'none';
+        modal.style.transform = 'translate(-50%,-50%) scale(0.95)';
+      }
+
+      // ── Lista de DIDs ─────────────────────────────────────────────────────
+
+      function formatNumber(n) {
+        if (n && n.length === 10) return '(' + n.slice(0,2) + ') ' + n.slice(2,6) + '-' + n.slice(6,10);
+        return n || '';
+      }
+
+      function renderList(q) {
+        var query = (q || '').toLowerCase();
+        var filtered = allDids
+          .filter(function (d) { return String(d.number || d.id).toLowerCase().indexOf(query) !== -1; })
+          .slice(0, 50);
+
+        listEl.innerHTML = '';
+
+        if (!filtered.length) {
+          listEl.innerHTML = '<p style="color:#9ca3af;font-size:13px;padding:16px 0;text-align:center">Nenhum DID encontrado.</p>';
+          return;
+        }
+
+        filtered.forEach(function (d) {
+          var item = document.createElement('div');
+          item.style.cssText = 'display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:6px;cursor:pointer;font-size:13px;color:#374151;transition:background 0.12s';
+          item.dataset.id = d.id;
+
+          var numSpan = document.createElement('span');
+          numSpan.style.cssText = 'flex:1;font-family:monospace';
+          numSpan.textContent = formatNumber(d.number);
+
+          var idSpan = document.createElement('span');
+          idSpan.style.cssText = 'font-size:11px;color:#9ca3af';
+          idSpan.textContent = 'ID ' + d.id;
+
+          item.appendChild(numSpan);
+          item.appendChild(idSpan);
+
+          if (d.id === selectedId) applySelected(item, idSpan);
+
+          item.addEventListener('mouseenter', function () {
+            if (d.id !== selectedId) item.style.background = '#f3f4f6';
+          });
+          item.addEventListener('mouseleave', function () {
+            item.style.background = d.id === selectedId ? '#eff6ff' : '';
+          });
+          item.addEventListener('click', function () {
+            selectedId = d.id;
+            listEl.querySelectorAll('[data-id]').forEach(function (el) {
+              el.style.background = '';
+              el.style.color = '#374151';
+              var sp = el.querySelector('span:last-child');
+              if (sp) sp.style.color = '#9ca3af';
+            });
+            applySelected(item, idSpan);
+            setConfirm(true);
+          });
+
+          listEl.appendChild(item);
+        });
+      }
+
+      function applySelected(item, idSpan) {
+        item.style.background = '#eff6ff';
+        item.style.color = '#1d4ed8';
+        idSpan.style.color = '#93c5fd';
+      }
+
+      // ── Confirmar vinculação ──────────────────────────────────────────────
+
+      function setConfirm(enabled) {
+        btnConfirm.disabled = !enabled;
+        btnConfirm.style.opacity = enabled ? '1' : '0.5';
+        btnConfirm.style.cursor  = enabled ? 'pointer' : 'default';
+      }
+
+      btnConfirm.addEventListener('click', function () {
+        if (!selectedId) return;
+        var csrfToken  = document.querySelector('meta[name="_csrf"]') && document.querySelector('meta[name="_csrf"]').content;
+        var csrfHeader = document.querySelector('meta[name="_csrf_header"]') && document.querySelector('meta[name="_csrf_header"]').content;
+        var headers = {};
+        if (csrfHeader && csrfToken) headers[csrfHeader] = csrfToken;
+
+        fetch('/circuits/' + circuitNumber + '/dids/' + selectedId, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: headers
+        })
+          .then(function (r) {
+            if (r.ok) {
+              closeModal();
+              htmx.ajax('GET', '/circuits/' + circuitNumber + '/tab/dids',
+                        { target: '#tab-panel-dids', swap: 'innerHTML' });
+            } else {
+              alert('Erro ao vincular DID.');
+            }
+          })
+          .catch(function () { alert('Erro ao vincular DID.'); });
+      });
+
+      // ── Eventos ───────────────────────────────────────────────────────────
+
+      btnOpen.addEventListener('click',   openModal);
+      btnClose.addEventListener('click',  closeModal);
+      btnCancel.addEventListener('click', closeModal);
+      overlay.addEventListener('click',   closeModal);
+      searchInput.addEventListener('input', function () { renderList(searchInput.value); });
+
+    })();
+  </script>
+
+</div>
+
+</body>
+</html>

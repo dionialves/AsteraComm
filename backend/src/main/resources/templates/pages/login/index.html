@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base-login}"
+      lang="pt-BR">
+<head>
+  <title>Login</title>
+</head>
+<body>
+<div layout:fragment="content">
+  <div class="w-[480px] bg-white border-[0.5px] border-[#e0e0e0] rounded-xl px-8 pt-10 pb-8">
+
+    <!-- Logo -->
+    <div class="text-center mb-8">
+      <div class="text-[36px] font-medium tracking-[-0.5px]">
+        <span class="text-[#1D9E75]">Astera</span><span class="text-[#1a1a1a]">Comm</span>
+      </div>
+      <p class="text-[13px] text-[#888] mt-2">Controle total da sua telefonia, em tempo real.</p>
+    </div>
+
+    <form th:action="@{/login}" method="post">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+      <!-- Campo Usuário -->
+      <div class="mb-5">
+        <label for="username" class="block text-[12px] text-[#888] mb-1">Usuário</label>
+        <input id="username" name="username" type="text" autocomplete="username"
+               placeholder="email@exemplo.com"
+               class="w-full box-border px-3 py-[10px] rounded-md border border-[#d0d0d0] text-[14px] text-[#1a1a1a] outline-none"/>
+      </div>
+
+      <!-- Campo Senha -->
+      <div class="mb-6">
+        <label for="password" class="block text-[12px] text-[#888] mb-1">Senha</label>
+        <div class="relative">
+          <input id="password" name="password" type="password" autocomplete="current-password"
+                 placeholder="Digite sua senha"
+                 class="w-full box-border px-3 py-[10px] pr-10 rounded-md border border-[#d0d0d0] text-[14px] text-[#1a1a1a] outline-none"/>
+          <button id="login-toggle" type="button"
+                  class="absolute right-[10px] top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer p-0 text-[#888] flex items-center"
+                  aria-label="Mostrar/ocultar senha">
+            <svg id="icon-eye" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <svg id="icon-eye-off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden">
+              <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Botão Entrar -->
+      <button type="submit"
+              class="w-full py-[11px] rounded-md bg-[#1D9E75] border-none text-white text-[14px] font-medium cursor-pointer mb-4 transition-opacity hover:opacity-90 active:opacity-80">
+        Entrar
+      </button>
+
+      <!-- Mensagem de erro -->
+      <div th:if="${param.error}" class="px-3 py-[10px] rounded-md bg-[#FCEBEB] mb-4">
+        <p class="text-[12px] text-[#791F1F] m-0">Usuário ou senha incorretos.</p>
+      </div>
+
+    </form>
+
+    <!-- Rodapé -->
+    <p class="text-[11px] text-[#888] text-center m-0">AsteraComm — Todos os direitos reservados</p>
+
+  </div>
+</div>
+
+<script>
+  const loginToggle = document.getElementById('login-toggle');
+  const passwordInput = document.getElementById('password');
+  const iconEye = document.getElementById('icon-eye');
+  const iconEyeOff = document.getElementById('icon-eye-off');
+
+  let senhaVisivel = false;
+  loginToggle.addEventListener('click', () => {
+    senhaVisivel = !senhaVisivel;
+    passwordInput.type = senhaVisivel ? 'text' : 'password';
+    iconEye.classList.toggle('hidden', senhaVisivel);
+    iconEyeOff.classList.toggle('hidden', !senhaVisivel);
+  });
+</script>
+</body>
+</html>

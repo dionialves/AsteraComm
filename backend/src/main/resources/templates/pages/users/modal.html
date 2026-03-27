@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<body>
+
+    <div th:fragment="modal" class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center"
+        onclick="closeModal()">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-[780px] h-[700px] flex flex-col"
+            onclick="event.stopPropagation()">
+
+            <!-- Header -->
+            <div class="flex-shrink-0 flex items-center justify-between px-5 pt-4 pb-4 border-b border-[#e5e7eb]">
+                <div>
+                    <p class="text-[11px] text-[#888] uppercase tracking-wide font-medium">Usuário</p>
+                    <h2 class="text-[18px] font-medium text-[#1a1a1a] mt-0.5"
+                        th:text="${user != null} ? ${user.name} : 'Novo Usuário'">Usuário</h2>
+                </div>
+                <button type="button" onclick="closeModal()"
+                    class="w-7 h-7 flex items-center justify-center text-[#888] hover:text-[#1a1a1a] rounded-md transition-colors">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Form unificado -->
+            <form th:attr="hx-post=${user == null ? '/users' : null},
+                  hx-put=${user != null ? '/users/' + user.id : null},
+                  hx-target='#modal-container'" hx-swap="innerHTML"
+                class="flex flex-col flex-1 min-h-0">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+                <div class="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
+
+                    <!-- Identificação -->
+                    <p class="text-[12px] font-semibold text-[#888] uppercase tracking-wide">Identificação</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-[13px] font-medium text-[#1a1a1a]">ID</label>
+                            <input type="text" th:value="${user?.id}" disabled placeholder="—"
+                                class="w-full px-3 py-[9px] text-[13px] border border-[#e0e0e0] rounded-md bg-[#fafafa] text-[#aaa] font-mono outline-none" />
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-[13px] font-medium text-[#1a1a1a]">Nome <span
+                                    class="text-[#E24B4A]">*</span></label>
+                            <input name="name" type="text" required maxlength="100" th:value="${user?.name}"
+                                placeholder="Nome completo"
+                                class="w-full px-3 py-[9px] text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] transition-colors" />
+                        </div>
+                        <!-- Ativo toggle (apenas edição) — posicionado abaixo do ID -->
+                        <div th:if="${user != null}" class="flex items-center gap-2 pt-1">
+                            <label class="toggle-switch">
+                                <input id="user-enabled" type="checkbox" name="enabled" value="true"
+                                    th:checked="${user.enabled}" />
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span id="toggle-user-label" class="toggle-label"
+                                th:text="${user.enabled} ? 'Ativo' : 'Inativo'">Ativo</span>
+                        </div>
+                    </div>
+
+                    <hr class="border-t border-[#e5e7eb]" />
+
+                    <!-- Acesso -->
+                    <p class="text-[12px] font-semibold text-[#888] uppercase tracking-wide">Acesso</p>
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-[13px] font-medium text-[#1a1a1a]">E-mail (username) <span
+                                th:if="${user == null}" class="text-[#E24B4A]">*</span></label>
+                        <input name="username" type="email" maxlength="150" th:value="${user?.username}"
+                            th:required="${user == null}" th:disabled="${user != null}"
+                            th:classappend="${user != null} ? 'bg-[#f5f5f5] text-[#888] cursor-not-allowed'"
+                            placeholder="usuario@exemplo.com"
+                            class="w-full px-3 py-[9px] text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] transition-colors" />
+                    </div>
+
+                    <!-- Senha -->
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-[13px] font-medium text-[#1a1a1a]">
+                            Senha
+                            <span th:if="${user == null}" class="text-[#E24B4A]">*</span>
+                            <span th:if="${user != null}" class="text-[11px] text-[#aaa] font-normal">(vazio = manter atual)</span>
+                        </label>
+                        <div class="relative">
+                            <input id="pwd-user" name="password" type="password" maxlength="100"
+                                th:required="${user == null}"
+                                placeholder="mínimo 8 caracteres" autocomplete="new-password"
+                                class="w-full px-3 py-[9px] pr-9 text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] transition-colors" />
+                            <button id="btn-toggle-pwd-user" type="button"
+                                class="absolute right-[9px] top-1/2 -translate-y-1/2 text-[#aaa] hover:text-[#555]">
+                                <svg id="eye-user" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                    <circle cx="12" cy="12" r="3" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <div th:if="${user != null}" class="contents">
+                        <div th:replace="~{fragments/confirm-delete :: confirm-delete(
+              deleteUrl=${'/users/' + user.id},
+              hxTarget='#modal-container',
+              hxInclude='.user-filter',
+              label=${'o usuário ' + user.name})}">
+                        </div>
+                    </div>
+                    <button type="button" onclick="closeModal()" class="btn-modal-cancel">Cancelar</button>
+                    <button type="submit" class="btn-modal-save">Salvar</button>
+                </div>
+            </form>
+
+        </div>
+
+        <!-- OOB: toast -->
+        <th:block th:if="${toastMsg}">
+            <div th:replace="~{fragments/toast :: toast(toastMessage=${toastMsg}, toastType=${toastType})}"></div>
+        </th:block>
+
+        <!-- Trigger: recarrega tabela após criação -->
+        <div th:if="${refreshTable}"
+             hx-get="/users/table"
+             hx-target="#table-container"
+             hx-swap="innerHTML"
+             hx-trigger="load"
+             class="hidden"></div>
+
+        <script>
+            (function () {
+                // Toggle senha (apenas criação)
+                var pwd = document.getElementById('pwd-user');
+                var eye = document.getElementById('eye-user');
+                var btn = document.getElementById('btn-toggle-pwd-user');
+                if (btn && pwd) {
+                    btn.addEventListener('click', function () {
+                        if (pwd.type === 'password') {
+                            pwd.type = 'text';
+                            eye.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>';
+                        } else {
+                            pwd.type = 'password';
+                            eye.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+                        }
+                    });
+                }
+
+                // Toggle label ativo/inativo (apenas edição)
+                var chk = document.getElementById('user-enabled');
+                var label = document.getElementById('toggle-user-label');
+                if (chk && label) {
+                    chk.addEventListener('change', function () {
+                        label.textContent = chk.checked ? 'Ativo' : 'Inativo';
+                    });
+                }
+            })();
+        </script>
+    </div>
+
+</body>
+
+</html>

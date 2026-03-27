@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="modal"
+     class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center"
+     onclick="closeModal()">
+
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-[780px] h-[700px] flex flex-col"
+       onclick="event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="flex-shrink-0 flex items-center justify-between px-5 pt-4 pb-4 border-b border-[#e5e7eb]">
+      <div>
+        <p class="text-[11px] text-[#888] uppercase tracking-wide font-medium">Chamada</p>
+        <h2 class="text-[18px] font-medium text-[#1a1a1a] mt-0.5 font-mono"
+            th:text="${call != null ? (call.callerNumber ?: '?') + ' → ' + call.dst : 'Não encontrada'}"></h2>
+      </div>
+      <button type="button" onclick="closeModal()"
+              class="w-7 h-7 flex items-center justify-center text-[#888] hover:text-[#1a1a1a] rounded-md transition-colors">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Body read-only -->
+    <div class="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
+
+      <div th:if="${call == null}" class="flex items-center justify-center h-full">
+        <p class="text-[13px] text-[#aaa]">Chamada não encontrada.</p>
+      </div>
+
+      <th:block th:if="${call != null}">
+
+        <!-- Seção: Identificação -->
+        <p class="text-[12px] font-semibold text-[#888] uppercase tracking-wide">Identificação</p>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-[11px] text-[#888] mb-1">ID único (Asterisk)</p>
+            <p class="text-[13px] font-mono text-[#1a1a1a] break-all" th:text="${call.uniqueId}"></p>
+          </div>
+          <div>
+            <p class="text-[11px] text-[#888] mb-1">Data / Hora</p>
+            <p class="text-[13px] font-mono text-[#1a1a1a]"
+               th:text="${#temporals.format(call.callDate, 'dd/MM/yyyy HH:mm:ss')}"></p>
+          </div>
+        </div>
+
+        <hr class="border-t border-[#e5e7eb]"/>
+
+        <!-- Seção: Chamada -->
+        <p class="text-[12px] font-semibold text-[#888] uppercase tracking-wide">Chamada</p>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-[11px] text-[#888] mb-1">Origem</p>
+            <p class="text-[13px] font-mono text-[#1a1a1a]" th:text="${call.callerNumber ?: '—'}"></p>
+          </div>
+          <div>
+            <p class="text-[11px] text-[#888] mb-1">Destino</p>
+            <p class="text-[13px] font-mono text-[#1a1a1a]" th:text="${call.dst}"></p>
+          </div>
+          <div>
+            <p class="text-[11px] text-[#888] mb-1">Duração total</p>
+            <p class="text-[13px] font-mono text-[#1a1a1a]"
+               th:with="sec=${call.durationSeconds ?: 0}, h=${sec / 3600}, m=${(sec % 3600) / 60}, s=${sec % 60}"
+               th:text="${h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s + ' (' + sec + 's)'}"></p>
+          </div>
+          <div>
+            <p class="text-[11px] text-[#888] mb-1">Segundos faturáveis</p>
+            <p class="text-[13px] font-mono text-[#1a1a1a]" th:text="${call.billSeconds + 's'}"></p>
+          </div>
+          <div>
+            <p class="text-[11px] text-[#888] mb-1">Tipo de chamada</p>
+            <span th:class="|rounded-[99px] text-[12px] px-[9px] py-[2px] font-medium whitespace-nowrap
+                             ${call.callType?.name() == 'FIXED_LOCAL'          ? 'bg-[#E6F1FB] text-[#0C447C]' :
+                               call.callType?.name() == 'MOBILE_LOCAL'         ? 'bg-[#EEEDFE] text-[#3C3489]' :
+                               call.callType?.name() == 'FIXED_LONG_DISTANCE'  ? 'bg-[#f5f5f5] text-[#888]'    :
+                               call.callType?.name() == 'MOBILE_LONG_DISTANCE' ? 'bg-[#FAECE7] text-[#712B13]' : 'bg-[#f5f5f5] text-[#888]'}|"
+                  th:text="${call.callType?.name() == 'FIXED_LOCAL'          ? 'Fixo Local'  :
+                             call.callType?.name() == 'MOBILE_LOCAL'         ? 'Móvel Local' :
+                             call.callType?.name() == 'FIXED_LONG_DISTANCE'  ? 'Fixo LD'     :
+                             call.callType?.name() == 'MOBILE_LONG_DISTANCE' ? 'Móvel LD'    : '—'}">
+            </span>
+          </div>
+          <div>
+            <p class="text-[11px] text-[#888] mb-1">Status da chamada</p>
+            <span th:text="${call.disposition == 'ANSWERED' ? 'Atendida' :
+                             call.disposition == 'NO ANSWER' ? 'Sem resposta' :
+                             call.disposition == 'BUSY' ? 'Ocupado' :
+                             call.disposition == 'FAILED' ? 'Falha' : call.disposition}"
+                  th:class="|${call.disposition == 'ANSWERED' ? 'bg-[#E1F5EE] text-[#085041]' :
+                               call.disposition == 'BUSY'     ? 'bg-[#FEF9C3] text-[#713F12]' :
+                               call.disposition == 'FAILED'   ? 'bg-[#FEE2E2] text-[#7F1D1D]' :
+                                                                  'bg-[#f5f5f5] text-[#888]'} rounded-[99px] text-[12px] px-[9px] py-[2px] font-medium|">
+            </span>
+          </div>
+        </div>
+
+        <hr class="border-t border-[#e5e7eb]"/>
+
+        <!-- Seção: Custeio -->
+        <p class="text-[12px] font-semibold text-[#888] uppercase tracking-wide">Custeio</p>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-[11px] text-[#888] mb-1">Circuito</p>
+            <p class="text-[13px] font-mono text-[#1a1a1a]"
+               th:text="${call.circuit != null ? call.circuit.number : '—'}"></p>
+          </div>
+          <div>
+            <p class="text-[11px] text-[#888] mb-1">Status de custeio</p>
+            <span th:if="${call.callStatus != null}"
+                  th:text="${call.callStatus.name() == 'PROCESSED' ? 'Processado' :
+                             call.callStatus.name() == 'NO_CIRCUIT' ? 'Sem circuito' :
+                             call.callStatus.name() == 'NO_PLAN' ? 'Sem plano' :
+                             call.callStatus.name() == 'OUT_OF_SCOPE' ? 'Fora de escopo' : call.callStatus.name()}"
+                  th:class="|${call.callStatus.name() == 'PROCESSED' ? 'bg-[#E1F5EE] text-[#085041]' : 'bg-[#f5f5f5] text-[#888]'} rounded-[99px] text-[12px] px-[9px] py-[2px] font-medium|">
+            </span>
+            <span th:unless="${call.callStatus != null}" class="text-[13px] text-[#aaa]">—</span>
+          </div>
+          <div>
+            <p class="text-[11px] text-[#888] mb-1">Minutos da franquia</p>
+            <p class="text-[13px] font-mono text-[#1a1a1a]"
+               th:text="${call.minutesFromQuota != null ? call.minutesFromQuota + ' min' : '—'}"></p>
+          </div>
+          <div>
+            <p class="text-[11px] text-[#888] mb-1">Custo da chamada</p>
+            <p class="text-[15px] font-mono font-medium text-[#085041]"
+               th:text="${call.cost != null ? 'R$ ' + #numbers.formatDecimal(call.cost, 1, 'POINT', 2, 'COMMA') : '—'}"></p>
+          </div>
+        </div>
+
+      </th:block>
+    </div>
+
+    <!-- Footer -->
+    <div class="modal-footer">
+      <button type="button" onclick="closeModal()" class="btn-modal-cancel">Fechar</button>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="table">
+
+  <input type="hidden" id="current-sort" name="sort" th:value="${sort}" class="did-filter"/>
+  <input type="hidden" name="size" value="20" class="did-filter"/>
+
+  <div class="rounded-xl border border-[#e0e0e0] overflow-hidden">
+
+    <!-- Header -->
+    <div class="did-row bg-[#f5f5f5] border-b border-[#e0e0e0]" style="cursor:default">
+      <span data-field="id"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">
+        ID
+      </span>
+      <span data-field="number"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">
+        Número
+      </span>
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Status</span>
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Circuito</span>
+    </div>
+
+    <!-- Corpo -->
+    <div id="tbody-dids">
+      <div th:if="${dids.empty}" class="py-10 text-center text-[13px] text-[#aaa]">
+        Nenhum DID encontrado.
+      </div>
+      <div th:each="d : ${dids.content}"
+           class="did-row"
+           th:attr="data-id=${d.id},
+                    hx-get=${'/dids/' + d.id + '/modal'}"
+           hx-target="#modal-container"
+           hx-swap="innerHTML">
+        <span class="text-[13px] font-mono text-[#888]" th:text="${d.id}"></span>
+        <span class="text-[13px] font-mono text-[#1a1a1a]"
+              th:text="${d.number != null and d.number.length() == 10 ?
+                '(' + #strings.substring(d.number,0,2) + ') ' + #strings.substring(d.number,2,6) + '-' + #strings.substring(d.number,6,10)
+                : d.number}"></span>
+        <span>
+          <span th:if="${d.status == 'IN_USE'}"
+                class="bg-[#E1F5EE] text-[#085041] rounded-[99px] text-[11px] px-[9px] py-[2px] font-medium whitespace-nowrap">Vinculado</span>
+          <span th:unless="${d.status == 'IN_USE'}"
+                class="bg-[#E6F1FB] text-[#0C447C] rounded-[99px] text-[11px] px-[9px] py-[2px] font-medium whitespace-nowrap">Livre</span>
+        </span>
+        <span class="text-[13px] font-mono text-[#1a1a1a]"
+              th:text="${d.circuit != null ? d.circuit.code : '—'}"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- OOB: contador -->
+  <p id="did-counter" hx-swap-oob="innerHTML"
+     th:text="${dids.totalElements == 1 ? '1 DID cadastrado' : dids.totalElements + ' DIDs cadastrados'}"></p>
+
+  <!-- OOB: paginação no toolbar -->
+  <div id="pagination-toolbar" hx-swap-oob="innerHTML">
+    <div th:replace="~{fragments/pagination :: pagination(
+        page=${dids},
+        hxGet=${'/dids/table?sort=' + sort + (!#strings.isEmpty(statusFilter) ? '&status=' + statusFilter : '')},
+        hxTarget='#table-container',
+        hxInclude='.did-filter')}">
+    </div>
+  </div>
+
+</div>
+
+<th:block th:if="${toastMsg}">
+  <div th:replace="~{fragments/toast :: toast(toastMessage=${toastMsg}, toastType=${toastType})}"></div>
+</th:block>
+
+<div th:if="${clearModal}" id="modal-container" hx-swap-oob="innerHTML"></div>
+
+</body>
+</html>

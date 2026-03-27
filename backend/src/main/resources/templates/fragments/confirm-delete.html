@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--
+  Fragment: confirm-delete
+  Parâmetros:
+    - deleteUrl : endpoint DELETE (ex: "/trunks/42")
+    - hxTarget  : seletor alvo após delete (ex: "#table-container")
+    - hxInclude : seletor para incluir filtros na req (ex: ".trunk-filter") — opcional
+    - label     : nome do objeto para a mensagem (ex: "o tronco") — não usado, mantido por compatibilidade
+
+  Uso:
+    <div th:replace="~{fragments/confirm-delete :: confirm-delete(deleteUrl='/trunks/42', hxTarget='#table-container', hxInclude='.trunk-filter', label='o tronco')}"></div>
+-->
+<button th:fragment="confirm-delete(deleteUrl, hxTarget, hxInclude, label)"
+        type="button"
+        th:attr="hx-delete=${deleteUrl},
+                 hx-target=${hxTarget},
+                 hx-swap='innerHTML',
+                 hx-include=${hxInclude}"
+        hx-trigger="confirmed"
+        onclick="handleModalDelete(this)"
+        class="btn-modal-delete">
+  Deletar
+</button>
+
+</body>
+</html>

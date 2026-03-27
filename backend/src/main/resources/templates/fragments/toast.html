@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--
+  Fragment: toast
+  Parâmetros:
+    - toastMessage : texto a exibir
+    - toastType    : "success" | "error" | "warning"
+
+  Uso (OOB swap no response HTMX):
+    <div th:replace="~{fragments/toast :: toast(toastMessage='Salvo!', toastType='success')}"
+         hx-swap-oob="beforeend:#toast-container"></div>
+-->
+<div th:fragment="toast(toastMessage, toastType)"
+     hx-swap-oob="beforeend:#toast-container">
+  <div class="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-white text-[13px] toast-fadeout"
+       th:classappend="${toastType == 'error'} ? 'bg-red-600' : (${toastType == 'warning'} ? 'bg-amber-500' : 'bg-[#1D9E75]')">
+    <!-- Ícone success -->
+    <svg th:if="${toastType == 'success' or toastType == null}"
+         width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0">
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>
+    <!-- Ícone error -->
+    <svg th:if="${toastType == 'error'}"
+         width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0">
+      <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+    </svg>
+    <!-- Ícone warning -->
+    <svg th:if="${toastType == 'warning'}"
+         width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+    <span th:text="${toastMessage}">Mensagem</span>
+  </div>
+</div>
+
+</body>
+</html>

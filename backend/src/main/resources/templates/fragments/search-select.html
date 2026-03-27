@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--
+  Fragment: search-select
+  Parâmetros:
+    - fieldName    : nome do campo hidden submetido no form (ex: "planId")
+    - placeholder  : texto do placeholder (ex: "Buscar plano...")
+    - selectedId   : valor inicial do campo hidden — opcional
+    - selectedLabel: label inicial exibido no chip — opcional
+
+  O backend deve ter um @Service("<fieldName>") implementando SearchOptionsProvider.
+
+  Uso:
+    <div th:replace="~{fragments/search-select :: search-select(
+        fieldName='planId',
+        placeholder='Buscar plano...',
+        selectedId=${obj?.plan?.id},
+        selectedLabel=${obj?.plan?.name})}"></div>
+-->
+<div th:fragment="search-select(fieldName, placeholder, selectedId, selectedLabel)"
+     class="relative"
+     th:attr="data-search-select='true',
+              data-field-name=${fieldName},
+              data-placeholder=${placeholder},
+              data-selected-label=${selectedLabel ?: ''}">
+
+  <!-- Valor real submetido no form -->
+  <input type="hidden"
+         th:id="${fieldName}"
+         th:name="${fieldName}"
+         th:value="${selectedId}"/>
+
+  <!-- O SearchSelect (search-select.js) injeta o trigger, dropdown e chip aqui -->
+</div>
+
+</body>
+</html>

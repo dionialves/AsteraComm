@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}"
+      lang="pt-BR">
+<head>
+  <title>Dashboard</title>
+</head>
+<body>
+<div layout:fragment="content">
+
+  <!-- ── Cabeçalho ─────────────────────────────────────────────────────────── -->
+  <div class="mb-5">
+    <div class="flex items-baseline gap-[10px]">
+      <h1 class="text-[22px] font-medium text-[#1a1a1a]">AsteraComm</h1>
+      <span id="last-updated" class="text-[12px] text-[#9ca3af]"></span>
+    </div>
+    <p class="text-[13px] text-[#888] mt-0.5" th:text="${subtitle}">Painel de monitoramento</p>
+  </div>
+
+  <!-- ── Cards de resumo ───────────────────────────────────────────────────── -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+
+    <!-- Circuitos -->
+    <div class="bg-white rounded-lg p-4">
+      <div class="text-[13px] text-[#6b7280] mb-1.5">Circuitos</div>
+      <div class="flex items-baseline gap-1.5 mb-2">
+        <span th:text="${#numbers.formatInteger(dashboard.circuits.total, 1, 'POINT')}"
+              class="text-[24px] font-medium">0</span>
+        <span class="text-[12px] text-[#9ca3af]">total</span>
+      </div>
+      <div class="flex gap-[10px] flex-wrap">
+        <div class="flex items-center gap-1 text-[12px] text-[#6b7280]">
+          <span class="w-2 h-2 rounded-full inline-block flex-shrink-0 bg-[#1D9E75]"></span>
+          <span th:text="${dashboard.circuits.online + ' online'}">0 online</span>
+        </div>
+        <div class="flex items-center gap-1 text-[12px] text-[#6b7280]">
+          <span class="w-2 h-2 rounded-full inline-block flex-shrink-0 bg-[#E24B4A]"></span>
+          <span th:text="${dashboard.circuits.offline + ' offline'}">0 offline</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Troncos -->
+    <div class="bg-white rounded-lg p-4">
+      <div class="text-[13px] text-[#6b7280] mb-1.5">Troncos</div>
+      <div class="flex items-baseline gap-1.5 mb-2">
+        <span th:text="${#numbers.formatInteger(dashboard.trunks.total, 1, 'POINT')}"
+              class="text-[24px] font-medium">0</span>
+        <span class="text-[12px] text-[#9ca3af]">registrados</span>
+      </div>
+      <div class="flex gap-[10px] flex-wrap">
+        <div class="flex items-center gap-1 text-[12px] text-[#6b7280]">
+          <span class="w-2 h-2 rounded-full inline-block flex-shrink-0 bg-[#1D9E75]"></span>
+          <span th:text="${dashboard.trunks.registered + ' ativos'}">0 ativos</span>
+        </div>
+        <div class="flex items-center gap-1 text-[12px] text-[#6b7280]">
+          <span class="w-2 h-2 rounded-full inline-block flex-shrink-0 bg-[#E24B4A]"></span>
+          <span th:text="${dashboard.trunks.unregistered + ' inativos'}">0 inativos</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ligações do mês -->
+    <div class="bg-white rounded-lg p-4">
+      <div class="text-[13px] text-[#6b7280] mb-1.5">Ligações do mês</div>
+      <div class="flex items-baseline gap-1.5 mb-2">
+        <span th:text="${#numbers.formatInteger(dashboard.calls.total, 1, 'POINT')}"
+              class="text-[24px] font-medium">0</span>
+      </div>
+      <div class="flex gap-[10px] flex-wrap">
+        <div class="flex items-center gap-1 text-[12px] text-[#6b7280]">
+          <span class="w-2 h-2 rounded-full inline-block flex-shrink-0 bg-[#1D9E75]"></span>
+          <span th:text="${dashboard.calls.answered + ' atend.'}">0 atend.</span>
+        </div>
+        <div class="flex items-center gap-1 text-[12px] text-[#6b7280]">
+          <span class="w-2 h-2 rounded-full inline-block flex-shrink-0 bg-[#BA7517]"></span>
+          <span th:text="${dashboard.calls.noAnswer + ' n/atend.'}">0 n/atend.</span>
+        </div>
+        <div class="flex items-center gap-1 text-[12px] text-[#6b7280]">
+          <span class="w-2 h-2 rounded-full inline-block flex-shrink-0 bg-[#E24B4A]"></span>
+          <span th:text="${dashboard.calls.busy + ' ocup.'}">0 ocup.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Excedentes mês -->
+    <div class="bg-white rounded-lg p-4">
+      <div class="text-[13px] text-[#6b7280] mb-1.5">Excedentes mês</div>
+      <div class="mb-2">
+        <span class="text-[24px] font-medium text-[#1D9E75]"
+              th:text="${'R$ ' + #numbers.formatDecimal(dashboard.billing.excedents, 1, 'POINT', 2, 'COMMA')}">
+          R$ 0,00
+        </span>
+      </div>
+      <div class="text-[12px] text-[#6b7280]"
+           th:text="${'Mês anterior: R$ ' + #numbers.formatDecimal(dashboard.billing.previousMonthCost, 1, 'POINT', 2, 'COMMA')}">
+        Mês anterior: R$ 0,00
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Faturamento mensal | Ligações por dia ──────────────────────────────── -->
+  <div class="grid grid-cols-2 gap-4 mb-4">
+
+    <div class="bg-white border border-black/10 rounded-xl px-5 py-4">
+      <div class="text-[14px] font-medium mb-2">Excedente mensal — últimos 12 meses</div>
+      <div class="flex gap-4 flex-wrap mb-3">
+        <div class="flex items-center gap-1 text-[12px] text-[#6b7280]">
+          <span class="w-2.5 h-2.5 rounded-sm flex-shrink-0 bg-[#BA7517]"></span>
+          Excedentes
+        </div>
+      </div>
+      <div class="relative h-[260px]">
+        <canvas id="chartMonthlyBilling"></canvas>
+      </div>
+    </div>
+
+    <div class="bg-white border border-black/10 rounded-xl px-5 py-4">
+      <div class="text-[14px] font-medium mb-2">Ligações por dia — últimos 30 dias</div>
+      <div class="flex gap-4 flex-wrap mb-3">
+        <div class="flex items-center gap-1 text-[12px] text-[#6b7280]">
+          <span class="w-2.5 h-2.5 rounded-sm flex-shrink-0 bg-[#1D9E75]"></span>Atendidas
+        </div>
+        <div class="flex items-center gap-1 text-[12px] text-[#6b7280]">
+          <span class="w-2.5 h-2.5 rounded-sm flex-shrink-0 bg-[#BA7517]"></span>Não atendidas
+        </div>
+        <div class="flex items-center gap-1 text-[12px] text-[#6b7280]">
+          <span class="w-2.5 h-2.5 rounded-sm flex-shrink-0 bg-[#E24B4A]"></span>Ocupado
+        </div>
+        <div class="flex items-center gap-1 text-[12px] text-[#6b7280]">
+          <span class="w-2.5 h-2.5 rounded-sm flex-shrink-0 bg-[#64748B]"></span>Falha
+        </div>
+      </div>
+      <div class="relative h-[260px]">
+        <canvas id="chartDailyCalls"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Circuitos próximos do limite | Excedência ─────────────────────────── -->
+  <div class="grid grid-cols-[1fr_280px] gap-4 mb-4 items-stretch">
+
+    <div class="bg-white border border-black/10 rounded-xl px-5 py-4">
+      <div class="text-[14px] font-medium mb-2">Circuitos com consumo próximo do limite</div>
+      <table class="w-full border-collapse">
+        <thead>
+          <tr class="text-[12px] font-medium text-[#6b7280] border-b border-black/[0.08]">
+            <th class="text-left px-2 py-1.5">Circuito</th>
+            <th class="text-left px-2 py-1.5">Plano</th>
+            <th class="text-right px-2 py-1.5">Usado</th>
+            <th class="text-right px-2 py-1.5">Pacote</th>
+            <th class="text-left px-2 py-1.5 min-w-[180px]">Consumo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr th:if="${#lists.isEmpty(dashboard.nearLimitCircuits)}">
+            <td colspan="5" class="px-2 py-4 text-[13px] text-[#9ca3af] text-center">
+              Nenhum circuito com pacote de minutos cadastrado
+            </td>
+          </tr>
+          <tr th:each="c : ${dashboard.nearLimitCircuits}"
+              class="border-b border-black/[0.05] text-[13px]">
+            <td class="px-2 py-2 text-[#111827]" th:text="${c.circuit}"></td>
+            <td class="px-2 py-2 text-[#6b7280]" th:text="${c.planName}"></td>
+            <td class="px-2 py-2 text-[#111827] text-right"
+                th:text="${#numbers.formatInteger(c.usedMinutes, 1, 'DEFAULT') + ' min'}"></td>
+            <td class="px-2 py-2 text-[#6b7280] text-right"
+                th:text="${#numbers.formatInteger(c.limitMinutes, 1, 'DEFAULT') + ' min'}"></td>
+            <td class="px-2 py-2">
+              <div class="flex items-center gap-[6px]"
+                   th:with="pct=${c.percent > 100 ? 100 : c.percent},
+                             barColor=${pct >= 95 ? '#E24B4A' : (pct >= 85 ? '#BA7517' : '#1D9E75')}">
+                <div class="flex-1 h-[6px] bg-black/[0.06] rounded-[3px] overflow-hidden">
+                  <div class="h-full rounded-[3px]"
+                       th:style="'width:' + ${pct} + '%;background:' + ${barColor}"></div>
+                </div>
+                <span class="text-[12px] font-medium whitespace-nowrap"
+                      th:style="'color:' + ${barColor}"
+                      th:text="${#numbers.formatDecimal(pct, 1, 'DEFAULT', 1, 'COMMA') + '%'}"></span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Donut: excedidos vs. dentro do limite -->
+    <div class="bg-white border border-black/10 rounded-xl px-5 py-4 flex flex-col">
+      <div class="text-[14px] font-medium mb-2">Excedência de pacote</div>
+      <div class="flex-1 flex flex-col items-center justify-center gap-4">
+        <div class="relative w-[180px] h-[180px] flex-shrink-0">
+          <canvas id="chartOverage"></canvas>
+        </div>
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center gap-[6px] text-[13px] text-[#6b7280]">
+            <span class="w-[10px] h-[10px] rounded-sm flex-shrink-0 bg-[#E24B4A]"></span>
+            Excedidos:
+            <span th:text="${dashboard.circuitOverage.exceeded}" class="font-medium ml-1">0</span>
+          </div>
+          <div class="flex items-center gap-[6px] text-[13px] text-[#6b7280]">
+            <span class="w-[10px] h-[10px] rounded-sm flex-shrink-0 bg-[#1D9E75]"></span>
+            Dentro do limite:
+            <span th:text="${dashboard.circuitOverage.withinLimit}" class="font-medium ml-1">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Top 10 circuitos por consumo ──────────────────────────────────────── -->
+  <div class="bg-white border border-black/10 rounded-xl px-5 py-4">
+    <div class="text-[14px] font-medium mb-2">Top 10 circuitos por consumo</div>
+    <div class="flex gap-4 flex-wrap mb-3">
+      <div class="flex items-center gap-1 text-[12px] text-[#6b7280]">
+        <span class="w-2.5 h-2.5 rounded-sm flex-shrink-0 bg-[#185FA5]"></span>
+        Minutos usados
+      </div>
+      <div class="flex items-center gap-1 text-[12px] text-[#6b7280]">
+        <span class="w-2.5 h-2.5 rounded-sm flex-shrink-0 border border-[rgba(24,95,165,0.3)] bg-[rgba(24,95,165,0.12)]"></span>
+        Pacote contratado
+      </div>
+    </div>
+    <div class="relative h-[340px]">
+      <canvas id="chartTopCircuits"></canvas>
+    </div>
+  </div>
+
+  <!-- ── Horário da última atualização ─────────────────────────────────────── -->
+  <script>
+    (function () {
+      const now = new Date();
+      document.getElementById("last-updated").textContent =
+        "Atualizado às " + now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    })();
+  </script>
+
+  <!-- ── Dados para Chart.js (injetados server-side) ────────────────────────── -->
+  <script th:inline="javascript">
+    const DASHBOARD_DAILY_CALLS     = [[${dashboard.dailyCalls}]];
+    const DASHBOARD_MONTHLY_BILLING = [[${dashboard.monthlyBilling}]];
+    const DASHBOARD_OVERAGE         = [[${dashboard.circuitOverage}]];
+    const DASHBOARD_TOP_CIRCUITS    = [[${dashboard.topCircuits}]];
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script>
+    const VERDE    = "#1D9E75";
+    const AMBER    = "#BA7517";
+    const VERMELHO = "#E24B4A";
+    const AZUL     = "#185FA5";
+    const AZUL_T   = "rgba(24,95,165,0.12)";
+    const GRID     = "rgba(0,0,0,0.06)";
+    const TICKS    = "#5f5e5a";
+
+    function buildDailyCalls(data) {
+      if (!data || !data.length) return;
+      const labels = data.map(d => {
+        const [, m, day] = d.date.split("-");
+        return `${day}/${m}`;
+      });
+      new Chart(document.getElementById("chartDailyCalls"), {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            { label: "Atendidas",     data: data.map(d => d.answered), backgroundColor: VERDE,     borderRadius: 2, stack: "s" },
+            { label: "Não atendidas", data: data.map(d => d.noAnswer), backgroundColor: AMBER,     borderRadius: 2, stack: "s" },
+            { label: "Ocupado",       data: data.map(d => d.busy),     backgroundColor: VERMELHO,  borderRadius: 2, stack: "s" },
+            { label: "Falha",         data: data.map(d => d.failed),   backgroundColor: "#64748B", borderRadius: 2, stack: "s" },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { stacked: true, ticks: { maxRotation: 45, minRotation: 45, autoSkip: false, font: { size: 10 }, color: TICKS }, grid: { display: false } },
+            y: { stacked: true, ticks: { font: { size: 11 }, color: TICKS }, grid: { color: GRID } },
+          },
+        },
+      });
+    }
+
+    function buildMonthlyBilling(data) {
+      if (!data || !data.length) return;
+      new Chart(document.getElementById("chartMonthlyBilling"), {
+        type: "bar",
+        data: {
+          labels: data.map(d => d.month),
+          datasets: [
+            { label: "Excedentes", data: data.map(d => d.excedents), backgroundColor: AMBER, borderRadius: 2 },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: ctx => ctx.dataset.label + ": R$ " + Number(ctx.raw).toFixed(2).replace(".", ","),
+              },
+            },
+          },
+          scales: {
+            x: { ticks: { maxRotation: 45, minRotation: 45, autoSkip: false, font: { size: 10 }, color: TICKS }, grid: { display: false } },
+            y: { ticks: { font: { size: 11 }, color: TICKS, callback: v => "R$ " + (v / 1000).toFixed(0) + "k" }, grid: { color: GRID } },
+          },
+        },
+      });
+    }
+
+    function buildOverageChart(overage) {
+      if (!overage) return;
+      new Chart(document.getElementById("chartOverage"), {
+        type: "doughnut",
+        data: {
+          labels: ["Excedidos", "Dentro do limite"],
+          datasets: [{ data: [overage.exceeded ?? 0, overage.withinLimit ?? 0], backgroundColor: [VERMELHO, VERDE], borderWidth: 0 }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, cutout: "70%",
+          plugins: { legend: { display: false } },
+        },
+      });
+    }
+
+    function buildTopCircuits(data) {
+      if (!data || !data.length) return;
+      const usedColors = data.map(d => d.usedMinutes > d.limitMinutes ? VERMELHO : AZUL);
+      new Chart(document.getElementById("chartTopCircuits"), {
+        type: "bar",
+        data: {
+          labels: data.map(d => d.circuit),
+          datasets: [
+            { label: "Minutos usados",    data: data.map(d => d.usedMinutes),  backgroundColor: usedColors, borderRadius: 2 },
+            { label: "Pacote contratado", data: data.map(d => d.limitMinutes), backgroundColor: AZUL_T,     borderRadius: 2 },
+          ],
+        },
+        options: {
+          indexAxis: "y", responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => ctx.dataset.label + ": " + ctx.raw + " min" } },
+          },
+          scales: {
+            x: { ticks: { font: { size: 11 }, color: TICKS, callback: v => v + " min" }, grid: { color: GRID } },
+            y: { ticks: { font: { size: 11 }, color: TICKS }, grid: { display: false } },
+          },
+        },
+      });
+    }
+
+    buildDailyCalls(DASHBOARD_DAILY_CALLS);
+    buildMonthlyBilling(DASHBOARD_MONTHLY_BILLING);
+    buildOverageChart(DASHBOARD_OVERAGE);
+    buildTopCircuits(DASHBOARD_TOP_CIRCUITS);
+  </script>
+
+</div>
+</body>
+</html>

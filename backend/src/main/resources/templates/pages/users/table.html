@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="table">
+
+  <input type="hidden" id="current-sort" name="sort" th:value="${sort}" class="user-filter"/>
+  <input type="hidden" name="size" value="20" class="user-filter"/>
+
+  <div class="rounded-xl border border-[#e0e0e0] overflow-hidden">
+
+    <!-- Header -->
+    <div class="user-row bg-[#f5f5f5] border-b border-[#e0e0e0]" style="cursor:default">
+      <span data-field="id"        class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">ID</span>
+      <span data-field="enabled"   class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Status</span>
+      <span data-field="name"      class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Nome</span>
+      <span data-field="username"  class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Username</span>
+      <span data-field="createdAt" class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Criado em</span>
+      <span data-field="updatedAt" class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Atualizado em</span>
+    </div>
+
+    <!-- Corpo -->
+    <div id="tbody-users">
+      <div th:if="${users.empty}" class="py-10 text-center text-[13px] text-[#aaa]">
+        Nenhum usuário encontrado.
+      </div>
+      <div th:each="u : ${users.content}"
+           class="user-row"
+           th:classappend="${!u.enabled} ? ' row-inactive'"
+           th:attr="data-id=${u.id},
+                    hx-get=${'/users/' + u.id + '/modal'}"
+           hx-target="#modal-container"
+           hx-swap="innerHTML">
+        <!-- ID -->
+        <span class="text-[13px] font-mono text-[#888]" th:text="${u.id}"></span>
+        <!-- Status -->
+        <span class="flex items-center gap-1.5">
+          <span th:if="${u.enabled}"   style="width:7px;height:7px;border-radius:50%;background:#1D9E75;flex-shrink:0;display:inline-block"></span>
+          <span th:unless="${u.enabled}" style="width:7px;height:7px;border-radius:50%;background:#E24B4A;flex-shrink:0;display:inline-block"></span>
+          <span th:if="${u.enabled}"   class="text-[13px] text-[#085041]">Ativo</span>
+          <span th:unless="${u.enabled}" class="text-[13px] text-[#791F1F]">Inativo</span>
+        </span>
+        <!-- Nome -->
+        <span class="text-[13px] font-medium text-[#1a1a1a] truncate" th:text="${u.name}"></span>
+        <!-- Username -->
+        <span class="text-[12px] text-[#888] truncate" th:text="${u.username}"></span>
+        <!-- Criado em -->
+        <span class="text-[12px] text-[#888]"
+              th:text="${u.createdAt != null ? #temporals.format(u.createdAt, 'dd/MM/yyyy HH:mm') : '—'}"></span>
+        <!-- Atualizado em -->
+        <span class="text-[12px] text-[#888]"
+              th:text="${u.updatedAt != null ? #temporals.format(u.updatedAt, 'dd/MM/yyyy HH:mm') : '—'}"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- OOB: contador -->
+  <p id="user-counter" hx-swap-oob="innerHTML"
+     th:text="${users.totalElements == 1 ? '1 usuário cadastrado' : users.totalElements + ' usuários cadastrados'}"></p>
+
+  <!-- OOB: paginação no toolbar -->
+  <div id="pagination-toolbar" hx-swap-oob="innerHTML">
+    <div th:replace="~{fragments/pagination :: pagination(
+        page=${users},
+        hxGet=${'/users/table?sort=' + sort + (enabledFilter != null ? '&enabled=' + enabledFilter.toString() : '')},
+        hxTarget='#table-container',
+        hxInclude='.user-filter')}">
+    </div>
+  </div>
+
+</div>
+
+<th:block th:if="${toastMsg}">
+  <div th:replace="~{fragments/toast :: toast(toastMessage=${toastMsg}, toastType=${toastType})}"></div>
+</th:block>
+
+<div th:if="${clearModal}" id="modal-container" hx-swap-oob="innerHTML"></div>
+
+</body>
+</html>

@@ -1,0 +1,17 @@
+FROM eclipse-temurin:21-jdk
+
+RUN apt-get update && \
+    apt-get install -y maven && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+EXPOSE 8090
+
+# Copiado para fora de /app para nao ser sobrescrito pelo volume mount
+COPY entrypoint-dev.sh /entrypoint-dev.sh
+
+RUN chmod +x /entrypoint-dev.sh
+
+CMD ["/entrypoint-dev.sh"]

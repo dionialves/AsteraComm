@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="table">
+
+  <input type="hidden" id="current-sort" name="sort" th:value="${sort}" class="plan-filter"/>
+  <input type="hidden" name="size" value="20" class="plan-filter"/>
+
+  <div class="rounded-xl border border-[#e0e0e0] overflow-hidden">
+
+    <!-- Header -->
+    <div class="plan-row bg-[#f5f5f5] border-b border-[#e0e0e0]" style="cursor:default">
+      <span data-field="id"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">ID</span>
+      <span data-field="name"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Nome</span>
+      <span data-field="active"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Status</span>
+      <span data-field="monthlyPrice"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Mensalidade</span>
+      <span data-field="fixedLocal"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Fixo Local</span>
+      <span data-field="fixedLongDistance"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Fixo LD</span>
+      <span data-field="mobileLocal"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Móvel Local</span>
+      <span data-field="mobileLongDistance"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Móvel LD</span>
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Pacote</span>
+    </div>
+
+    <!-- Corpo -->
+    <div id="tbody-plans">
+      <div th:if="${plans.empty}" class="py-10 text-center text-[13px] text-[#aaa]">
+        Nenhum plano encontrado.
+      </div>
+      <div th:each="p : ${plans.content}"
+           class="plan-row"
+           th:classappend="${!p.active} ? ' row-inactive'"
+           th:attr="data-id=${p.id},
+                    hx-get=${'/plans/' + p.id + '/modal'}"
+           hx-target="#modal-container"
+           hx-swap="innerHTML">
+        <!-- ID -->
+        <span class="text-[13px] font-mono text-[#888]" th:text="${p.id}"></span>
+        <!-- Nome -->
+        <span class="text-[13px] font-medium text-[#1a1a1a] truncate" th:text="${p.name}"></span>
+        <!-- Status -->
+        <span class="flex items-center gap-1.5 text-[13px]">
+          <span th:if="${p.active}"  style="width:7px;height:7px;border-radius:50%;background:#1D9E75;flex-shrink:0;display:inline-block"></span>
+          <span th:unless="${p.active}" style="width:7px;height:7px;border-radius:50%;background:#E24B4A;flex-shrink:0;display:inline-block"></span>
+          <span th:if="${p.active}"   class="text-[#085041]">Ativo</span>
+          <span th:unless="${p.active}" class="text-[#791F1F]">Inativo</span>
+        </span>
+        <!-- Mensalidade -->
+        <span class="text-[12px] font-mono font-medium text-[#1a1a1a]"
+              th:text="${'R$ ' + #numbers.formatDecimal(p.monthlyPrice, 1, 'POINT', 2, 'COMMA')}"></span>
+        <!-- Fixo Local -->
+        <span class="text-[12px] font-mono text-[#1a1a1a]"
+              th:text="${#numbers.formatDecimal(p.fixedLocal, 1, 'POINT', 4, 'COMMA')}"></span>
+        <!-- Fixo LD -->
+        <span class="text-[12px] font-mono text-[#1a1a1a]"
+              th:text="${#numbers.formatDecimal(p.fixedLongDistance, 1, 'POINT', 4, 'COMMA')}"></span>
+        <!-- Móvel Local -->
+        <span class="text-[12px] font-mono text-[#1a1a1a]"
+              th:text="${#numbers.formatDecimal(p.mobileLocal, 1, 'POINT', 4, 'COMMA')}"></span>
+        <!-- Móvel LD -->
+        <span class="text-[12px] font-mono text-[#1a1a1a]"
+              th:text="${#numbers.formatDecimal(p.mobileLongDistance, 1, 'POINT', 4, 'COMMA')}"></span>
+        <!-- Pacote (badges FL / FI / ML / MLD) -->
+        <span class="flex gap-1 flex-wrap">
+          <!-- NONE: todos cinza -->
+          <th:block th:if="${p.packageType?.name() == 'NONE'}">
+            <span class="bg-[#f5f5f5] text-[#888] rounded-[99px] text-[11px] px-2 py-[1px] font-medium">FL</span>
+            <span class="bg-[#f5f5f5] text-[#888] rounded-[99px] text-[11px] px-2 py-[1px] font-medium">FI</span>
+            <span class="bg-[#f5f5f5] text-[#888] rounded-[99px] text-[11px] px-2 py-[1px] font-medium">ML</span>
+            <span class="bg-[#f5f5f5] text-[#888] rounded-[99px] text-[11px] px-2 py-[1px] font-medium">MLD</span>
+          </th:block>
+          <!-- UNIFIED: todos azul -->
+          <th:block th:if="${p.packageType?.name() == 'UNIFIED'}">
+            <span class="bg-[#E6F1FB] text-[#0C447C] rounded-[99px] text-[11px] px-2 py-[1px] font-medium">FL</span>
+            <span class="bg-[#E6F1FB] text-[#0C447C] rounded-[99px] text-[11px] px-2 py-[1px] font-medium">FI</span>
+            <span class="bg-[#E6F1FB] text-[#0C447C] rounded-[99px] text-[11px] px-2 py-[1px] font-medium">ML</span>
+            <span class="bg-[#E6F1FB] text-[#0C447C] rounded-[99px] text-[11px] px-2 py-[1px] font-medium">MLD</span>
+          </th:block>
+          <!-- PER_CATEGORY: azul se > 0, cinza se = 0 -->
+          <th:block th:if="${p.packageType?.name() == 'PER_CATEGORY'}">
+            <span th:if="${(p.packageFixedLocal ?: 0) > 0}"    class="bg-[#E6F1FB] text-[#0C447C] rounded-[99px] text-[11px] px-2 py-[1px] font-medium">FL</span>
+            <span th:unless="${(p.packageFixedLocal ?: 0) > 0}" class="bg-[#f5f5f5] text-[#888]   rounded-[99px] text-[11px] px-2 py-[1px] font-medium">FL</span>
+            <span th:if="${(p.packageFixedLongDistance ?: 0) > 0}"    class="bg-[#E6F1FB] text-[#0C447C] rounded-[99px] text-[11px] px-2 py-[1px] font-medium">FI</span>
+            <span th:unless="${(p.packageFixedLongDistance ?: 0) > 0}" class="bg-[#f5f5f5] text-[#888]   rounded-[99px] text-[11px] px-2 py-[1px] font-medium">FI</span>
+            <span th:if="${(p.packageMobileLocal ?: 0) > 0}"    class="bg-[#E6F1FB] text-[#0C447C] rounded-[99px] text-[11px] px-2 py-[1px] font-medium">ML</span>
+            <span th:unless="${(p.packageMobileLocal ?: 0) > 0}" class="bg-[#f5f5f5] text-[#888]   rounded-[99px] text-[11px] px-2 py-[1px] font-medium">ML</span>
+            <span th:if="${(p.packageMobileLongDistance ?: 0) > 0}"    class="bg-[#E6F1FB] text-[#0C447C] rounded-[99px] text-[11px] px-2 py-[1px] font-medium">MLD</span>
+            <span th:unless="${(p.packageMobileLongDistance ?: 0) > 0}" class="bg-[#f5f5f5] text-[#888]   rounded-[99px] text-[11px] px-2 py-[1px] font-medium">MLD</span>
+          </th:block>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- OOB: contador -->
+  <p id="plan-counter" hx-swap-oob="innerHTML"
+     th:text="${plans.totalElements == 1 ? '1 plano cadastrado' : plans.totalElements + ' planos cadastrados'}"></p>
+
+  <!-- OOB: popula paginação no toolbar -->
+  <div id="pagination-toolbar" hx-swap-oob="innerHTML">
+    <div th:replace="~{fragments/pagination :: pagination(
+        page=${plans},
+        hxGet=${'/plans/table?sort=' + sort + (activeFilter != null ? '&active=' + activeFilter.toString() : '')},
+        hxTarget='#table-container',
+        hxInclude='.plan-filter')}">
+    </div>
+  </div>
+
+</div>
+
+<th:block th:if="${toastMsg}">
+  <div th:replace="~{fragments/toast :: toast(toastMessage=${toastMsg}, toastType=${toastType})}"></div>
+</th:block>
+
+<div th:if="${clearModal}" id="modal-container" hx-swap-oob="innerHTML"></div>
+
+</body>
+</html>

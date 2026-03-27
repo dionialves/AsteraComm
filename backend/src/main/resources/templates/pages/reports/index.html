@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}"
+      lang="pt-BR">
+<head>
+  <title>Relatórios</title>
+</head>
+<body>
+<div layout:fragment="content">
+
+  <div class="mb-5">
+    <h1 class="text-[22px] font-medium text-[#1a1a1a]">Relatórios</h1>
+    <p class="text-[13px] text-[#888] mt-0.5">Geração de relatórios operacionais e financeiros</p>
+  </div>
+
+  <div class="grid grid-cols-3 gap-3">
+
+    <!-- Custo por circuito -->
+    <a th:href="@{/reports/cost-per-circuit}"
+       class="bg-white rounded-xl border border-[#e0e0e0] p-5 flex flex-col gap-3 no-underline hover:border-[#1D9E75] hover:shadow-sm transition-all">
+      <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-[#E1F5EE] flex-shrink-0">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#085041" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23"/>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+      </div>
+      <div>
+        <div class="text-[14px] font-medium text-[#1a1a1a] mb-1">Custo por circuito</div>
+        <p class="text-[13px] text-[#888] leading-relaxed">
+          Total de ligações, minutos consumidos e custo gerado por cada circuito em um mês/ano selecionado.
+        </p>
+      </div>
+    </a>
+
+    <!-- Auditoria -->
+    <a th:href="@{/reports/audit}"
+       class="bg-white rounded-xl border border-[#e0e0e0] p-5 flex flex-col gap-3 no-underline hover:border-[#1D9E75] hover:shadow-sm transition-all">
+      <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-[#E6F1FB] flex-shrink-0">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0C447C" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 11l3 3L22 4"/>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+      </div>
+      <div>
+        <div class="text-[14px] font-medium text-[#1a1a1a] mb-1">Auditoria</div>
+        <p class="text-[13px] text-[#888] leading-relaxed">
+          Simulação do cálculo de custo chamada a chamada para validar a lógica de billing por circuito.
+        </p>
+      </div>
+    </a>
+
+  </div>
+
+</div>
+</body>
+</html>

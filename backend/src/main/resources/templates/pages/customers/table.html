@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="table">
+
+  <input type="hidden" id="current-sort" name="sort" th:value="${sort}" class="customer-filter"/>
+  <input type="hidden" name="size" value="20" class="customer-filter"/>
+
+  <div class="rounded-xl border border-[#e0e0e0] overflow-hidden">
+
+    <!-- Header -->
+    <div class="customer-row bg-[#f5f5f5] border-b border-[#e0e0e0] cursor-default">
+      <span data-field="id"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">
+        ID
+      </span>
+      <span data-field="name"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">
+        Nome
+      </span>
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Status</span>
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Circuitos</span>
+      <span data-field="createdAt"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">
+        Criado em
+      </span>
+      <span data-field="updatedAt"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">
+        Atualizado em
+      </span>
+    </div>
+
+    <!-- Corpo -->
+    <div id="tbody-customers">
+      <div th:if="${customers.empty}" class="py-10 text-center text-[13px] text-[#aaa]">
+        Nenhum cliente encontrado.
+      </div>
+      <div th:each="c : ${customers.content}"
+           class="customer-row"
+           th:classappend="${!c.enabled} ? ' row-inactive'"
+           th:attr="data-id=${c.id},
+                    hx-get=${'/customers/' + c.id + '/modal'}"
+           hx-target="#modal-container"
+           hx-swap="innerHTML">
+        <span class="text-[13px] font-mono text-[#888]" th:text="${c.id}"></span>
+        <span class="text-[13px] text-[#1a1a1a]" th:text="${c.name}"></span>
+        <span>
+          <span th:if="${c.enabled}"
+                class="bg-[#E1F5EE] text-[#085041] rounded-[99px] text-[12px] px-[9px] py-[2px] font-medium whitespace-nowrap">Ativo</span>
+          <span th:unless="${c.enabled}"
+                class="bg-[#f5f5f5] text-[#888] rounded-[99px] text-[12px] px-[9px] py-[2px] font-medium whitespace-nowrap">Inativo</span>
+        </span>
+        <span class="text-[13px] text-[#1a1a1a]" th:text="${c.circuitCount}"></span>
+        <span class="text-[13px] text-[#888]"
+              th:text="${#temporals.format(c.createdAt, 'dd/MM/yyyy')}"></span>
+        <span class="text-[13px] text-[#888]"
+              th:text="${#temporals.format(c.updatedAt, 'dd/MM/yyyy')}"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- OOB: contador -->
+  <p id="customer-counter" hx-swap-oob="innerHTML"
+     th:text="${customers.totalElements == 1 ? '1 cliente cadastrado' : customers.totalElements + ' clientes cadastrados'}"></p>
+
+  <!-- OOB: paginação no toolbar -->
+  <div id="pagination-toolbar" hx-swap-oob="innerHTML">
+    <div th:replace="~{fragments/pagination :: pagination(
+        page=${customers},
+        hxGet=${'/customers/table?sort=' + sort + (!#strings.isEmpty(statusFilter) ? '&status=' + statusFilter : '')},
+        hxTarget='#table-container',
+        hxInclude='.customer-filter')}">
+    </div>
+  </div>
+
+</div>
+
+<th:block th:if="${toastMsg}">
+  <div th:replace="~{fragments/toast :: toast(toastMessage=${toastMsg}, toastType=${toastType})}"></div>
+</th:block>
+
+<div th:if="${clearModal}" id="modal-container" hx-swap-oob="innerHTML"></div>
+
+</body>
+</html>

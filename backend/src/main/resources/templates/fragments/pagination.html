@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--
+  Fragment: pagination
+  Parâmetros:
+    - page    : objeto Page<T> do Spring Data
+    - hxGet   : URL base para o HTMX (ex: "/trunks/table")
+    - hxTarget: seletor alvo (ex: "#table-container")
+    - hxInclude: seletor dos campos a incluir na req (ex: ".trunk-filter") — opcional
+
+  Uso:
+    <div th:replace="~{fragments/pagination :: pagination(page=${page}, hxGet='/trunks/table', hxTarget='#table-container', hxInclude='.trunk-filter')}"></div>
+-->
+<div th:fragment="pagination(page, hxGet, hxTarget, hxInclude)"
+     class="flex items-center gap-2">
+
+  <!-- Botão anterior -->
+  <button
+    th:attr="hx-get=${hxGet + (hxGet.contains('?') ? '&page=' : '?page=') + (page.number - 1)},
+             hx-target=${hxTarget},
+             hx-swap='innerHTML',
+             hx-include=${hxInclude}"
+    th:disabled="${page.first}"
+    th:classappend="${page.first} ? 'opacity-30 cursor-not-allowed' : 'hover:bg-[#f0f0f0] cursor-pointer'"
+    class="w-7 h-7 flex items-center justify-center rounded border border-[#e0e0e0] bg-white transition-colors">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="15 18 9 12 15 6"/>
+    </svg>
+  </button>
+
+  <!-- Página X de Y -->
+  <span class="text-[12px] text-[#888] whitespace-nowrap"
+        th:text="'Página ' + (${page.number + 1}) + ' de ' + (${page.totalPages > 0 ? page.totalPages : 1})">
+    Página 1 de 1
+  </span>
+
+  <!-- Botão próximo -->
+  <button
+    th:attr="hx-get=${hxGet + (hxGet.contains('?') ? '&page=' : '?page=') + (page.number + 1)},
+             hx-target=${hxTarget},
+             hx-swap='innerHTML',
+             hx-include=${hxInclude}"
+    th:disabled="${page.last}"
+    th:classappend="${page.last} ? 'opacity-30 cursor-not-allowed' : 'hover:bg-[#f0f0f0] cursor-pointer'"
+    class="w-7 h-7 flex items-center justify-center rounded border border-[#e0e0e0] bg-white transition-colors">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="9 18 15 12 9 6"/>
+    </svg>
+  </button>
+
+</div>
+
+</body>
+</html>

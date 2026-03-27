@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/base}"
+      lang="pt-BR">
+<head>
+  <title>Troncos</title>
+</head>
+<body>
+<div layout:fragment="content">
+
+  <!-- ── Cabeçalho ─────────────────────────────────────────────────────────── -->
+  <div class="flex items-start justify-between mb-5">
+    <div>
+      <h1 class="text-[22px] font-medium text-[#1a1a1a]">Troncos</h1>
+      <p class="text-[13px] text-[#888] mt-0.5">Conexões SIP com operadoras de telefonia</p>
+    </div>
+    <button class="flex items-center gap-1.5 bg-[#1D9E75] text-white text-[13px] font-medium px-3 py-[9px] rounded-md hover:opacity-90 transition-opacity"
+            hx-get="/trunks/modal/new"
+            hx-target="#modal-container"
+            hx-swap="innerHTML">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      Novo Tronco
+    </button>
+  </div>
+
+  <!-- ── Toolbar ───────────────────────────────────────────────────────────── -->
+  <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
+    <div class="relative w-[320px]">
+      <svg class="absolute left-[10px] top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none"
+           width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" name="search" placeholder="Buscar por nome, host ou usuário..."
+             class="trunk-filter w-full pl-[34px] pr-3 py-[9px] text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] bg-white transition-colors"
+             hx-get="/trunks/table"
+             hx-trigger="keyup changed delay:300ms"
+             hx-target="#table-container"
+             hx-swap="innerHTML"
+             hx-include=".trunk-filter"/>
+    </div>
+    <!-- Slot de paginação: preenchido via OOB a cada swap do fragment -->
+    <div id="pagination-toolbar" class="flex items-center gap-2"></div>
+  </div>
+
+  <!-- ── Tabela container ──────────────────────────────────────────────────── -->
+  <div id="table-container"
+       hx-get="/trunks/table"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+  </div>
+
+  <!-- ── Contador de registros ─────────────────────────────────────────────── -->
+  <p id="trunk-counter" class="text-[12px] text-[#888] text-right mt-3"></p>
+
+  <script>
+    var currentSortField = 'id';
+    var currentSortDir   = 'asc';
+
+    var SORT_ASC  = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>';
+    var SORT_DESC = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+
+    function updateSortIcons() {
+      document.querySelectorAll('.sort-col[data-field]').forEach(function (el) {
+        var existing = el.querySelector('svg');
+        if (existing) existing.remove();
+        if (el.dataset.field === currentSortField)
+          el.insertAdjacentHTML('beforeend', currentSortDir === 'asc' ? SORT_ASC : SORT_DESC);
+      });
+    }
+
+    function triggerTableLoad(page) {
+      var search = (document.querySelector('input[name="search"].trunk-filter') || {}).value || '';
+      var params = 'sort=' + currentSortField + ',' + currentSortDir + '&page=' + page + '&size=20&search=' + encodeURIComponent(search);
+      htmx.ajax('GET', '/trunks/table?' + params, {target: '#table-container', swap: 'innerHTML'});
+    }
+
+    document.addEventListener('htmx:afterSwap', function (e) {
+      if (e.detail.target.id === 'table-container') {
+        // Sincronizar sort do hidden input
+        var si = document.getElementById('current-sort');
+        if (si) { var p = si.value.split(','); currentSortField = p[0]; currentSortDir = p[1] || 'asc'; }
+        updateSortIcons();
+
+        // Click handlers nas colunas sortáveis
+        document.querySelectorAll('.sort-col[data-field]').forEach(function (el) {
+          el.addEventListener('click', function () {
+            if (currentSortField === el.dataset.field) currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
+            else { currentSortField = el.dataset.field; currentSortDir = 'asc'; }
+            var si2 = document.getElementById('current-sort');
+            if (si2) si2.value = currentSortField + ',' + currentSortDir;
+            updateSortIcons();
+            triggerTableLoad(0);
+          });
+        });
+
+        // Seleção de linha
+        document.querySelectorAll('.trunk-row[data-name]').forEach(function (row) {
+          row.addEventListener('click', function () {
+            document.querySelectorAll('.trunk-row.row-selected').forEach(function (r) { r.classList.remove('row-selected'); });
+            row.classList.add('row-selected');
+          });
+        });
+      }
+
+      if (e.detail.target.id === 'modal-container' && !e.detail.target.innerHTML.trim()) {
+        document.querySelectorAll('.trunk-row.row-selected').forEach(function (r) { r.classList.remove('row-selected'); });
+      }
+    });
+  </script>
+
+</div>
+</body>
+</html>

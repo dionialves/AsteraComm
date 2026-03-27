@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+    layout:decorate="~{layout/base}" lang="pt-BR">
+
+<head>
+    <title>Auditoria</title>
+</head>
+
+<body>
+    <div layout:fragment="content">
+
+        <!-- ── Cabeçalho ─────────────────────────────────────────────────────────── -->
+        <div class="mb-5">
+            <div class="flex items-center gap-2 mb-1">
+                <a th:href="@{/reports}"
+                   class="flex items-center justify-center w-[30px] h-[30px] rounded border border-[#d0d0d0] text-[#555] hover:bg-[#f5f5f5] transition-colors">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6"/>
+                    </svg>
+                </a>
+                <h1 class="text-[22px] font-medium text-[#1a1a1a]">Auditoria</h1>
+            </div>
+            <p class="text-[13px] text-[#888] ml-[38px]">Simulação do cálculo de custo chamada a chamada para validar a lógica de billing</p>
+        </div>
+
+        <!-- ── Card de filtros ───────────────────────────────────────────────────── -->
+        <div class="bg-white border border-[#e0e0e0] rounded-xl p-4 mb-4">
+            <form id="audit-form" class="flex items-end gap-3 flex-wrap" onsubmit="return false;">
+
+                <!-- SearchSelect de circuito -->
+                <div class="flex flex-col gap-1 w-[280px]">
+                    <label class="text-[12px] text-[#555] font-medium">Circuito</label>
+                    <div th:replace="~{fragments/search-select :: search-select(
+              fieldName='circuitNumber',
+              placeholder='Buscar circuito...',
+              selectedId=${null},
+              selectedLabel=${null})}">
+                    </div>
+                </div>
+
+                <!-- Mês -->
+                <div class="flex flex-col gap-1">
+                    <label class="text-[12px] text-[#555] font-medium">Mês</label>
+                    <select id="sel-month" name="month"
+                        class="py-[9px] px-3 text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] bg-white text-[#1a1a1a] w-[140px]">
+                        <option value="1"  th:selected="${currentMonth == 1}">Janeiro</option>
+                        <option value="2"  th:selected="${currentMonth == 2}">Fevereiro</option>
+                        <option value="3"  th:selected="${currentMonth == 3}">Março</option>
+                        <option value="4"  th:selected="${currentMonth == 4}">Abril</option>
+                        <option value="5"  th:selected="${currentMonth == 5}">Maio</option>
+                        <option value="6"  th:selected="${currentMonth == 6}">Junho</option>
+                        <option value="7"  th:selected="${currentMonth == 7}">Julho</option>
+                        <option value="8"  th:selected="${currentMonth == 8}">Agosto</option>
+                        <option value="9"  th:selected="${currentMonth == 9}">Setembro</option>
+                        <option value="10" th:selected="${currentMonth == 10}">Outubro</option>
+                        <option value="11" th:selected="${currentMonth == 11}">Novembro</option>
+                        <option value="12" th:selected="${currentMonth == 12}">Dezembro</option>
+                    </select>
+                </div>
+
+                <!-- Ano -->
+                <div class="flex flex-col gap-1">
+                    <label class="text-[12px] text-[#555] font-medium">Ano</label>
+                    <select id="sel-year" name="year"
+                        class="py-[9px] px-3 text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] bg-white text-[#1a1a1a] w-[100px]">
+                        <option th:each="y : ${#numbers.sequence(2023, 2027)}" th:value="${y}" th:text="${y}"
+                            th:selected="${y == currentYear}"></option>
+                    </select>
+                </div>
+
+                <!-- Botão Processar -->
+                <button type="button"
+                    class="flex items-center gap-1.5 bg-[#1D9E75] text-white text-[13px] font-medium px-4 py-[9px] rounded-md hover:opacity-90 transition-opacity"
+                    hx-get="/reports/audit/simulation" hx-target="#table-container" hx-swap="innerHTML"
+                    hx-include="#audit-form">
+                    Processar
+                </button>
+
+            </form>
+        </div>
+
+        <!-- ── Resultado (fragment vai aqui) ─────────────────────────────────────── -->
+        <div id="table-container"></div>
+
+    </div>
+</body>
+
+</html>

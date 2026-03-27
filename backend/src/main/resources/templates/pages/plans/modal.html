@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<body>
+
+    <div th:fragment="modal" class="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center"
+        onclick="closeModal()">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-[780px] h-[700px] flex flex-col"
+            onclick="event.stopPropagation()">
+
+            <!-- Header -->
+            <div class="flex-shrink-0 flex items-center justify-between px-5 pt-4 pb-4 border-b border-[#e5e7eb]">
+                <div>
+                    <p class="text-[11px] text-[#888] uppercase tracking-wide font-medium">Plano</p>
+                    <h2 class="text-[18px] font-medium text-[#1a1a1a] mt-0.5"
+                        th:text="${plan != null} ? ${plan.name} : 'Novo Plano'">Plano</h2>
+                </div>
+                <button type="button" onclick="closeModal()"
+                    class="w-7 h-7 flex items-center justify-center text-[#888] hover:text-[#1a1a1a] rounded-md transition-colors">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Form -->
+            <form th:attr="hx-post=${plan == null ? '/plans' : null},
+                  hx-put=${plan != null ? '/plans/' + plan.id : null},
+                  hx-target='#modal-container'" hx-swap="innerHTML"
+                class="flex flex-col flex-1 min-h-0">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+                <div class="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
+
+                    <!-- Identificação: ID (readonly) + Nome -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-[13px] font-medium text-[#1a1a1a]">ID</label>
+                            <input type="text" th:value="${plan?.id}" disabled placeholder="—"
+                                class="w-full px-3 py-[9px] text-[13px] border border-[#e0e0e0] rounded-md bg-[#f5f5f5] text-[#888] font-mono outline-none" />
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-[13px] font-medium text-[#1a1a1a]">Nome <span
+                                    class="text-[#E24B4A]">*</span></label>
+                            <input name="name" type="text" required th:value="${plan?.name}"
+                                placeholder="Ex: Plano Básico"
+                                class="w-full px-3 py-[9px] text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] transition-colors" />
+                        </div>
+                    </div>
+
+                    <!-- Ativo (toggle) -->
+                    <div class="flex items-center gap-2">
+                        <label class="toggle-switch">
+                            <input id="field-active" name="active" value="true" type="checkbox"
+                                th:checked="${plan == null or plan.active}" />
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span id="toggle-active-label" class="toggle-label"
+                            th:text="${plan != null and !plan.active} ? 'Inativo' : 'Ativo'">Ativo</span>
+                    </div>
+
+                    <hr class="border-t border-[#e5e7eb]" />
+
+                    <!-- Mensalidade -->
+                    <div class="flex flex-col gap-1.5 max-w-[50%]">
+                        <label class="text-[13px] font-medium text-[#1a1a1a]">Mensalidade (R$) <span
+                                class="text-[#E24B4A]">*</span></label>
+                        <input id="display-monthly" type="text" inputmode="numeric" required placeholder="0,00"
+                            th:value="${plan != null ? #numbers.formatDecimal(plan.monthlyPrice, 1, 'POINT', 2, 'COMMA') : ''}"
+                            class="w-full px-3 py-[9px] text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] transition-colors font-mono" />
+                        <input id="hidden-monthly" name="monthlyPrice" type="hidden" th:value="${plan?.monthlyPrice}" />
+                    </div>
+
+                    <hr class="border-t border-[#e5e7eb]" />
+
+                    <!-- Tarifas por minuto -->
+                    <div>
+                        <p class="text-[12px] font-semibold text-[#888] uppercase tracking-wide mb-2">Tarifas por minuto
+                            (R$)</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-[13px] text-[#1a1a1a]">Fixo Local <span
+                                        class="text-[#E24B4A]">*</span></label>
+                                <input id="display-fl" type="text" inputmode="numeric" required placeholder="0,0000"
+                                    th:value="${plan != null ? #numbers.formatDecimal(plan.fixedLocal, 1, 'POINT', 4, 'COMMA') : ''}"
+                                    class="w-full px-3 py-[9px] text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] transition-colors font-mono" />
+                                <input id="hidden-fl" name="fixedLocal" type="hidden" th:value="${plan?.fixedLocal}" />
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-[13px] text-[#1a1a1a]">Fixo Interurbano <span
+                                        class="text-[#E24B4A]">*</span></label>
+                                <input id="display-fi" type="text" inputmode="numeric" required placeholder="0,0000"
+                                    th:value="${plan != null ? #numbers.formatDecimal(plan.fixedLongDistance, 1, 'POINT', 4, 'COMMA') : ''}"
+                                    class="w-full px-3 py-[9px] text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] transition-colors font-mono" />
+                                <input id="hidden-fi" name="fixedLongDistance" type="hidden" th:value="${plan?.fixedLongDistance}" />
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-[13px] text-[#1a1a1a]">Móvel Local <span
+                                        class="text-[#E24B4A]">*</span></label>
+                                <input id="display-ml" type="text" inputmode="numeric" required placeholder="0,0000"
+                                    th:value="${plan != null ? #numbers.formatDecimal(plan.mobileLocal, 1, 'POINT', 4, 'COMMA') : ''}"
+                                    class="w-full px-3 py-[9px] text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] transition-colors font-mono" />
+                                <input id="hidden-ml" name="mobileLocal" type="hidden" th:value="${plan?.mobileLocal}" />
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-[13px] text-[#1a1a1a]">Móvel Longa Distância <span
+                                        class="text-[#E24B4A]">*</span></label>
+                                <input id="display-mld" type="text" inputmode="numeric" required placeholder="0,0000"
+                                    th:value="${plan != null ? #numbers.formatDecimal(plan.mobileLongDistance, 1, 'POINT', 4, 'COMMA') : ''}"
+                                    class="w-full px-3 py-[9px] text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] transition-colors font-mono" />
+                                <input id="hidden-mld" name="mobileLongDistance" type="hidden" th:value="${plan?.mobileLongDistance}" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="border-t border-[#e5e7eb]" />
+
+                    <!-- Pacote de minutos -->
+                    <div>
+                        <p class="text-[12px] font-semibold text-[#888] uppercase tracking-wide mb-2">Pacote de minutos
+                        </p>
+
+                        <!-- Tipo de pacote -->
+                        <div class="flex flex-col gap-1.5 mb-3">
+                            <label class="text-[13px] font-medium text-[#1a1a1a]">Tipo de pacote <span
+                                    class="text-[#E24B4A]">*</span></label>
+                            <select name="packageType" required th:attr="hx-get=${plan != null ? '/plans/' + plan.id + '/package-fields' : '/plans/package-fields'},
+                             hx-include='[name=packageType]'" hx-trigger="change" hx-target="#package-fields-container"
+                                hx-swap="innerHTML"
+                                class="w-full px-3 py-[9px] text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] transition-colors bg-white">
+                                <option th:each="pt : ${packageTypes}" th:value="${pt.name()}"
+                                    th:selected="${plan?.packageType == pt}"
+                                    th:text="${pt.name() == 'NONE' ? 'Sem pacote' :
+                                  (pt.name() == 'UNIFIED' ? 'Unificado (pool compartilhado)' : 'Por categoria')}">
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- Campos condicionais do pacote -->
+                        <div id="package-fields-container">
+                            <th:block th:if="${plan != null}">
+                                <div th:replace="~{pages/plans/package-fields :: fields}"></div>
+                            </th:block>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <div th:if="${plan != null}" class="contents">
+                        <div th:replace="~{fragments/confirm-delete :: confirm-delete(
+              deleteUrl=${'/plans/' + plan.id},
+              hxTarget='#modal-container',
+              hxInclude='.plan-filter',
+              label=${'o plano ' + plan.name})}">
+                        </div>
+                    </div>
+                    <button type="button" onclick="closeModal()" class="btn-modal-cancel">Cancelar</button>
+                    <button type="submit" class="btn-modal-save">Salvar</button>
+                </div>
+            </form>
+
+        </div>
+
+        <!-- OOB: toast -->
+        <th:block th:if="${toastMsg}">
+            <div th:replace="~{fragments/toast :: toast(toastMessage=${toastMsg}, toastType=${toastType})}"></div>
+        </th:block>
+
+        <!-- Trigger: recarrega tabela após criação -->
+        <div th:if="${refreshTable}"
+             hx-get="/plans/table"
+             hx-target="#table-container"
+             hx-swap="innerHTML"
+             hx-trigger="load"
+             class="hidden"></div>
+
+        <script>
+            (function () {
+                // ── Toggle ativo ──────────────────────────────────────────
+                var toggle = document.getElementById('field-active');
+                var toggleLabel = document.getElementById('toggle-active-label');
+                if (toggle && toggleLabel) {
+                    toggle.addEventListener('change', function () {
+                        toggleLabel.textContent = toggle.checked ? 'Ativo' : 'Inativo';
+                    });
+                }
+
+                // ── Máscaras de valor ─────────────────────────────────────
+                function maskCurrency(el, hiddenEl) {
+                    var digits = el.value.replace(/\D/g, '');
+                    if (!digits) { el.value = ''; hiddenEl.value = ''; return; }
+                    var cents   = parseInt(digits, 10);
+                    var intPart = Math.floor(cents / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                    var decPart = (cents % 100).toString().padStart(2, '0');
+                    el.value       = intPart + ',' + decPart;
+                    hiddenEl.value = (cents / 100).toFixed(2);
+                }
+
+                function maskRate(el, hiddenEl) {
+                    var digits = el.value.replace(/\D/g, '');
+                    if (!digits) { el.value = ''; hiddenEl.value = ''; return; }
+                    var val     = parseInt(digits, 10);
+                    var intPart = Math.floor(val / 10000).toString();
+                    var decPart = (val % 10000).toString().padStart(4, '0');
+                    el.value       = intPart + ',' + decPart;
+                    hiddenEl.value = (val / 10000).toFixed(4);
+                }
+
+                var dM   = document.getElementById('display-monthly'); var hM   = document.getElementById('hidden-monthly');
+                var dFL  = document.getElementById('display-fl');      var hFL  = document.getElementById('hidden-fl');
+                var dFI  = document.getElementById('display-fi');      var hFI  = document.getElementById('hidden-fi');
+                var dML  = document.getElementById('display-ml');      var hML  = document.getElementById('hidden-ml');
+                var dMLD = document.getElementById('display-mld');     var hMLD = document.getElementById('hidden-mld');
+
+                if (dM)   dM.addEventListener('input',   function () { maskCurrency(dM,   hM);   });
+                if (dFL)  dFL.addEventListener('input',  function () { maskRate(dFL,  hFL);  });
+                if (dFI)  dFI.addEventListener('input',  function () { maskRate(dFI,  hFI);  });
+                if (dML)  dML.addEventListener('input',  function () { maskRate(dML,  hML);  });
+                if (dMLD) dMLD.addEventListener('input', function () { maskRate(dMLD, hMLD); });
+
+                // Sobrescrever parâmetros HTMX com valores numéricos corretos
+                var form = document.querySelector('form[hx-post], form[hx-put]');
+                if (form) {
+                    form.addEventListener('htmx:configRequest', function (evt) {
+                        function parseCurrency(val) {
+                            var d = val.replace(/\D/g, '');
+                            return d ? (parseInt(d, 10) / 100).toFixed(2) : '';
+                        }
+                        function parseRate(val) {
+                            var d = val.replace(/\D/g, '');
+                            return d ? (parseInt(d, 10) / 10000).toFixed(4) : '';
+                        }
+                        if (dM)   evt.detail.parameters['monthlyPrice']     = parseCurrency(dM.value);
+                        if (dFL)  evt.detail.parameters['fixedLocal']        = parseRate(dFL.value);
+                        if (dFI)  evt.detail.parameters['fixedLongDistance'] = parseRate(dFI.value);
+                        if (dML)  evt.detail.parameters['mobileLocal']       = parseRate(dML.value);
+                        if (dMLD) evt.detail.parameters['mobileLongDistance']= parseRate(dMLD.value);
+                    });
+                }
+            })();
+        </script>
+    </div>
+
+</body>
+
+</html>

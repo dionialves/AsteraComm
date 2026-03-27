@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="circuits(circuits)">
+  <div th:if="${circuits == null or circuits.isEmpty()}"
+       class="py-10 text-center text-[13px] text-[#aaa]">
+    Nenhum circuito vinculado a este cliente.
+  </div>
+
+  <div th:if="${circuits != null and !circuits.isEmpty()}"
+       class="rounded-xl border border-[#e0e0e0] overflow-hidden">
+    <!-- Header -->
+    <div class="grid grid-cols-[100px_minmax(0,1fr)_minmax(0,1fr)_120px_50px] gap-2 px-4 py-[10px] items-center bg-[#f5f5f5] border-b border-[#e0e0e0]">
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Código</span>
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Tronco</span>
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Plano</span>
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">IP</span>
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Online</span>
+    </div>
+    <!-- Rows -->
+    <div th:each="c : ${circuits}"
+         class="grid grid-cols-[100px_minmax(0,1fr)_minmax(0,1fr)_120px_50px] gap-2 px-4 py-[10px] items-center border-b border-[#f0f0f0] last:border-b-0 bg-white"
+         th:classappend="${!c.active} ? ' opacity-55'">
+      <span class="text-[13px] font-mono text-[#1a1a1a]" th:text="${c.number}"></span>
+      <span class="text-[13px] text-[#1a1a1a]" th:text="${c.trunkName}"></span>
+      <span class="text-[13px] text-[#888]" th:text="${c.planName ?: '—'}"></span>
+      <span class="text-[13px] font-mono text-[#888]" th:text="${c.ip ?: '—'}"></span>
+      <span>
+        <span th:class="${c.online} ? 'inline-block w-[7px] h-[7px] rounded-full bg-[#1D9E75]' : 'inline-block w-[7px] h-[7px] rounded-full bg-[#E24B4A]'"></span>
+      </span>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

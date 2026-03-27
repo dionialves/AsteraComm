@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="table">
+
+  <input type="hidden" id="current-sort" name="sort" th:value="${sort}" class="trunk-filter"/>
+  <input type="hidden" name="size" value="20" class="trunk-filter"/>
+
+  <div class="rounded-xl border border-[#e0e0e0] overflow-hidden">
+
+    <!-- Header -->
+    <div class="trunk-row bg-[#f5f5f5] border-b border-[#e0e0e0]" style="cursor:default">
+      <span data-field="id"       class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">ID</span>
+      <span data-field="name"     class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Nome</span>
+      <span data-field="host"     class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Host</span>
+      <span data-field="username" class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Usuário</span>
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Registro</span>
+    </div>
+
+    <!-- Corpo -->
+    <div id="tbody-trunks">
+      <div th:if="${trunks.empty}" class="py-10 text-center text-[13px] text-[#aaa]">
+        Nenhum tronco encontrado.
+      </div>
+      <div th:each="t : ${trunks.content}"
+           class="trunk-row"
+           th:attr="data-name=${t.name},
+                    hx-get=${'/trunks/' + t.name + '/modal'}"
+           hx-target="#modal-container"
+           hx-swap="innerHTML">
+        <span class="text-[13px] font-mono text-[#888]" th:text="${t.id}"></span>
+        <span class="text-[13px] font-medium text-[#1a1a1a] truncate" th:text="${t.name}"></span>
+        <span class="text-[12px] font-mono text-[#1a1a1a] truncate" th:text="${t.host}"></span>
+        <span class="text-[13px] text-[#1a1a1a] truncate" th:text="${t.username}"></span>
+        <span>
+          <span th:if="${t.registered}"
+                class="bg-[#E1F5EE] text-[#085041] rounded-[99px] text-[11px] px-[10px] py-[2px] font-medium whitespace-nowrap">
+            Registrado
+          </span>
+          <span th:unless="${t.registered}"
+                class="bg-[#FCEBEB] text-[#791F1F] rounded-[99px] text-[11px] px-[10px] py-[2px] font-medium whitespace-nowrap">
+            Não registrado
+          </span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- OOB: contador de registros -->
+  <p id="trunk-counter" hx-swap-oob="innerHTML"
+     th:text="${trunks.totalElements == 1 ? '1 tronco cadastrado' : trunks.totalElements + ' troncos cadastrados'}"></p>
+
+  <!-- OOB: paginação no toolbar -->
+  <div id="pagination-toolbar" hx-swap-oob="innerHTML">
+    <div th:replace="~{fragments/pagination :: pagination(
+        page=${trunks},
+        hxGet=${'/trunks/table?sort=' + sort},
+        hxTarget='#table-container',
+        hxInclude='.trunk-filter')}">
+    </div>
+  </div>
+
+</div>
+
+<th:block th:if="${toastMsg}">
+  <div th:replace="~{fragments/toast :: toast(toastMessage=${toastMsg}, toastType=${toastType})}"></div>
+</th:block>
+
+<div th:if="${clearModal}" id="modal-container" hx-swap-oob="innerHTML"></div>
+
+</body>
+</html>

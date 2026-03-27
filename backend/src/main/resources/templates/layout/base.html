@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title layout:title-pattern="$CONTENT_TITLE — AsteraComm">AsteraComm</title>
+  <link rel="stylesheet" th:href="@{/css/output.css}"/>
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+</head>
+<body class="font-sans">
+
+  <!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
+  <aside class="fixed top-0 left-0 w-[220px] h-screen bg-[#1a1a1a] flex flex-col z-[5] overflow-y-auto">
+
+    <!-- Logo -->
+    <div class="px-4 pt-5 pb-3 flex-shrink-0 text-center">
+      <span class="text-[24px] font-medium tracking-[-0.5px]">
+        <span class="text-[#5DCAA5]">Astera</span><span class="text-white">Comm</span>
+      </span>
+    </div>
+
+    <!-- Navegação -->
+    <nav class="flex-1 px-2 py-1 overflow-y-auto">
+
+      <!-- Dashboard -->
+      <a th:href="@{/}"
+         th:classappend="${currentPath == '/'} ? '!bg-white/[0.08] !text-white'"
+         class="flex items-center gap-[10px] px-3 py-[9px] rounded-md text-[13px] text-white/65 no-underline mb-px cursor-pointer transition-[background,color] duration-150 hover:bg-white/[0.05] hover:text-white/90">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+        Dashboard
+      </a>
+
+      <!-- OPERACIONAL -->
+      <span class="text-[10px] font-semibold tracking-[1px] text-white/35 uppercase pt-[14px] px-3 pb-1 block">Operacional</span>
+
+      <!-- Cadastro (colapsável) -->
+      <button id="btn-menu-cadastro"
+              th:classappend="${currentPath != null and (#strings.startsWith(currentPath, '/circuits') or #strings.startsWith(currentPath, '/customers') or #strings.startsWith(currentPath, '/dids') or #strings.startsWith(currentPath, '/plans'))} ? '!bg-white/[0.08] !text-white'"
+              class="w-full flex items-center justify-between px-3 py-[9px] rounded-md border-none bg-transparent text-[13px] text-white/65 cursor-pointer mb-px transition-[background,color] duration-150 hover:bg-white/[0.05] hover:text-white/90">
+        <div class="flex items-center gap-[10px]">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          Cadastro
+        </div>
+        <svg id="chevron-cadastro"
+             th:classappend="${currentPath != null and (#strings.startsWith(currentPath, '/circuits') or #strings.startsWith(currentPath, '/customers') or #strings.startsWith(currentPath, '/dids') or #strings.startsWith(currentPath, '/plans'))} ? 'rotate-180'"
+             class="flex-shrink-0 transition-transform duration-[250ms] ease" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      <div id="menu-cadastro"
+           th:class="${currentPath != null and (#strings.startsWith(currentPath, '/circuits') or #strings.startsWith(currentPath, '/customers') or #strings.startsWith(currentPath, '/dids') or #strings.startsWith(currentPath, '/plans'))} ? 'max-h-[200px] overflow-hidden transition-[max-height] duration-[250ms] ease' : 'max-h-0 overflow-hidden transition-[max-height] duration-[250ms] ease'">
+        <a th:href="@{/circuits}"
+           th:classappend="${currentPath != null and #strings.startsWith(currentPath, '/circuits')} ? '!text-white'"
+           class="block px-3 py-[7px] pl-[38px] text-[13px] text-white/55 no-underline rounded-md mb-px transition-[background,color] duration-150 hover:bg-white/[0.05] hover:text-white/90">Circuitos</a>
+        <a th:href="@{/customers}"
+           th:classappend="${currentPath != null and #strings.startsWith(currentPath, '/customers')} ? '!text-white'"
+           class="block px-3 py-[7px] pl-[38px] text-[13px] text-white/55 no-underline rounded-md mb-px transition-[background,color] duration-150 hover:bg-white/[0.05] hover:text-white/90">Clientes</a>
+        <a th:href="@{/dids}"
+           th:classappend="${currentPath != null and #strings.startsWith(currentPath, '/dids')} ? '!text-white'"
+           class="block px-3 py-[7px] pl-[38px] text-[13px] text-white/55 no-underline rounded-md mb-px transition-[background,color] duration-150 hover:bg-white/[0.05] hover:text-white/90">DIDs</a>
+        <a th:href="@{/plans}"
+           th:classappend="${currentPath != null and #strings.startsWith(currentPath, '/plans')} ? '!text-white'"
+           class="block px-3 py-[7px] pl-[38px] text-[13px] text-white/55 no-underline rounded-md mb-px transition-[background,color] duration-150 hover:bg-white/[0.05] hover:text-white/90">Planos</a>
+      </div>
+
+      <!-- Configuração (colapsável) -->
+      <button id="btn-menu-configuracao"
+              th:classappend="${currentPath != null and #strings.startsWith(currentPath, '/trunks')} ? '!bg-white/[0.08] !text-white'"
+              class="w-full flex items-center justify-between px-3 py-[9px] rounded-md border-none bg-transparent text-[13px] text-white/65 cursor-pointer mb-px transition-[background,color] duration-150 hover:bg-white/[0.05] hover:text-white/90">
+        <div class="flex items-center gap-[10px]">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>
+            <line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/>
+            <line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/>
+            <line x1="17" y1="16" x2="23" y2="16"/>
+          </svg>
+          Configuração
+        </div>
+        <svg id="chevron-configuracao"
+             th:classappend="${currentPath != null and #strings.startsWith(currentPath, '/trunks')} ? 'rotate-180'"
+             class="flex-shrink-0 transition-transform duration-[250ms] ease" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      <div id="menu-configuracao"
+           th:class="${currentPath != null and #strings.startsWith(currentPath, '/trunks')} ? 'max-h-[200px] overflow-hidden transition-[max-height] duration-[250ms] ease' : 'max-h-0 overflow-hidden transition-[max-height] duration-[250ms] ease'">
+        <a th:href="@{/trunks}"
+           th:classappend="${currentPath != null and #strings.startsWith(currentPath, '/trunks')} ? '!text-white'"
+           class="block px-3 py-[7px] pl-[38px] text-[13px] text-white/55 no-underline rounded-md mb-px transition-[background,color] duration-150 hover:bg-white/[0.05] hover:text-white/90">Troncos</a>
+      </div>
+
+      <!-- FINANCEIRO -->
+      <span class="text-[10px] font-semibold tracking-[1px] text-white/35 uppercase pt-[14px] px-3 pb-1 block">Financeiro</span>
+
+      <a th:href="@{/cdrs}"
+         th:classappend="${currentPath != null and #strings.startsWith(currentPath, '/cdrs')} ? '!bg-white/[0.08] !text-white'"
+         class="flex items-center gap-[10px] px-3 py-[9px] rounded-md text-[13px] text-white/65 no-underline mb-px cursor-pointer transition-[background,color] duration-150 hover:bg-white/[0.05] hover:text-white/90">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.81a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+        </svg>
+        Ligações
+      </a>
+
+      <a th:href="@{/reports}"
+         th:classappend="${currentPath != null and #strings.startsWith(currentPath, '/reports')} ? '!bg-white/[0.08] !text-white'"
+         class="flex items-center gap-[10px] px-3 py-[9px] rounded-md text-[13px] text-white/65 no-underline mb-px cursor-pointer transition-[background,color] duration-150 hover:bg-white/[0.05] hover:text-white/90">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+          <line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+        Relatórios
+      </a>
+
+      <!-- ADMINISTRAÇÃO (apenas ADMIN) -->
+      <div sec:authorize="hasRole('ADMIN')">
+        <span class="text-[10px] font-semibold tracking-[1px] text-white/35 uppercase pt-[14px] px-3 pb-1 block">Administração</span>
+        <a th:href="@{/users}"
+           th:classappend="${currentPath != null and #strings.startsWith(currentPath, '/users')} ? '!bg-white/[0.08] !text-white'"
+           class="flex items-center gap-[10px] px-3 py-[9px] rounded-md text-[13px] text-white/65 no-underline mb-px cursor-pointer transition-[background,color] duration-150 hover:bg-white/[0.05] hover:text-white/90">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+          Usuários
+        </a>
+      </div>
+
+    </nav>
+
+    <!-- Rodapé: perfil -->
+    <div class="flex-shrink-0 p-2 border-t border-white/[0.07] relative">
+
+      <!-- Dropdown (abre para cima) -->
+      <div id="profile-dropdown" class="hidden absolute bottom-[calc(100%+4px)] left-2 right-2 bg-[#2a2a2a] border border-white/10 rounded-lg overflow-hidden">
+        <button id="btn-open-profile"
+                hx-get="/profile/modal"
+                hx-target="#modal-container"
+                hx-swap="innerHTML"
+                class="w-full text-left px-[14px] py-[9px] text-[13px] text-white/75 bg-transparent border-none cursor-pointer transition-[background,color] duration-[120ms] block hover:bg-white/[0.06] hover:text-white">
+          Dados cadastrais
+        </button>
+        <button id="btn-open-password"
+                hx-get="/profile/password-modal"
+                hx-target="#modal-container"
+                hx-swap="innerHTML"
+                class="w-full text-left px-[14px] py-[9px] text-[13px] text-white/75 bg-transparent border-none cursor-pointer transition-[background,color] duration-[120ms] block hover:bg-white/[0.06] hover:text-white">
+          Alterar senha
+        </button>
+        <div class="border-t border-white/10"></div>
+        <form th:action="@{/logout}" method="post" class="m-0">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <button type="submit"
+                  class="w-full text-left px-[14px] py-[9px] text-[13px] text-[#f87171] bg-transparent border-none cursor-pointer transition-[background,color] duration-[120ms] block hover:bg-[rgba(239,68,68,0.12)]">
+            Sair
+          </button>
+        </form>
+      </div>
+
+      <!-- Botão do perfil -->
+      <button id="profile-btn"
+              class="w-full flex items-center gap-2 px-[10px] py-2 rounded-md bg-transparent border-none cursor-pointer transition-[background] duration-150 hover:bg-white/[0.05]">
+        <div class="w-7 h-7 rounded-full bg-[#1D9E75] text-white text-[12px] font-semibold flex items-center justify-center flex-shrink-0"
+             th:text="${#authentication.principal != null and #authentication.principal.name != null and !#authentication.principal.name.isEmpty()} ? ${#strings.toUpperCase(#strings.substring(#authentication.principal.name, 0, 1))} : '?'">
+          ?
+        </div>
+        <div class="flex-1 min-w-0 text-left">
+          <p class="text-[12px] text-white whitespace-nowrap overflow-hidden text-ellipsis"
+             th:text="${#authentication.principal?.name} ?: 'Usuário'">Usuário</p>
+          <p class="text-[11px] text-white/40"
+             th:text="${#authentication.principal?.role?.name() == 'ADMIN'} ? 'Administrador' : 'Operador'">Administrador</p>
+        </div>
+        <svg id="profile-chevron"
+             class="flex-shrink-0 transition-transform duration-[250ms] ease" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Conteúdo principal ───────────────────────────────────────────────── -->
+  <main class="ml-[220px] min-h-screen overflow-y-auto p-8 bg-stone-50">
+    <div layout:fragment="content">
+      <!-- Conteúdo da página substituirá este bloco -->
+    </div>
+  </main>
+
+  <!-- ── Modal container (carregado via HTMX) ─────────────────────────────── -->
+  <div id="modal-container"></div>
+
+  <!-- ── Toast container (toasts injetados via HTMX OOB) ──────────────────── -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-[300] flex flex-col gap-2 pointer-events-none"></div>
+
+  <script th:src="@{/js/htmx.min.js}"></script>
+  <script th:src="@{/js/search-select.js}"></script>
+  <script>
+    // ── CSRF: injetar token em todos os requests HTMX ──────────────────────
+    document.body.addEventListener('htmx:configRequest', function (evt) {
+      var header = document.querySelector('meta[name="_csrf_header"]')?.content;
+      var token  = document.querySelector('meta[name="_csrf"]')?.content;
+      if (header && token) evt.detail.headers[header] = token;
+    });
+  </script>
+  <script>
+    // ── Sidebar: submenu toggle ──────────────────────────────────────────────
+    [
+      { btn: 'btn-menu-cadastro',     menu: 'menu-cadastro',     chevron: 'chevron-cadastro' },
+      { btn: 'btn-menu-configuracao', menu: 'menu-configuracao', chevron: 'chevron-configuracao' },
+    ].forEach(({ btn, menu, chevron }) => {
+      document.getElementById(btn)?.addEventListener('click', () => {
+        const m = document.getElementById(menu);
+        const c = document.getElementById(chevron);
+        const isOpen = m?.classList.contains('max-h-[200px]');
+        m?.classList.toggle('max-h-0', isOpen);
+        m?.classList.toggle('max-h-[200px]', !isOpen);
+        c?.classList.toggle('rotate-180', !isOpen);
+      });
+    });
+
+    // ── Profile dropdown ─────────────────────────────────────────────────────
+    const profileBtn      = document.getElementById('profile-btn');
+    const profileDropdown = document.getElementById('profile-dropdown');
+    const profileChevron  = document.getElementById('profile-chevron');
+
+    profileBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const hidden = profileDropdown?.classList.contains('hidden');
+      profileDropdown?.classList.toggle('hidden', !hidden);
+      profileChevron?.classList.toggle('rotate-180', hidden);
+    });
+
+    document.addEventListener('click', () => {
+      profileDropdown?.classList.add('hidden');
+      profileChevron?.classList.remove('rotate-180');
+    });
+
+    // Fechar dropdown ao clicar nos botões internos
+    profileDropdown?.addEventListener('click', (e) => e.stopPropagation());
+
+    // ── Modal: fechar ────────────────────────────────────────────────────────
+    function closeModal() {
+      document.getElementById('modal-container').innerHTML = '';
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    // ── Modal: botão deletar (duplo clique) ──────────────────────────────────
+    function handleModalDelete(btn) {
+      if (!btn.dataset.step) {
+        btn.dataset.step = '1';
+        btn._deleteTimer = setTimeout(function () {
+          delete btn.dataset.step;
+          btn.textContent = 'Deletar';
+          btn.classList.remove('confirm');
+        }, 3000);
+        btn.textContent = 'Confirmar exclusão?';
+        btn.classList.add('confirm');
+        return;
+      }
+      clearTimeout(btn._deleteTimer);
+      delete btn.dataset.step;
+      htmx.trigger(btn, 'confirmed');
+    }
+
+    // ── HTMX: fechar dropdown ao abrir modal ─────────────────────────────────
+    document.body.addEventListener('htmx:afterSwap', (e) => {
+      if (e.detail.target.id === 'modal-container') {
+        profileDropdown?.classList.add('hidden');
+        profileChevron?.classList.remove('rotate-180');
+      }
+    });
+  </script>
+
+</body>
+</html>

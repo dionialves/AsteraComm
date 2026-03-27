@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="table">
+
+  <th:block th:if="${report != null}">
+
+    <!-- Cards de resumo -->
+    <div class="grid grid-cols-4 gap-3 mb-4">
+      <div class="bg-[#f5f5f5] rounded-lg px-4 py-[14px]">
+        <p class="text-[12px] text-[#888] mb-1">Total de circuitos</p>
+        <p class="text-[22px] font-medium text-[#1a1a1a]" th:text="${report.summary.totalCircuits}">0</p>
+      </div>
+      <div class="bg-[#f5f5f5] rounded-lg px-4 py-[14px]">
+        <p class="text-[12px] text-[#888] mb-1">Total de ligações</p>
+        <p class="text-[22px] font-medium text-[#1a1a1a]" th:text="${report.summary.totalCalls}">0</p>
+      </div>
+      <div class="bg-[#f5f5f5] rounded-lg px-4 py-[14px]">
+        <p class="text-[12px] text-[#888] mb-1">Total de minutos</p>
+        <p class="text-[22px] font-medium text-[#1a1a1a]" th:text="${report.summary.totalMinutes}">0</p>
+      </div>
+      <div class="bg-[#f5f5f5] rounded-lg px-4 py-[14px]">
+        <p class="text-[12px] text-[#888] mb-1">Custo total</p>
+        <p class="text-[22px] font-medium text-[#085041]"
+           th:text="${'R$ ' + #numbers.formatDecimal(report.summary.totalCost, 1, 'POINT', 2, 'COMMA')}">R$ 0,00</p>
+      </div>
+    </div>
+
+    <!-- Barra de controles: toggle esquerda, PDF direita -->
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-2">
+        <button id="toggle-only-cost" role="switch" aria-checked="false"
+                class="relative shrink-0 w-9 h-5 rounded-[99px] bg-[#e0e0e0] border-none cursor-pointer p-0 outline-none transition-colors duration-200">
+          <span id="toggle-cost-thumb"
+                class="absolute top-[2px] left-[2px] w-4 h-4 rounded-full bg-white block transition-transform duration-200">
+          </span>
+        </button>
+        <span class="text-[13px] text-[#1a1a1a] select-none">Apenas com custo</span>
+      </div>
+      <a id="btn-pdf-cpc" th:href="${'/reports/cost-per-circuit/pdf?month=' + month + '&year=' + year}"
+         class="flex items-center gap-1.5 bg-white border border-[#e0e0e0] text-[#1a1a1a] text-[13px] font-medium px-3 py-[9px] rounded-md hover:bg-[#f5f5f5] transition-colors no-underline">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Baixar PDF
+      </a>
+    </div>
+
+    <!-- Tabela -->
+    <div class="rounded-xl border border-[#e0e0e0] overflow-hidden">
+
+      <!-- Header -->
+      <div class="report-row bg-[#f5f5f5] border-b border-[#e0e0e0]">
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Cliente</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Circuito</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide text-right">Ligações</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide text-right">Minutos</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide text-right">Custo R$</span>
+      </div>
+
+      <!-- Vazio -->
+      <div th:if="${report.data.empty}" class="py-10 text-center text-[13px] text-[#aaa]">
+        Nenhum circuito com ligações no período informado.
+      </div>
+
+      <!-- Linhas -->
+      <div th:each="row, stat : ${report.data}"
+           th:attr="data-has-cost=${row.totalCost.signum() > 0}"
+           th:class="|report-row bg-white hover:bg-[#fafafa] transition-colors ${stat.last ? '' : 'border-b border-[#f0f0f0]'}|">
+        <span class="text-[13px] text-[#1a1a1a] truncate" th:text="${row.customerName}"></span>
+        <span class="text-[13px] font-mono text-[#888] truncate" th:text="${row.circuitName}"></span>
+        <span class="text-[13px] font-mono text-right"
+              th:class="${row.callCount > 0 ? 'text-[13px] font-mono text-right text-[#1a1a1a]' : 'text-[13px] font-mono text-right text-[#888]'}"
+              th:text="${row.callCount}"></span>
+        <span class="text-[13px] font-mono text-right"
+              th:class="${row.totalMinutes > 0 ? 'text-[13px] font-mono text-right text-[#1a1a1a]' : 'text-[13px] font-mono text-right text-[#888]'}"
+              th:text="${row.totalMinutes}"></span>
+        <span class="text-[13px] font-mono text-right"
+              th:class="${row.totalCost.signum() > 0 ? 'text-[13px] font-mono text-right text-[#085041] font-medium' : 'text-[13px] font-mono text-right text-[#888]'}"
+              th:text="${'R$ ' + #numbers.formatDecimal(row.totalCost, 1, 'POINT', 2, 'COMMA')}"></span>
+      </div>
+
+    </div>
+
+  </th:block>
+
+  <script>
+    (function () {
+      var btn    = document.getElementById('toggle-only-cost');
+      var thumb  = document.getElementById('toggle-cost-thumb');
+      var pdfBtn = document.getElementById('btn-pdf-cpc');
+      if (!btn) return;
+
+      var baseHref = pdfBtn ? pdfBtn.getAttribute('href') : '';
+      var active = false;
+
+      btn.addEventListener('click', function () {
+        active = !active;
+        btn.setAttribute('aria-checked', String(active));
+
+        if (active) {
+          btn.style.backgroundColor = '#1D9E75';
+          thumb.style.transform = 'translateX(16px)';
+        } else {
+          btn.style.backgroundColor = '#e0e0e0';
+          thumb.style.transform = 'translateX(0)';
+        }
+
+        document.querySelectorAll('.report-row[data-has-cost]').forEach(function (row) {
+          row.style.display = (active && row.dataset.hasCost === 'false') ? 'none' : '';
+        });
+
+        if (pdfBtn) {
+          pdfBtn.setAttribute('href', active ? baseHref + '&onlyWithCost=true' : baseHref);
+        }
+      });
+    })();
+  </script>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="table">
+
+  <input type="hidden" id="current-sort" name="sort" th:value="${sort}" class="cdr-filter"/>
+  <input type="hidden" name="size" value="20" class="cdr-filter"/>
+
+  <div class="rounded-xl border border-[#e0e0e0] overflow-hidden">
+
+    <!-- Header -->
+    <div class="cdr-row bg-[#f5f5f5] border-b border-[#e0e0e0]" style="cursor:default">
+      <span data-field="id"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">
+        ID
+      </span>
+      <span data-field="callDate"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">
+        Data / Hora
+      </span>
+      <span data-field="callerNumber"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">
+        Origem
+      </span>
+      <span data-field="dst"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">
+        Destino
+      </span>
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Circuito</span>
+      <span data-field="callType"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">
+        Tipo
+      </span>
+      <span data-field="durationSeconds"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">
+        Duração
+      </span>
+      <span data-field="disposition"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">
+        Status
+      </span>
+      <span data-field="callStatus"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">
+        Custeio
+      </span>
+      <span data-field="cost"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">
+        Valor
+      </span>
+    </div>
+
+    <!-- Corpo -->
+    <div id="tbody-cdrs">
+      <div th:if="${calls.empty}" class="py-10 text-center text-[13px] text-[#aaa]">
+        Nenhuma chamada encontrada.
+      </div>
+      <div th:each="c : ${calls.content}"
+           class="cdr-row"
+           th:attr="data-id=${c.id},
+                    hx-get=${'/cdrs/' + c.id + '/modal'}"
+           hx-target="#modal-container"
+           hx-swap="innerHTML">
+
+        <!-- ID -->
+        <span class="text-[13px] font-mono text-[#888]" th:text="${c.id}"></span>
+
+        <!-- Data/Hora -->
+        <span class="text-[13px] font-mono text-[#1a1a1a]"
+              th:text="${#temporals.format(c.callDate, 'dd/MM/yyyy HH:mm')}"></span>
+
+        <!-- Origem -->
+        <span class="text-[13px] font-mono text-[#1a1a1a]"
+              th:text="${c.callerNumber ?: '—'}"></span>
+
+        <!-- Destino -->
+        <span class="text-[13px] font-mono text-[#1a1a1a]"
+              th:text="${c.dst}"></span>
+
+        <!-- Circuito -->
+        <span class="text-[13px] font-mono text-[#888]"
+              th:text="${c.circuit != null ? c.circuit.number : '—'}"></span>
+
+        <!-- Tipo -->
+        <span th:class="|rounded-[99px] text-[11px] px-[8px] py-[2px] font-medium whitespace-nowrap
+                         ${c.callType?.name() == 'FIXED_LOCAL'          ? 'bg-[#E6F1FB] text-[#0C447C]' :
+                           c.callType?.name() == 'MOBILE_LOCAL'         ? 'bg-[#EEEDFE] text-[#3C3489]' :
+                           c.callType?.name() == 'FIXED_LONG_DISTANCE'  ? 'bg-[#f5f5f5] text-[#888]'    :
+                           c.callType?.name() == 'MOBILE_LONG_DISTANCE' ? 'bg-[#FAECE7] text-[#712B13]' : 'bg-[#f5f5f5] text-[#888]'}|"
+              th:text="${c.callType?.name() == 'FIXED_LOCAL'          ? 'Fixo Local'  :
+                         c.callType?.name() == 'MOBILE_LOCAL'         ? 'Móvel Local' :
+                         c.callType?.name() == 'FIXED_LONG_DISTANCE'  ? 'Fixo LD'     :
+                         c.callType?.name() == 'MOBILE_LONG_DISTANCE' ? 'Móvel LD'    : '—'}">
+        </span>
+
+        <!-- Duração -->
+        <span class="text-[13px] font-mono text-[#1a1a1a]"
+              th:with="sec=${c.durationSeconds ?: 0}, h=${sec / 3600}, m=${(sec % 3600) / 60}, s=${sec % 60}"
+              th:text="${h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s}">
+        </span>
+
+        <!-- Status (disposition) -->
+        <span th:text="${c.disposition == 'ANSWERED' ? 'Atendida' :
+                         c.disposition == 'NO ANSWER' ? 'Sem resposta' :
+                         c.disposition == 'BUSY' ? 'Ocupado' :
+                         c.disposition == 'FAILED' ? 'Falha' : c.disposition}"
+              th:class="|${c.disposition == 'ANSWERED' ? 'bg-[#E1F5EE] text-[#085041]' :
+                           c.disposition == 'BUSY'     ? 'bg-[#FEF9C3] text-[#713F12]' :
+                           c.disposition == 'FAILED'   ? 'bg-[#FEE2E2] text-[#7F1D1D]' :
+                                                          'bg-[#f5f5f5] text-[#888]'} rounded-[99px] text-[12px] px-[9px] py-[2px] font-medium whitespace-nowrap|">
+        </span>
+
+        <!-- Custeio (callStatus) -->
+        <span th:if="${c.callStatus != null}"
+              th:text="${c.callStatus.name() == 'PROCESSED' ? 'Processado' :
+                         c.callStatus.name() == 'NO_CIRCUIT' ? 'Sem circuito' :
+                         c.callStatus.name() == 'NO_PLAN' ? 'Sem plano' :
+                         c.callStatus.name() == 'OUT_OF_SCOPE' ? 'Fora de escopo' : c.callStatus.name()}"
+              th:class="|${c.callStatus.name() == 'PROCESSED' ? 'bg-[#E1F5EE] text-[#085041]' : 'bg-[#f5f5f5] text-[#888]'} rounded-[99px] text-[12px] px-[9px] py-[2px] font-medium whitespace-nowrap|">
+        </span>
+        <span th:unless="${c.callStatus != null}" class="text-[13px] text-[#aaa]">—</span>
+
+        <!-- Valor -->
+        <span class="text-[13px] font-mono text-[#1a1a1a]"
+              th:text="${c.cost != null ? 'R$ ' + #numbers.formatDecimal(c.cost, 1, 'POINT', 2, 'COMMA') : '—'}">
+        </span>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- OOB: contador -->
+  <p id="cdr-counter" hx-swap-oob="innerHTML"
+     th:text="${calls.totalElements == 1 ? '1 chamada registrada' : calls.totalElements + ' chamadas registradas'}"></p>
+
+  <!-- OOB: paginação no toolbar -->
+  <div id="pagination-toolbar" hx-swap-oob="innerHTML">
+    <div th:replace="~{fragments/pagination :: pagination(
+        page=${calls},
+        hxGet=${'/cdrs/table?sort=' + sort + (!#strings.isEmpty(disposition) ? '&disposition=' + disposition : '')},
+        hxTarget='#table-container',
+        hxInclude='.cdr-filter')}">
+    </div>
+  </div>
+
+</div>
+
+<th:block th:if="${toastMsg}">
+  <div th:replace="~{fragments/toast :: toast(toastMessage=${toastMsg}, toastType=${toastType})}"></div>
+</th:block>
+
+</body>
+</html>

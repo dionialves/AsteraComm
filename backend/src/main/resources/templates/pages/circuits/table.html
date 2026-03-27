@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="table">
+
+  <input type="hidden" id="current-sort"   name="sort"   th:value="${sort}"   class="circuit-filter"/>
+  <input type="hidden" id="current-filter" name="filter" th:value="${filter}" class="circuit-filter"/>
+  <input type="hidden" name="size" value="20" class="circuit-filter"/>
+
+  <div class="rounded-xl border border-[#e0e0e0] overflow-hidden">
+
+    <!-- Header -->
+    <div class="circuit-row bg-[#f5f5f5] border-b border-[#e0e0e0] cursor-default">
+      <span data-field="number"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">
+        Código
+      </span>
+      <span data-field="customerName"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">
+        Cliente
+      </span>
+      <span data-field="planName"
+            class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">
+        Plano
+      </span>
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Tronco</span>
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Status</span>
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Online</span>
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">IP</span>
+    </div>
+
+    <!-- Corpo -->
+    <div id="tbody-circuits">
+      <div th:if="${circuits.empty}" class="py-10 text-center text-[13px] text-[#aaa]">
+        Nenhum circuito encontrado.
+      </div>
+      <div th:each="c : ${circuits.content}"
+           class="circuit-row"
+           th:classappend="${!c.active} ? ' row-inactive'"
+           th:attr="data-number=${c.number},
+                    hx-get=${'/circuits/' + c.number + '/modal'}"
+           hx-target="#modal-container"
+           hx-swap="innerHTML">
+        <span class="text-[13px] font-mono text-[#1a1a1a]" th:text="${c.number}"></span>
+        <span class="text-[13px] text-[#1a1a1a]" th:text="${c.customerName}"></span>
+        <span class="text-[13px] text-[#888]"    th:text="${c.planName ?: '—'}"></span>
+        <span class="text-[13px] text-[#888]"    th:text="${c.trunkName}"></span>
+        <span>
+          <span th:if="${c.active}"
+                class="bg-[#E1F5EE] text-[#085041] rounded-[99px] text-[12px] px-[9px] py-[2px] font-medium whitespace-nowrap">Ativo</span>
+          <span th:unless="${c.active}"
+                class="bg-[#f5f5f5] text-[#888] rounded-[99px] text-[12px] px-[9px] py-[2px] font-medium whitespace-nowrap">Inativo</span>
+        </span>
+        <span class="flex items-center gap-1.5">
+          <span th:class="${c.online} ? 'inline-block w-[7px] h-[7px] rounded-full bg-[#1D9E75]' : 'inline-block w-[7px] h-[7px] rounded-full bg-[#E24B4A]'"></span>
+          <span class="text-[12px]" th:classappend="${c.online} ? ' text-[#085041]' : ' text-[#888]'"
+                th:text="${c.online} ? 'Online' : 'Offline'"></span>
+        </span>
+        <span class="text-[13px] font-mono text-[#888]" th:text="${c.ip ?: '—'}"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- OOB: contador -->
+  <p id="circuit-counter" hx-swap-oob="innerHTML"
+     th:text="${circuits.totalElements == 1 ? '1 circuito cadastrado' : circuits.totalElements + ' circuitos cadastrados'}"></p>
+
+  <!-- OOB: paginação no toolbar -->
+  <div id="pagination-toolbar" hx-swap-oob="innerHTML">
+    <div th:replace="~{fragments/pagination :: pagination(
+        page=${circuits},
+        hxGet=${'/circuits/table?sort=' + sort + (!#strings.isEmpty(filter) ? '&filter=' + filter : '')},
+        hxTarget='#table-container',
+        hxInclude='.circuit-filter')}">
+    </div>
+  </div>
+
+</div>
+
+<th:block th:if="${toastMsg}">
+  <div th:replace="~{fragments/toast :: toast(toastMessage=${toastMsg}, toastType=${toastType})}"></div>
+</th:block>
+
+<div th:if="${clearModal}" id="modal-container" hx-swap-oob="innerHTML"></div>
+
+</body>
+</html>

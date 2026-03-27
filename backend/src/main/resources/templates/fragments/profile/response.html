@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--
+  Fragment retornado após operações de perfil bem-sucedidas.
+  O conteúdo principal está vazio (fecha o modal no #modal-container).
+  O toast OOB é extraído pelo HTMX e inserido em #toast-container.
+-->
+<th:block th:fragment="ok">
+  <th:block th:replace="~{fragments/toast :: toast(toastMessage=${toastMsg}, toastType=${toastType})}"></th:block>
+</th:block>
+
+</body>
+</html>

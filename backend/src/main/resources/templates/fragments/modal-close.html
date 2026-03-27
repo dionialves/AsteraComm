@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--
+  Fragment: modal-close
+  Usado como resposta de DELETE com sucesso quando hx-target='#modal-container'.
+  Substitui o conteúdo do #modal-container (fecha o modal) e dispara reload da tabela.
+
+  Atributos de model necessários:
+    - tableUrl    : URL para recarregar a tabela (ex: "/circuits/table")
+    - refreshTable: true para acionar o reload
+    - toastMsg    : mensagem de toast (opcional)
+    - toastType   : "success" | "error" (opcional)
+-->
+<div th:fragment="close">
+  <div th:if="${refreshTable}"
+       th:attr="hx-get=${tableUrl}"
+       hx-target="#table-container"
+       hx-swap="innerHTML"
+       hx-trigger="load"
+       class="hidden"></div>
+  <th:block th:if="${toastMsg}">
+    <div th:replace="~{fragments/toast :: toast(toastMessage=${toastMsg}, toastType=${toastType})}"></div>
+  </th:block>
+</div>
+
+</body>
+</html>
