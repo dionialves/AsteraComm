@@ -4,6 +4,22 @@
 
 ---
 
+### US-067 — Tronco SIP com autenticação por IP (IP Auth)
+
+Solução:
+
+- `TrunkAuthType` enum: `CREDENTIAL` | `IP_AUTH`.
+- `Trunk`: campos `authType` (not null, default CREDENTIAL), `identifyMatch` (nullable); `username`/`password` tornam-se nullable.
+- Flyway V9: altera `asteracomm_trunks` — adiciona `auth_type`, `identify_match`, torna `username`/`password` nullable.
+- `PsEndpointIdIp`: entidade mapeada para `ps_endpoint_id_ips` (tabela PJSIP já existente no schema do Asterisk).
+- `AsteriskProvisioningService`: provisionamento, reprovisionamento e desprovisionamento com branch por tipo — IP_AUTH usa `ps_endpoint_id_ips` em vez de `ps_auths`/`ps_registrations`.
+- Modal: seletor de tipo com campos dinâmicos (Usuário/Senha ↔ IP de identificação); tipo bloqueado em edição.
+- Tabela: coluna Tipo (badge Login/Senha vs. IP Auth) e coluna Registro (N/A para IP_AUTH).
+- Validação server-side: `username` obrigatório em CREDENTIAL; `identifyMatch` obrigatório em IP_AUTH.
+- Testes: `TrunkServiceTest` e `TrunkProvisioningContextTest` com 15+ novos casos cobrindo ambos os tipos.
+
+---
+
 ### FIX-012 — Top 10 circuitos por consumo ignora planos por categoria
 
 Solução:

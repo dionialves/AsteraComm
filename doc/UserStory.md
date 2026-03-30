@@ -7,10 +7,9 @@
 3. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
 4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
 5. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
-6. [US-040 — Refatoração: extrair scripts de modal para arquivos `.ts` importáveis nas páginas Astro](#us-040)
-7. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
-8. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
-9. [US-066 — Refatoração: menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
+6. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
+7. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
+8. [US-066 — Refatoração: menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
 
 ---
 
@@ -148,26 +147,6 @@ Como administrador, quero que cada DID registre a data em que foi vinculado a um
 3. **Migração:** Uma migração Flyway adiciona a coluna `linked_at` à tabela de DIDs, com valor `NULL` para registros existentes.
 4. **API:** O endpoint `GET /api/v1/dids/by-circuit/{circuitId}` retorna o campo `linkedAt` no JSON de cada DID.
 5. **Frontend:** Nenhuma alteração necessária — a página de detalhe do circuito já usa `did.linkedAt` na coluna "Vinculado em".
-
----
-
-## US-040
-
-**Titulo:** Refatoração: extrair scripts de modal para arquivos `.ts` importáveis nas páginas Astro
-
-**Descrição:**
-Como desenvolvedor, quero que a lógica dos modais (`ModalSystem`, `ChipSelect` e os scripts de abertura/população de modal) seja extraída dos blocos `<script>` inline das páginas Astro para arquivos TypeScript dedicados, eliminando a duplicação de código entre `circuits/index.astro` e `customers/index.astro` e tornando a adição de novos modais mais simples.
-
-**Estimativa:** 2 story points
-
-**Critérios de Aceite:**
-
-1. **Resolução do alias `@/`:** O bundler Vite resolve corretamente imports `@/lib/*` nos scripts das páginas Astro (sem `is:inline` e sem `type="module"`), eliminando o erro "bare specifier".
-2. **`ModalSystem` e `ChipSelect` importados:** As classes deixam de ser copiadas inline em cada página e passam a ser importadas de `src/lib/modal-system.ts` e `src/lib/chip-select.ts`.
-3. **Scripts de página extraídos:** A lógica de cada modal (população de campos, save, delete, tabs) é movida para arquivos como `src/lib/modals/circuit-modal.ts` e `src/lib/modals/customer-modal.ts`, importados nas respectivas páginas.
-4. **Sem duplicação:** O sub-modal de cliente (aberto a partir do circuito) reutiliza a lógica de `customer-modal.ts`.
-5. **Comportamento preservado:** Todos os critérios da US-039 continuam funcionando após a refatoração.
-6. **Testes:** Os testes existentes de `ModalSystem` e `ChipSelect` continuam passando.
 
 ---
 
