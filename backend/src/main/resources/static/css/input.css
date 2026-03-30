@@ -116,7 +116,7 @@
 
 .trunk-row {
   display: grid;
-  grid-template-columns: 40px minmax(0,1fr) minmax(0,1.5fr) minmax(0,1fr) 130px;
+  grid-template-columns: 40px minmax(0,1fr) minmax(0,1.5fr) 100px 130px;
   gap: 8px;
 }
 .plan-row {

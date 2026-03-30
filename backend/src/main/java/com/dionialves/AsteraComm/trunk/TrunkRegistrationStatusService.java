@@ -19,7 +19,10 @@ public class TrunkRegistrationStatusService {
 
     @Scheduled(fixedRateString = "${asterisk.status.interval.ms}")
     public void updateRegistrationStatus() {
-        List<Trunk> trunks = trunkRepository.findAll();
+        List<Trunk> trunks = trunkRepository.findAll().stream()
+                .filter(t -> t.getAuthType() == TrunkAuthType.CREDENTIAL)
+                .toList();
+
         if (trunks.isEmpty()) {
             return;
         }

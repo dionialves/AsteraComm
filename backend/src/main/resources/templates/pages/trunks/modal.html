@@ -31,6 +31,8 @@
           hx-swap="innerHTML"
           class="flex flex-col flex-1 min-h-0">
       <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      <input type="hidden" name="authType" id="input-auth-type"
+             th:value="${trunk != null} ? ${trunk.authType.name()} : 'CREDENTIAL'"/>
 
       <div class="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
 
@@ -55,6 +57,29 @@
 
         <hr class="border-t border-[#e5e7eb]"/>
 
+        <!-- Tipo de autenticação -->
+        <p class="text-[12px] font-semibold text-[#888] uppercase tracking-wide">Autenticação</p>
+        <div class="flex flex-col gap-2">
+          <label class="text-[13px] font-medium text-[#1a1a1a]">Tipo de autenticação</label>
+          <div id="auth-type-selector"
+               th:classappend="${trunk != null} ? 'pointer-events-none opacity-55'"
+               class="flex border border-[#e0e0e0] rounded-md overflow-hidden text-[13px] w-fit">
+            <button type="button" id="btn-auth-credential"
+                    class="px-3 py-[7px] border-r border-[#e0e0e0] transition-colors"
+                    onclick="setAuthType('CREDENTIAL')">
+              Login / Senha
+            </button>
+            <button type="button" id="btn-auth-ip"
+                    class="px-3 py-[7px] transition-colors"
+                    onclick="setAuthType('IP_AUTH')">
+              Autenticação por IP
+            </button>
+          </div>
+          <span th:if="${trunk != null}" class="text-[11px] text-[#aaa]">O tipo não pode ser alterado após a criação.</span>
+        </div>
+
+        <hr class="border-t border-[#e5e7eb]"/>
+
         <!-- Conexão SIP -->
         <p class="text-[12px] font-semibold text-[#888] uppercase tracking-wide">Conexão SIP</p>
 
@@ -66,33 +91,47 @@
                  class="w-full px-3 py-[9px] text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] transition-colors font-mono"/>
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
-          <div class="flex flex-col gap-1.5">
-            <label class="text-[13px] font-medium text-[#1a1a1a]">Usuário <span class="text-[#E24B4A]">*</span></label>
-            <input name="username" type="text" required maxlength="100"
-                   th:value="${trunk?.username}"
-                   placeholder="Usuário SIP"
-                   class="w-full px-3 py-[9px] text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] transition-colors"/>
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <label class="text-[13px] font-medium text-[#1a1a1a]">
-              Senha
-              <span th:if="${trunk == null}" class="text-[#E24B4A]">*</span>
-              <span th:if="${trunk != null}" class="text-[11px] text-[#aaa] font-normal">(vazio = manter atual)</span>
-            </label>
-            <div class="relative">
-              <input id="pwd-trunk" name="password" type="password" maxlength="100"
-                     th:required="${trunk == null}"
-                     placeholder="••••••••"
-                     autocomplete="new-password"
-                     class="w-full px-3 py-[9px] pr-9 text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] transition-colors"/>
-              <button id="btn-toggle-pw" type="button"
-                      class="absolute right-[9px] top-1/2 -translate-y-1/2 text-[#aaa] hover:text-[#555]">
-                <svg id="eye-trunk" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-                </svg>
-              </button>
+        <!-- Campos exclusivos de CREDENTIAL -->
+        <div id="fields-credential">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="flex flex-col gap-1.5">
+              <label class="text-[13px] font-medium text-[#1a1a1a]">Usuário <span class="text-[#E24B4A]">*</span></label>
+              <input id="input-username" name="username" type="text" maxlength="100"
+                     th:value="${trunk?.username}"
+                     placeholder="Usuário SIP"
+                     class="w-full px-3 py-[9px] text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] transition-colors"/>
             </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-[13px] font-medium text-[#1a1a1a]">
+                Senha
+                <span th:if="${trunk == null}" class="text-[#E24B4A]">*</span>
+                <span th:if="${trunk != null}" class="text-[11px] text-[#aaa] font-normal">(vazio = manter atual)</span>
+              </label>
+              <div class="relative">
+                <input id="pwd-trunk" name="password" type="password" maxlength="100"
+                       placeholder="••••••••"
+                       autocomplete="new-password"
+                       class="w-full px-3 py-[9px] pr-9 text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] transition-colors"/>
+                <button id="btn-toggle-pw" type="button"
+                        class="absolute right-[9px] top-1/2 -translate-y-1/2 text-[#aaa] hover:text-[#555]">
+                  <svg id="eye-trunk" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Campos exclusivos de IP_AUTH -->
+        <div id="fields-ip-auth">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[13px] font-medium text-[#1a1a1a]">IP / Hostname de identificação <span class="text-[#E24B4A]">*</span></label>
+            <input id="input-identify-match" name="identifyMatch" type="text" maxlength="255"
+                   th:value="${trunk?.identifyMatch}"
+                   placeholder="Ex: sip.operadora.com.br"
+                   class="w-full px-3 py-[9px] text-[13px] border border-[#e0e0e0] rounded-md outline-none focus:border-[#1D9E75] transition-colors font-mono"/>
+            <span class="text-[11px] text-[#aaa]">Chamadas SIP originadas deste IP/hostname serão identificadas como este tronco.</span>
           </div>
         </div>
 
@@ -144,19 +183,59 @@
 
   <script>
     (function () {
+      // ── toggle show/hide senha ─────────────────────────────────────────────
       var pwd = document.getElementById('pwd-trunk');
       var eye = document.getElementById('eye-trunk');
       var btn = document.getElementById('btn-toggle-pw');
-      if (!btn || !pwd) return;
-      btn.addEventListener('click', function () {
-        if (pwd.type === 'password') {
-          pwd.type = 'text';
-          eye.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>';
-        } else {
-          pwd.type = 'password';
-          eye.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
-        }
-      });
+      if (btn && pwd) {
+        btn.addEventListener('click', function () {
+          if (pwd.type === 'password') {
+            pwd.type = 'text';
+            eye.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>';
+          } else {
+            pwd.type = 'password';
+            eye.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+          }
+        });
+      }
+
+      // ── seletor de tipo de autenticação ───────────────────────────────────
+      function setAuthType(type) {
+        document.getElementById('input-auth-type').value = type;
+
+        var credFields  = document.getElementById('fields-credential');
+        var ipFields    = document.getElementById('fields-ip-auth');
+        var btnCred     = document.getElementById('btn-auth-credential');
+        var btnIp       = document.getElementById('btn-auth-ip');
+        var usernameIn  = document.getElementById('input-username');
+        var identifyIn  = document.getElementById('input-identify-match');
+
+        var isCredential = type === 'CREDENTIAL';
+
+        credFields.style.display  = isCredential ? '' : 'none';
+        ipFields.style.display    = isCredential ? 'none' : '';
+
+        // required dinâmico
+        if (usernameIn) usernameIn.required = isCredential;
+        if (identifyIn) identifyIn.required = !isCredential;
+
+        // estilos dos botões
+        var activeClass   = 'px-3 py-[7px] border-r border-[#e0e0e0] transition-colors bg-white text-[#1a1a1a] font-medium';
+        var inactiveClass = 'px-3 py-[7px] border-r border-[#e0e0e0] transition-colors bg-white text-[#888]';
+        if (btnCred) btnCred.className = isCredential
+          ? 'px-3 py-[7px] border-r border-[#e0e0e0] transition-colors bg-white text-[#1a1a1a] font-medium'
+          : 'px-3 py-[7px] border-r border-[#e0e0e0] transition-colors bg-white text-[#888]';
+        if (btnIp) btnIp.className = !isCredential
+          ? 'px-3 py-[7px] transition-colors bg-white text-[#1a1a1a] font-medium'
+          : 'px-3 py-[7px] transition-colors bg-white text-[#888]';
+      }
+
+      // inicializar com o tipo atual
+      var currentType = document.getElementById('input-auth-type').value || 'CREDENTIAL';
+      setAuthType(currentType);
+
+      // expor para os botões onclick
+      window.setAuthType = setAuthType;
     })();
   </script>
 </div>

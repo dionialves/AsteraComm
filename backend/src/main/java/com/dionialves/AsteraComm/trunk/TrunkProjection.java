@@ -5,5 +5,6 @@ public interface TrunkProjection {
     String getName();
     String getHost();
     String getUsername();
+    String getAuthType();
     boolean isRegistered();
 }

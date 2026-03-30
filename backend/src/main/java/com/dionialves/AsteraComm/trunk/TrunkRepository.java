@@ -38,22 +38,25 @@ public interface TrunkRepository extends JpaRepository<Trunk, Long> {
                 ORDER BY trunk_name, id DESC
             )
             SELECT
-                t.id AS id,
-                t.name AS name,
-                t.host AS host,
-                t.username AS username,
+                t.id          AS id,
+                t.name        AS name,
+                t.host        AS host,
+                t.username    AS username,
+                t.auth_type   AS authType,
                 CASE WHEN s.registered IS NOT NULL AND s.registered THEN true ELSE false END AS registered
             FROM asteracomm_trunks t
             LEFT JOIN last_status s ON s.trunk_name = t.name
             WHERE LOWER(t.name) LIKE LOWER(CONCAT('%', :search, '%'))
             OR LOWER(t.host) LIKE LOWER(CONCAT('%', :search, '%'))
-            OR LOWER(t.username) LIKE LOWER(CONCAT('%', :search, '%'))
+            OR LOWER(COALESCE(t.username, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+            OR LOWER(COALESCE(t.identify_match, '')) LIKE LOWER(CONCAT('%', :search, '%'))
             """, countQuery = """
             SELECT COUNT(*)
             FROM asteracomm_trunks t
             WHERE LOWER(t.name) LIKE LOWER(CONCAT('%', :search, '%'))
             OR LOWER(t.host) LIKE LOWER(CONCAT('%', :search, '%'))
-            OR LOWER(t.username) LIKE LOWER(CONCAT('%', :search, '%'))
+            OR LOWER(COALESCE(t.username, '')) LIKE LOWER(CONCAT('%', :search, '%'))
+            OR LOWER(COALESCE(t.identify_match, '')) LIKE LOWER(CONCAT('%', :search, '%'))
             """, nativeQuery = true)
     Page<TrunkProjection> findAllTrunks(@Param("search") String search, Pageable pageable);
 }

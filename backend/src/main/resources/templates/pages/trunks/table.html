@@ -11,10 +11,10 @@
 
     <!-- Header -->
     <div class="trunk-row bg-[#f5f5f5] border-b border-[#e0e0e0]" style="cursor:default">
-      <span data-field="id"       class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">ID</span>
-      <span data-field="name"     class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Nome</span>
-      <span data-field="host"     class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Host</span>
-      <span data-field="username" class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Usuário</span>
+      <span data-field="id"   class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">ID</span>
+      <span data-field="name" class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Nome</span>
+      <span data-field="host" class="sort-col text-[11px] font-medium text-[#888] uppercase tracking-wide cursor-pointer select-none flex items-center gap-1">Host</span>
+      <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Tipo</span>
       <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Registro</span>
     </div>
 
@@ -32,13 +32,28 @@
         <span class="text-[13px] font-mono text-[#888]" th:text="${t.id}"></span>
         <span class="text-[13px] font-medium text-[#1a1a1a] truncate" th:text="${t.name}"></span>
         <span class="text-[12px] font-mono text-[#1a1a1a] truncate" th:text="${t.host}"></span>
-        <span class="text-[13px] text-[#1a1a1a] truncate" th:text="${t.username}"></span>
+        <!-- Tipo -->
         <span>
-          <span th:if="${t.registered}"
+          <span th:if="${t.authType == 'IP_AUTH'}"
+                class="bg-[#E6F1FB] text-[#0C447C] rounded-[99px] text-[11px] px-[9px] py-[2px] font-medium whitespace-nowrap">
+            IP Auth
+          </span>
+          <span th:unless="${t.authType == 'IP_AUTH'}"
+                class="bg-[#f5f5f5] text-[#888] rounded-[99px] text-[11px] px-[9px] py-[2px] font-medium whitespace-nowrap">
+            Login/Senha
+          </span>
+        </span>
+        <!-- Registro -->
+        <span>
+          <span th:if="${t.authType == 'IP_AUTH'}"
+                class="bg-[#f5f5f5] text-[#888] rounded-[99px] text-[11px] px-[10px] py-[2px] font-medium whitespace-nowrap">
+            N/A
+          </span>
+          <span th:if="${t.authType != 'IP_AUTH'} and ${t.registered}"
                 class="bg-[#E1F5EE] text-[#085041] rounded-[99px] text-[11px] px-[10px] py-[2px] font-medium whitespace-nowrap">
             Registrado
           </span>
-          <span th:unless="${t.registered}"
+          <span th:if="${t.authType != 'IP_AUTH'} and ${!t.registered}"
                 class="bg-[#FCEBEB] text-[#791F1F] rounded-[99px] text-[11px] px-[10px] py-[2px] font-medium whitespace-nowrap">
             Não registrado
           </span>

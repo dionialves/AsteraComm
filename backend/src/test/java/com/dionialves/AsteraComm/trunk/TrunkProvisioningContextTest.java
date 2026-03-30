@@ -6,6 +6,8 @@ import com.dionialves.AsteraComm.asterisk.endpoint.EndpointRepository;
 import com.dionialves.AsteraComm.asterisk.endpoint.EndpointStatusRepository;
 import com.dionialves.AsteraComm.asterisk.extension.ExtensionRepository;
 import com.dionialves.AsteraComm.asterisk.dialplan.DialplanGeneratorService;
+import com.dionialves.AsteraComm.asterisk.endpointidip.PsEndpointIdIp;
+import com.dionialves.AsteraComm.asterisk.endpointidip.PsEndpointIdIpRepository;
 import com.dionialves.AsteraComm.asterisk.provisioning.AmiService;
 import com.dionialves.AsteraComm.asterisk.provisioning.AsteriskProvisioningService;
 import com.dionialves.AsteraComm.asterisk.registration.PsRegistrationRepository;
@@ -17,13 +19,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 /**
- * Testa o provisionamento de troncos conforme US-009:
- * - ps_endpoints.context = "pstn-<nome>"
- * - Extensions de saída criadas em "internal-<nome>"
- * - Dial com prefixo opcional
+ * Testa o provisionamento de troncos:
+ * - CREDENTIAL: ps_endpoints.context = "pstn-<nome>", extensions de saída em "internal-<nome>"
+ * - IP_AUTH: ps_identify criado, sem ps_auths/ps_registrations
  */
 @ExtendWith(MockitoExtension.class)
 class TrunkProvisioningContextTest {
@@ -34,48 +35,59 @@ class TrunkProvisioningContextTest {
     @Mock private ExtensionRepository extensionRepository;
     @Mock private EndpointStatusRepository endpointStatusRepository;
     @Mock private PsRegistrationRepository psRegistrationRepository;
+    @Mock private PsEndpointIdIpRepository psEndpointIdIpRepository;
     @Mock private AmiService amiService;
     @Mock private DialplanGeneratorService dialplanGeneratorService;
 
     @InjectMocks
     private AsteriskProvisioningService provisioningService;
 
-    private Trunk trunkSemPrefix;
-    private Trunk trunkComPrefix;
+    private Trunk trunkCredential;
+    private Trunk trunkCredentialComPrefix;
+    private Trunk trunkIpAuth;
 
     @BeforeEach
     void setUp() {
-        trunkSemPrefix = new Trunk();
-        trunkSemPrefix.setName("opasuite");
-        trunkSemPrefix.setHost("sip.opasuite.com.br");
-        trunkSemPrefix.setUsername("user123");
-        trunkSemPrefix.setPassword("senha123");
-        trunkSemPrefix.setPrefix(null);
+        trunkCredential = new Trunk();
+        trunkCredential.setName("opasuite");
+        trunkCredential.setHost("sip.opasuite.com.br");
+        trunkCredential.setUsername("user123");
+        trunkCredential.setPassword("senha123");
+        trunkCredential.setPrefix(null);
+        trunkCredential.setAuthType(TrunkAuthType.CREDENTIAL);
 
-        trunkComPrefix = new Trunk();
-        trunkComPrefix.setName("tellcheap");
-        trunkComPrefix.setHost("sip.tellcheap.com");
-        trunkComPrefix.setUsername("user456");
-        trunkComPrefix.setPassword("senha456");
-        trunkComPrefix.setPrefix("8712");
+        trunkCredentialComPrefix = new Trunk();
+        trunkCredentialComPrefix.setName("tellcheap-cred");
+        trunkCredentialComPrefix.setHost("sip.tellcheap.com");
+        trunkCredentialComPrefix.setUsername("user456");
+        trunkCredentialComPrefix.setPassword("senha456");
+        trunkCredentialComPrefix.setPrefix("8712");
+        trunkCredentialComPrefix.setAuthType(TrunkAuthType.CREDENTIAL);
+
+        trunkIpAuth = new Trunk();
+        trunkIpAuth.setName("tellcheap");
+        trunkIpAuth.setHost("sip.tellcheap.com.br");
+        trunkIpAuth.setAuthType(TrunkAuthType.IP_AUTH);
+        trunkIpAuth.setIdentifyMatch("sip.tellcheap.com.br");
+        trunkIpAuth.setPrefix(null);
     }
 
-    // === Contexto do ps_endpoint do tronco ===
+    // ── CREDENTIAL: contexto do endpoint ──────────────────────────────────────
 
     @Test
-    void provisionTrunk_shouldSetEndpointContextToPstnPrefix() {
-        provisioningService.provisionTrunk(trunkSemPrefix);
+    void provisionTrunk_credential_shouldSetEndpointContextToPstnPrefix() {
+        provisioningService.provisionTrunk(trunkCredential);
 
         verify(endpointRepository).save(argThat(e ->
                 e.getId().equals("opasuite")
                 && e.getContext().equals("pstn-opasuite")));
     }
 
-    // === Extensions de saída (rota auto-criada) — sem prefix ===
+    // ── CREDENTIAL: extensions de saída — sem prefix ──────────────────────────
 
     @Test
-    void provisionTrunk_shouldCreateNoOpExtensionInInternalContext() {
-        provisioningService.provisionTrunk(trunkSemPrefix);
+    void provisionTrunk_credential_shouldCreateNoOpExtensionInInternalContext() {
+        provisioningService.provisionTrunk(trunkCredential);
 
         verify(extensionRepository).save(argThat(e ->
                 e.getContext().equals("internal-opasuite")
@@ -85,8 +97,8 @@ class TrunkProvisioningContextTest {
     }
 
     @Test
-    void provisionTrunk_shouldCreateDialExtensionWithoutPrefix() {
-        provisioningService.provisionTrunk(trunkSemPrefix);
+    void provisionTrunk_credential_shouldCreateDialExtensionWithoutPrefix() {
+        provisioningService.provisionTrunk(trunkCredential);
 
         verify(extensionRepository).save(argThat(e ->
                 e.getContext().equals("internal-opasuite")
@@ -97,8 +109,8 @@ class TrunkProvisioningContextTest {
     }
 
     @Test
-    void provisionTrunk_shouldCreateHangupExtension() {
-        provisioningService.provisionTrunk(trunkSemPrefix);
+    void provisionTrunk_credential_shouldCreateHangupExtension() {
+        provisioningService.provisionTrunk(trunkCredential);
 
         verify(extensionRepository).save(argThat(e ->
                 e.getContext().equals("internal-opasuite")
@@ -107,35 +119,159 @@ class TrunkProvisioningContextTest {
                 && e.getApp().equals("Hangup")));
     }
 
-    // === Extensions de saída com prefix ===
+    @Test
+    void provisionTrunk_credential_shouldCreateDialExtensionWithPrefix() {
+        provisioningService.provisionTrunk(trunkCredentialComPrefix);
+
+        verify(extensionRepository).save(argThat(e ->
+                e.getContext().equals("internal-tellcheap-cred")
+                && e.getPriority() == 2
+                && e.getApp().equals("Dial")
+                && e.getAppdata().equals("PJSIP/8712${EXTEN}@tellcheap-cred,60")));
+    }
+
+    // ── CREDENTIAL: cria ps_auths e ps_registrations ──────────────────────────
 
     @Test
-    void provisionTrunk_shouldCreateDialExtensionWithPrefix() {
-        provisioningService.provisionTrunk(trunkComPrefix);
+    void provisionTrunk_credential_shouldCreateAuth() {
+        provisioningService.provisionTrunk(trunkCredential);
+
+        verify(authRepository).save(argThat(a ->
+                a.getId().equals("opasuite")
+                && a.getUsername().equals("user123")
+                && a.getPassword().equals("senha123")));
+    }
+
+    @Test
+    void provisionTrunk_credential_shouldCreateRegistration() {
+        provisioningService.provisionTrunk(trunkCredential);
+
+        verify(psRegistrationRepository).save(argThat(r ->
+                r.getId().equals("opasuite")
+                && r.getServerUri().equals("sip:sip.opasuite.com.br")
+                && r.getClientUri().equals("sip:user123@sip.opasuite.com.br")));
+    }
+
+    @Test
+    void provisionTrunk_credential_shouldNotCreatePsIdentify() {
+        provisioningService.provisionTrunk(trunkCredential);
+
+        verify(psEndpointIdIpRepository, never()).save(any());
+    }
+
+    // ── IP_AUTH: cria ps_identify, sem ps_auths / ps_registrations ────────────
+
+    @Test
+    void provisionTrunk_ipAuth_shouldCreatePsIdentifyWithCorrectMatch() {
+        provisioningService.provisionTrunk(trunkIpAuth);
+
+        verify(psEndpointIdIpRepository).save(argThat(i ->
+                i.getId().equals("tellcheap")
+                && i.getEndpoint().equals("tellcheap")
+                && i.getMatch().equals("sip.tellcheap.com.br")));
+    }
+
+    @Test
+    void provisionTrunk_ipAuth_shouldNotCreateAuth() {
+        provisioningService.provisionTrunk(trunkIpAuth);
+
+        verify(authRepository, never()).save(any());
+    }
+
+    @Test
+    void provisionTrunk_ipAuth_shouldNotCreateRegistration() {
+        provisioningService.provisionTrunk(trunkIpAuth);
+
+        verify(psRegistrationRepository, never()).save(any());
+    }
+
+    @Test
+    void provisionTrunk_ipAuth_shouldCreateAorWithStaticContact() {
+        provisioningService.provisionTrunk(trunkIpAuth);
+
+        verify(aorRepository).save(argThat(a ->
+                a.getId().equals("tellcheap")
+                && a.getContact().equals("sip:sip.tellcheap.com.br:5060")));
+    }
+
+    @Test
+    void provisionTrunk_ipAuth_shouldSetEndpointWithoutAuthFields() {
+        provisioningService.provisionTrunk(trunkIpAuth);
+
+        verify(endpointRepository).save(argThat(e ->
+                e.getId().equals("tellcheap")
+                && e.getAuth() == null
+                && e.getOutboundAuth() == null
+                && e.getContext().equals("pstn-tellcheap")));
+    }
+
+    @Test
+    void provisionTrunk_ipAuth_shouldCreateOutboundExtensions() {
+        provisioningService.provisionTrunk(trunkIpAuth);
 
         verify(extensionRepository).save(argThat(e ->
                 e.getContext().equals("internal-tellcheap")
                 && e.getPriority() == 2
-                && e.getApp().equals("Dial")
-                && e.getAppdata().equals("PJSIP/8712${EXTEN}@tellcheap,60")));
+                && e.getApp().equals("Dial")));
     }
 
-    // === Reprovisionamento ===
+    // ── deprovisionTrunk: IP_AUTH não toca em auth/registration ───────────────
 
     @Test
-    void reprovisionTrunk_shouldDeleteAndRecreatOutboundExtensions() {
-        provisioningService.reprovisionTrunk(trunkSemPrefix);
+    void deprovisionTrunk_ipAuth_shouldDeletePsIdentify() {
+        provisioningService.deprovisionTrunk(trunkIpAuth);
+
+        verify(psEndpointIdIpRepository).findById("tellcheap");
+    }
+
+    @Test
+    void deprovisionTrunk_ipAuth_shouldNotTouchAuthOrRegistration() {
+        provisioningService.deprovisionTrunk(trunkIpAuth);
+
+        verify(authRepository, never()).findById(any());
+        verify(psRegistrationRepository, never()).findById(any());
+    }
+
+    @Test
+    void deprovisionTrunk_credential_shouldDeleteOutboundExtensions() {
+        provisioningService.deprovisionTrunk(trunkCredential);
+
+        verify(extensionRepository).deleteByExtenAndContext("_X.", "internal-opasuite");
+    }
+
+    // ── reprovisionTrunk ──────────────────────────────────────────────────────
+
+    @Test
+    void reprovisionTrunk_credential_shouldDeleteAndRecreateOutboundExtensions() {
+        provisioningService.reprovisionTrunk(trunkCredential);
 
         verify(extensionRepository).deleteByExtenAndContext("_X.", "internal-opasuite");
         verify(extensionRepository).save(argThat(e -> e.getPriority() == 2 && e.getApp().equals("Dial")));
     }
 
-    // === Deprovisionamento ===
+    @Test
+    void reprovisionTrunk_ipAuth_shouldNotTouchAuthOrRegistration() {
+        provisioningService.reprovisionTrunk(trunkIpAuth);
+
+        verify(authRepository, never()).findById(any());
+        verify(psRegistrationRepository, never()).findById(any());
+    }
 
     @Test
-    void deprovisionTrunk_shouldDeleteOutboundExtensions() {
-        provisioningService.deprovisionTrunk(trunkSemPrefix);
+    void reprovisionTrunk_ipAuth_shouldUpdatePsIdentifyMatch() {
+        PsEndpointIdIp existing = new PsEndpointIdIp();
+        existing.setId("tellcheap");
+        existing.setEndpoint("tellcheap");
+        existing.setMatch("old.host.com");
 
-        verify(extensionRepository).deleteByExtenAndContext("_X.", "internal-opasuite");
+        when(psEndpointIdIpRepository.findById("tellcheap"))
+                .thenReturn(java.util.Optional.of(existing));
+
+        trunkIpAuth.setIdentifyMatch("new.host.com");
+        trunkIpAuth.setHost("new.host.com");
+
+        provisioningService.reprovisionTrunk(trunkIpAuth);
+
+        verify(psEndpointIdIpRepository).save(argThat(i -> i.getMatch().equals("new.host.com")));
     }
 }

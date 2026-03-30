@@ -1,4 +1,13 @@
 package com.dionialves.AsteraComm.trunk.dto;
 
-public record TrunkCreateDTO(String name, String host, String username, String password, String prefix) {
-}
+import com.dionialves.AsteraComm.trunk.TrunkAuthType;
+
+public record TrunkCreateDTO(
+        String name,
+        String host,
+        String username,
+        String password,
+        String prefix,
+        TrunkAuthType authType,
+        String identifyMatch
+) {}

@@ -52,19 +52,23 @@ public class TrunkViewController {
     public String create(
             @RequestParam String name,
             @RequestParam String host,
-            @RequestParam String username,
-            @RequestParam String password,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String password,
             @RequestParam(defaultValue = "") String prefix,
+            @RequestParam(defaultValue = "CREDENTIAL") String authType,
+            @RequestParam(required = false) String identifyMatch,
             Model model) {
         try {
-            Trunk trunk = trunkService.create(new TrunkCreateDTO(name, host, username, password,
-                    prefix.isBlank() ? null : prefix));
+            TrunkAuthType type = TrunkAuthType.valueOf(authType);
+            Trunk trunk = trunkService.create(new TrunkCreateDTO(
+                    name, host,
+                    blankToNull(username), blankToNull(password),
+                    blankToNull(prefix),
+                    type, blankToNull(identifyMatch)));
             model.addAttribute("trunk", trunk);
             model.addAttribute("toastMsg", "Tronco criado com sucesso.");
             model.addAttribute("toastType", "success");
             model.addAttribute("refreshTable", true);
-            model.addAttribute("trunks", fetchPage(0, 20, "name,asc", ""));
-            model.addAttribute("sort", "name,asc");
         } catch (Exception e) {
             model.addAttribute("trunk", null);
             model.addAttribute("toastMsg", e.getMessage());
@@ -77,14 +81,19 @@ public class TrunkViewController {
     public String update(
             @PathVariable String name,
             @RequestParam String host,
-            @RequestParam String username,
+            @RequestParam(required = false) String username,
             @RequestParam(defaultValue = "") String password,
             @RequestParam(defaultValue = "") String prefix,
+            @RequestParam(required = false) String identifyMatch,
             Model model) {
         try {
-            trunkService.update(name, new TrunkCreateDTO(name, host, username,
-                    password.isBlank() ? null : password,
-                    prefix.isBlank() ? null : prefix));
+            Trunk existing = trunkService.findByName(name).orElse(null);
+            TrunkAuthType type = existing != null ? existing.getAuthType() : TrunkAuthType.CREDENTIAL;
+            trunkService.update(name, new TrunkCreateDTO(
+                    name, host,
+                    blankToNull(username), blankToNull(password),
+                    blankToNull(prefix),
+                    type, blankToNull(identifyMatch)));
             model.addAttribute("toastMsg", "Tronco atualizado com sucesso.");
             model.addAttribute("toastType", "success");
             model.addAttribute("refreshTable", true);
@@ -115,13 +124,6 @@ public class TrunkViewController {
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
-    private String tableFullResponse(Model model) {
-        model.addAttribute("trunks", fetchPage(0, 20, "name,asc", ""));
-        model.addAttribute("search", "");
-        model.addAttribute("sort", "name,asc");
-        return "pages/trunks/table";
-    }
-
     private Page<TrunkProjection> fetchPage(int page, int size, String sort, String search) {
         String[] parts = sort.split(",");
         String field = parts[0];
@@ -129,5 +131,9 @@ public class TrunkViewController {
                 ? Sort.Direction.DESC : Sort.Direction.ASC;
         Pageable pageable = PageRequest.of(page, size, Sort.by(dir, field));
         return trunkService.getAll(search, pageable);
+    }
+
+    private String blankToNull(String value) {
+        return (value == null || value.isBlank()) ? null : value;
     }
 }

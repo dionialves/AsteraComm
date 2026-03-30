@@ -10,11 +10,14 @@ import com.dionialves.AsteraComm.asterisk.endpoint.EndpointRepository;
 import com.dionialves.AsteraComm.asterisk.endpoint.EndpointStatusRepository;
 import com.dionialves.AsteraComm.asterisk.extension.Extension;
 import com.dionialves.AsteraComm.asterisk.extension.ExtensionRepository;
+import com.dionialves.AsteraComm.asterisk.endpointidip.PsEndpointIdIp;
+import com.dionialves.AsteraComm.asterisk.endpointidip.PsEndpointIdIpRepository;
 import com.dionialves.AsteraComm.asterisk.registration.PsRegistration;
 import com.dionialves.AsteraComm.asterisk.registration.PsRegistrationRepository;
 import com.dionialves.AsteraComm.circuit.Circuit;
 import com.dionialves.AsteraComm.did.DID;
 import com.dionialves.AsteraComm.trunk.Trunk;
+import com.dionialves.AsteraComm.trunk.TrunkAuthType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +32,7 @@ public class AsteriskProvisioningService {
     private final ExtensionRepository extensionRepository;
     private final EndpointStatusRepository endpointStatusRepository;
     private final PsRegistrationRepository psRegistrationRepository;
+    private final PsEndpointIdIpRepository psEndpointIdIpRepository;
     private final AmiService amiService;
     private final DialplanGeneratorService dialplanGeneratorService;
 
@@ -114,6 +118,17 @@ public class AsteriskProvisioningService {
 
     @Transactional
     public void provisionTrunk(Trunk trunk) {
+        if (trunk.getAuthType() == TrunkAuthType.IP_AUTH) {
+            provisionTrunkIpAuth(trunk);
+        } else {
+            provisionTrunkCredential(trunk);
+        }
+        createOutboundExtensions(trunk);
+        amiService.sendCommand("pjsip reload");
+        dialplanGeneratorService.generateAndReload();
+    }
+
+    private void provisionTrunkCredential(Trunk trunk) {
         String name = trunk.getName();
         String host = trunk.getHost();
 
@@ -147,15 +162,50 @@ public class AsteriskProvisioningService {
         registration.setOutboundAuth(name);
         registration.setRetryInterval("60");
         psRegistrationRepository.save(registration);
+    }
 
-        createOutboundExtensions(trunk);
+    private void provisionTrunkIpAuth(Trunk trunk) {
+        String name = trunk.getName();
+        String host = trunk.getHost();
 
-        amiService.sendCommand("pjsip reload");
-        dialplanGeneratorService.generateAndReload();
+        Aors aors = new Aors();
+        aors.setId(name);
+        aors.setContact("sip:" + host + ":5060");
+        aors.setQualifyFrequency("60");
+        aorRepository.save(aors);
+
+        Endpoint endpoint = new Endpoint();
+        endpoint.setId(name);
+        endpoint.setAors(aors);
+        endpoint.setContext("pstn-" + name);
+        endpoint.setDisallow("all");
+        endpoint.setAllow("ulaw,alaw");
+        endpoint.setDirect_media("no");
+        endpoint.setForce_rport("yes");
+        endpoint.setRewriteContact("yes");
+        endpoint.setRtpSymmetric("yes");
+        endpointRepository.save(endpoint);
+
+        PsEndpointIdIp identify = new PsEndpointIdIp();
+        identify.setId(name);
+        identify.setEndpoint(name);
+        identify.setMatch(trunk.getIdentifyMatch());
+        psEndpointIdIpRepository.save(identify);
     }
 
     @Transactional
     public void reprovisionTrunk(Trunk trunk) {
+        if (trunk.getAuthType() == TrunkAuthType.IP_AUTH) {
+            reprovisionTrunkIpAuth(trunk);
+        } else {
+            reprovisionTrunkCredential(trunk);
+        }
+        extensionRepository.deleteByExtenAndContext("_X.", "internal-" + trunk.getName());
+        createOutboundExtensions(trunk);
+        amiService.sendCommand("pjsip reload");
+    }
+
+    private void reprovisionTrunkCredential(Trunk trunk) {
         String name = trunk.getName();
         String host = trunk.getHost();
 
@@ -169,11 +219,20 @@ public class AsteriskProvisioningService {
             reg.setClientUri("sip:" + trunk.getUsername() + "@" + host);
             psRegistrationRepository.save(reg);
         });
+    }
 
-        extensionRepository.deleteByExtenAndContext("_X.", "internal-" + name);
-        createOutboundExtensions(trunk);
+    private void reprovisionTrunkIpAuth(Trunk trunk) {
+        String name = trunk.getName();
 
-        amiService.sendCommand("pjsip reload");
+        aorRepository.findById(name).ifPresent(aors -> {
+            aors.setContact("sip:" + trunk.getHost() + ":5060");
+            aorRepository.save(aors);
+        });
+
+        psEndpointIdIpRepository.findById(name).ifPresent(identify -> {
+            identify.setMatch(trunk.getIdentifyMatch());
+            psEndpointIdIpRepository.save(identify);
+        });
     }
 
     @Transactional
@@ -181,9 +240,15 @@ public class AsteriskProvisioningService {
         String name = trunk.getName();
 
         extensionRepository.deleteByExtenAndContext("_X.", "internal-" + name);
-        psRegistrationRepository.findById(name).ifPresent(psRegistrationRepository::delete);
+
+        if (trunk.getAuthType() == TrunkAuthType.IP_AUTH) {
+            psEndpointIdIpRepository.findById(name).ifPresent(psEndpointIdIpRepository::delete);
+        } else {
+            psRegistrationRepository.findById(name).ifPresent(psRegistrationRepository::delete);
+            authRepository.findById(name).ifPresent(authRepository::delete);
+        }
+
         endpointRepository.findById(name).ifPresent(endpointRepository::delete);
-        authRepository.findById(name).ifPresent(authRepository::delete);
         aorRepository.findById(name).ifPresent(aorRepository::delete);
 
         amiService.sendCommand("pjsip reload");

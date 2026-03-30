@@ -24,12 +24,19 @@ public class Trunk {
     @Column(nullable = false)
     private String host;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String username;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String password;
 
     @Column(nullable = true)
     private String prefix;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_type", nullable = false)
+    private TrunkAuthType authType = TrunkAuthType.CREDENTIAL;
+
+    @Column(name = "identify_match", nullable = true)
+    private String identifyMatch;
 }

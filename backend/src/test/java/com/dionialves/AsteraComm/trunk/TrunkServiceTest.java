@@ -46,6 +46,7 @@ class TrunkServiceTest {
         testTrunk.setHost("sip.provedor1.com.br");
         testTrunk.setUsername("user123");
         testTrunk.setPassword("senha123");
+        testTrunk.setAuthType(TrunkAuthType.CREDENTIAL);
     }
 
     @Test
@@ -78,9 +79,12 @@ class TrunkServiceTest {
         assertThat(result).isEmpty();
     }
 
+    // ── CREDENTIAL create ──────────────────────────────────────────────────────
+
     @Test
-    void create_shouldSaveTrunkAndCallProvision() {
-        TrunkCreateDTO dto = new TrunkCreateDTO("provedor2", "sip.prov2.com", "user2", "pass2", null);
+    void create_credential_shouldSaveTrunkAndCallProvision() {
+        TrunkCreateDTO dto = new TrunkCreateDTO("provedor2", "sip.prov2.com", "user2", "pass2", null,
+                TrunkAuthType.CREDENTIAL, null);
         when(trunkRepository.existsByName("provedor2")).thenReturn(false);
         when(trunkRepository.save(any(Trunk.class))).thenReturn(testTrunk);
 
@@ -90,13 +94,15 @@ class TrunkServiceTest {
                 t.getName().equals("provedor2")
                 && t.getHost().equals("sip.prov2.com")
                 && t.getUsername().equals("user2")
-                && t.getPassword().equals("pass2")));
+                && t.getPassword().equals("pass2")
+                && t.getAuthType() == TrunkAuthType.CREDENTIAL));
         verify(asteriskProvisioningService).provisionTrunk(any(Trunk.class));
     }
 
     @Test
     void create_shouldThrowBusinessException_whenNameAlreadyExists() {
-        TrunkCreateDTO dto = new TrunkCreateDTO("provedor1", "sip.prov.com", "user", "pass", null);
+        TrunkCreateDTO dto = new TrunkCreateDTO("provedor1", "sip.prov.com", "user", "pass", null,
+                TrunkAuthType.CREDENTIAL, null);
         when(trunkRepository.existsByName("provedor1")).thenReturn(true);
 
         assertThatThrownBy(() -> trunkService.create(dto))
@@ -105,8 +111,68 @@ class TrunkServiceTest {
     }
 
     @Test
-    void update_shouldUpdateFieldsAndCallReprovision() {
-        TrunkCreateDTO dto = new TrunkCreateDTO("provedor1", "novo.host.com", "newuser", "newpass", null);
+    void create_credential_semUsername_lançaBusinessException() {
+        TrunkCreateDTO dto = new TrunkCreateDTO("prov", "sip.prov.com", null, null, null,
+                TrunkAuthType.CREDENTIAL, null);
+        when(trunkRepository.existsByName("prov")).thenReturn(false);
+
+        assertThatThrownBy(() -> trunkService.create(dto))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("usuário");
+    }
+
+    // ── IP_AUTH create ─────────────────────────────────────────────────────────
+
+    @Test
+    void create_ipAuth_shouldSaveTrunkWithIdentifyMatchAndCallProvision() {
+        TrunkCreateDTO dto = new TrunkCreateDTO("tellcheap", "sip.tellcheap.com.br", null, null, null,
+                TrunkAuthType.IP_AUTH, "sip.tellcheap.com.br");
+        Trunk saved = new Trunk();
+        saved.setName("tellcheap");
+        saved.setHost("sip.tellcheap.com.br");
+        saved.setAuthType(TrunkAuthType.IP_AUTH);
+        saved.setIdentifyMatch("sip.tellcheap.com.br");
+        when(trunkRepository.existsByName("tellcheap")).thenReturn(false);
+        when(trunkRepository.save(any(Trunk.class))).thenReturn(saved);
+
+        trunkService.create(dto);
+
+        verify(trunkRepository).save(argThat(t ->
+                t.getAuthType() == TrunkAuthType.IP_AUTH
+                && t.getIdentifyMatch().equals("sip.tellcheap.com.br")
+                && t.getUsername() == null
+                && t.getPassword() == null));
+        verify(asteriskProvisioningService).provisionTrunk(any(Trunk.class));
+    }
+
+    @Test
+    void create_ipAuth_semIdentifyMatch_lançaBusinessException() {
+        TrunkCreateDTO dto = new TrunkCreateDTO("tellcheap", "sip.tellcheap.com.br", null, null, null,
+                TrunkAuthType.IP_AUTH, null);
+        when(trunkRepository.existsByName("tellcheap")).thenReturn(false);
+
+        assertThatThrownBy(() -> trunkService.create(dto))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("identifyMatch");
+    }
+
+    @Test
+    void create_ipAuth_identifyMatchEmBranco_lançaBusinessException() {
+        TrunkCreateDTO dto = new TrunkCreateDTO("tellcheap", "sip.tellcheap.com.br", null, null, null,
+                TrunkAuthType.IP_AUTH, "   ");
+        when(trunkRepository.existsByName("tellcheap")).thenReturn(false);
+
+        assertThatThrownBy(() -> trunkService.create(dto))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("identifyMatch");
+    }
+
+    // ── update ─────────────────────────────────────────────────────────────────
+
+    @Test
+    void update_credential_shouldUpdateFieldsAndCallReprovision() {
+        TrunkCreateDTO dto = new TrunkCreateDTO("provedor1", "novo.host.com", "newuser", "newpass", null,
+                TrunkAuthType.CREDENTIAL, null);
         when(trunkRepository.findByName("provedor1")).thenReturn(Optional.of(testTrunk));
         when(trunkRepository.save(any(Trunk.class))).thenReturn(testTrunk);
 
@@ -120,8 +186,9 @@ class TrunkServiceTest {
     }
 
     @Test
-    void update_shouldNotChangePassword_whenPasswordIsBlank() {
-        TrunkCreateDTO dto = new TrunkCreateDTO("provedor1", "novo.host.com", "newuser", "", null);
+    void update_credential_shouldNotChangePassword_whenPasswordIsBlank() {
+        TrunkCreateDTO dto = new TrunkCreateDTO("provedor1", "novo.host.com", "newuser", "", null,
+                TrunkAuthType.CREDENTIAL, null);
         when(trunkRepository.findByName("provedor1")).thenReturn(Optional.of(testTrunk));
         when(trunkRepository.save(any(Trunk.class))).thenReturn(testTrunk);
 
@@ -131,14 +198,39 @@ class TrunkServiceTest {
     }
 
     @Test
+    void update_ipAuth_shouldUpdateIdentifyMatchAndCallReprovision() {
+        Trunk ipTrunk = new Trunk();
+        ipTrunk.setId(2L);
+        ipTrunk.setName("tellcheap");
+        ipTrunk.setHost("sip.tellcheap.com.br");
+        ipTrunk.setAuthType(TrunkAuthType.IP_AUTH);
+        ipTrunk.setIdentifyMatch("sip.tellcheap.com.br");
+
+        TrunkCreateDTO dto = new TrunkCreateDTO("tellcheap", "sip2.tellcheap.com.br", null, null, null,
+                TrunkAuthType.IP_AUTH, "sip2.tellcheap.com.br");
+        when(trunkRepository.findByName("tellcheap")).thenReturn(Optional.of(ipTrunk));
+        when(trunkRepository.save(any(Trunk.class))).thenReturn(ipTrunk);
+
+        trunkService.update("tellcheap", dto);
+
+        verify(trunkRepository).save(argThat(t ->
+                t.getHost().equals("sip2.tellcheap.com.br")
+                && t.getIdentifyMatch().equals("sip2.tellcheap.com.br")));
+        verify(asteriskProvisioningService).reprovisionTrunk(any(Trunk.class));
+    }
+
+    @Test
     void update_shouldThrowNotFoundException_whenNotExists() {
-        TrunkCreateDTO dto = new TrunkCreateDTO("inexistente", "host.com", "user", "pass", null);
+        TrunkCreateDTO dto = new TrunkCreateDTO("inexistente", "host.com", "user", "pass", null,
+                TrunkAuthType.CREDENTIAL, null);
         when(trunkRepository.findByName("inexistente")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> trunkService.update("inexistente", dto))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("Tronco não encontrado");
     }
+
+    // ── delete ─────────────────────────────────────────────────────────────────
 
     @Test
     void delete_shouldCleanStatusCallDeprovisionAndDeleteTrunk() {
@@ -160,7 +252,7 @@ class TrunkServiceTest {
                 .hasMessageContaining("Tronco não encontrado");
     }
 
-    // --- findAll ---
+    // ── findAll ────────────────────────────────────────────────────────────────
 
     @Test
     void findAll_shouldDelegateToRepository() {

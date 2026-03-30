@@ -40,16 +40,24 @@ public class TrunkService {
             throw new BusinessException("Tronco já existe com este nome");
         }
 
+        TrunkAuthType authType = dto.authType() != null ? dto.authType() : TrunkAuthType.CREDENTIAL;
+        validate(dto, authType);
+
         Trunk trunk = new Trunk();
         trunk.setName(dto.name());
         trunk.setHost(dto.host());
-        trunk.setUsername(dto.username());
-        trunk.setPassword(dto.password());
+        trunk.setAuthType(authType);
         trunk.setPrefix(dto.prefix());
+
+        if (authType == TrunkAuthType.CREDENTIAL) {
+            trunk.setUsername(dto.username());
+            trunk.setPassword(dto.password());
+        } else {
+            trunk.setIdentifyMatch(dto.identifyMatch());
+        }
+
         Trunk saved = trunkRepository.save(trunk);
-
         asteriskProvisioningService.provisionTrunk(saved);
-
         return saved;
     }
 
@@ -59,15 +67,21 @@ public class TrunkService {
                 .orElseThrow(() -> new NotFoundException("Tronco não encontrado"));
 
         trunk.setHost(dto.host());
-        trunk.setUsername(dto.username());
         trunk.setPrefix(dto.prefix());
-        if (dto.password() != null && !dto.password().isBlank()) {
-            trunk.setPassword(dto.password());
+
+        if (trunk.getAuthType() == TrunkAuthType.CREDENTIAL) {
+            trunk.setUsername(dto.username());
+            if (dto.password() != null && !dto.password().isBlank()) {
+                trunk.setPassword(dto.password());
+            }
+        } else {
+            if (dto.identifyMatch() != null && !dto.identifyMatch().isBlank()) {
+                trunk.setIdentifyMatch(dto.identifyMatch());
+            }
         }
+
         Trunk saved = trunkRepository.save(trunk);
-
         asteriskProvisioningService.reprovisionTrunk(saved);
-
         return saved;
     }
 
@@ -79,5 +93,20 @@ public class TrunkService {
         trunkRegistrationStatusRepository.deleteByTrunkName(name);
         asteriskProvisioningService.deprovisionTrunk(trunk);
         trunkRepository.delete(trunk);
+    }
+
+    private void validate(TrunkCreateDTO dto, TrunkAuthType authType) {
+        if (authType == TrunkAuthType.CREDENTIAL) {
+            if (dto.username() == null || dto.username().isBlank()) {
+                throw new BusinessException("Tronco do tipo Login/Senha requer usuário");
+            }
+            if (dto.password() == null || dto.password().isBlank()) {
+                throw new BusinessException("Tronco do tipo Login/Senha requer senha");
+            }
+        } else {
+            if (dto.identifyMatch() == null || dto.identifyMatch().isBlank()) {
+                throw new BusinessException("Tronco por IP requer o campo identifyMatch");
+            }
+        }
     }
 }
