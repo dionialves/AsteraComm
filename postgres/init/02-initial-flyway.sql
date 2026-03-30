@@ -196,3 +196,9 @@ ALTER TABLE asteracomm_plans ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE;
 
 UPDATE asteracomm_users SET role = 'ADMIN' WHERE role IN ('SUPER_ADMIN', 'USER');
 
+
+ALTER TABLE asteracomm_trunks
+    ADD COLUMN auth_type     VARCHAR(20)  NOT NULL DEFAULT 'CREDENTIAL',
+    ADD COLUMN identify_match VARCHAR(255),
+    ALTER COLUMN username    DROP NOT NULL,
+    ALTER COLUMN password    DROP NOT NULL;
