@@ -4,6 +4,20 @@
 
 ---
 
+### FIX-068 — Corrigir cálculo de `minutes_from_quota`: armazenar minutos reais com granularidade de 30s
+
+Solução:
+
+- `Call.minutesFromQuota`: tipo alterado de `Integer` para `BigDecimal` (scale 1).
+- `CallRepository`: `sumQuotaMinutes` e `sumQuotaMinutesByType` retornam `BigDecimal` (em vez de `int`).
+- `CallCostingService`: `resolveQuota` remove o `* 2`; aritmética de quota migrada para `BigDecimal`; `billableSeconds` corrigido para `billSeconds - remaining * 60`.
+- `AuditService`: mesma correção — quota e acumuladores em `BigDecimal`, sem `* 2`.
+- `AuditCallLineDTO` / `AuditSummaryDTO`: campos `quotaUsedThisCall`, `quotaAccumulated`, `totalMinutes`, `quotaMinutesUsed`, `excessMinutes` migrados para `BigDecimal`.
+- Flyway V10: `ALTER COLUMN minutes_from_quota TYPE NUMERIC(10,1) USING minutes_from_quota / 2.0`.
+- Testes: `CallCostingServiceTest` e `AuditServiceTest` atualizados com valores em minutos reais (ex.: 7:27 → `minutesFromQuota = 7.5`). Novo caso `applyCosting_consumes7Point5Minutes_for7min27secCallWithinQuota` adicionado.
+
+---
+
 ### US-067 — Tronco SIP com autenticação por IP (IP Auth)
 
 Solução:

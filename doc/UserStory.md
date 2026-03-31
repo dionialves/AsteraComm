@@ -209,4 +209,3 @@ Como administrador, quero que o menu lateral tenha uma seção "Operacional" que
 4. **Remoção da página de índice:** `frontend/src/pages/reports/index.astro` é excluída. Qualquer link que apontava para `/reports` é removido ou redirecionado.
 5. **Escopo:** `Layout.astro` (ou componente de menu) + remoção de `reports/index.astro` — zero impacto nas páginas de relatório individuais.
 
-
