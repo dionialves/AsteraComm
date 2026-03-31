@@ -33,5 +33,4 @@ jobs:
         with:
           context: ./asterisk
           push: true
-          no-cache: true
           tags: ghcr.io/${{ github.repository_owner }}/asteracomm-asterisk:latest
