@@ -58,8 +58,8 @@ public class Call {
     @Column(name = "call_status")
     private CallStatus callStatus;
 
-    @Column(name = "minutes_from_quota")
-    private Integer minutesFromQuota;
+    @Column(name = "minutes_from_quota", precision = 10, scale = 1)
+    private BigDecimal minutesFromQuota;
 
     @Column(name = "cost", precision = 10, scale = 2)
     private BigDecimal cost;

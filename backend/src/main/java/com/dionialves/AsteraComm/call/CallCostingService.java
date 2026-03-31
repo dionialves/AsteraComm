@@ -57,7 +57,7 @@ public class CallCostingService {
         if (quota > 0) {
             applyWithQuota(call, plan, quota, billSeconds, callMonth, callYear);
         } else {
-            call.setMinutesFromQuota(0);
+            call.setMinutesFromQuota(BigDecimal.ZERO.setScale(1, RoundingMode.UNNECESSARY));
             call.setCost(calculateFractionCost(billSeconds, resolveRate(plan, call.getCallType())));
         }
 
@@ -66,48 +66,49 @@ public class CallCostingService {
 
     private void applyWithQuota(Call call, Plan plan, int quota, int billSeconds,
                                 int callMonth, int callYear) {
-        int used = fetchUsedMinutes(plan, call.getCallType(), call.getCircuit(), callRepository,
+        BigDecimal used      = fetchUsedMinutes(plan, call.getCallType(), call.getCircuit(), callRepository,
                 callMonth, callYear);
-        int remaining = quota - used;
-        int durationFractions = (int) Math.ceil(billSeconds / 30.0);
+        BigDecimal remaining = BigDecimal.valueOf(quota).subtract(used);
+        BigDecimal durationMinutes = BigDecimal.valueOf(Math.ceil(billSeconds / 30.0))
+                .divide(BigDecimal.valueOf(2), 1, RoundingMode.UNNECESSARY);
 
-        if (remaining >= durationFractions) {
-            call.setMinutesFromQuota(durationFractions);
+        if (remaining.compareTo(durationMinutes) >= 0) {
+            call.setMinutesFromQuota(durationMinutes);
             call.setCost(BigDecimal.ZERO.setScale(2, RoundingMode.UNNECESSARY));
-        } else if (remaining > 0) {
-            int billableSeconds = billSeconds - (remaining * 30);
+        } else if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+            int billableSeconds = billSeconds - remaining.multiply(BigDecimal.valueOf(60)).intValue();
             call.setMinutesFromQuota(remaining);
             call.setCost(calculateFractionCost(billableSeconds, resolveRate(plan, call.getCallType())));
         } else {
-            call.setMinutesFromQuota(0);
+            call.setMinutesFromQuota(BigDecimal.ZERO.setScale(1, RoundingMode.UNNECESSARY));
             call.setCost(calculateFractionCost(billSeconds, resolveRate(plan, call.getCallType())));
         }
     }
 
     private static int resolveQuota(Plan plan, CallType callType, Circuit circuit, CallRepository repo) {
         return switch (plan.getPackageType()) {
-            case UNIFIED      -> plan.getPackageTotalMinutes() != null ? plan.getPackageTotalMinutes() * 2 : 0;
+            case UNIFIED      -> plan.getPackageTotalMinutes() != null ? plan.getPackageTotalMinutes() : 0;
             case PER_CATEGORY -> resolvePerCategoryQuota(plan, callType);
             case NONE         -> 0;
         };
     }
 
-    private static int fetchUsedMinutes(Plan plan, CallType callType, Circuit circuit,
-                                        CallRepository repo, int month, int year) {
+    private static BigDecimal fetchUsedMinutes(Plan plan, CallType callType, Circuit circuit,
+                                               CallRepository repo, int month, int year) {
         return switch (plan.getPackageType()) {
             case UNIFIED      -> repo.sumQuotaMinutes(circuit.getNumber(), month, year);
             case PER_CATEGORY -> repo.sumQuotaMinutesByType(circuit.getNumber(), callType.name(), month, year);
-            case NONE         -> 0;
+            case NONE         -> BigDecimal.ZERO;
         };
     }
 
     private static int resolvePerCategoryQuota(Plan plan, CallType callType) {
         return switch (callType) {
-            case FIXED_LOCAL         -> plan.getPackageFixedLocal()         != null ? plan.getPackageFixedLocal()         * 2 : 0;
-            case FIXED_LONG_DISTANCE -> plan.getPackageFixedLongDistance()  != null ? plan.getPackageFixedLongDistance()  * 2 : 0;
-            case MOBILE_LOCAL        -> plan.getPackageMobileLocal()        != null ? plan.getPackageMobileLocal()        * 2 : 0;
-            case MOBILE_LONG_DISTANCE-> plan.getPackageMobileLongDistance() != null ? plan.getPackageMobileLongDistance() * 2 : 0;
-            default                  -> 0;
+            case FIXED_LOCAL          -> plan.getPackageFixedLocal()         != null ? plan.getPackageFixedLocal()         : 0;
+            case FIXED_LONG_DISTANCE  -> plan.getPackageFixedLongDistance()  != null ? plan.getPackageFixedLongDistance()  : 0;
+            case MOBILE_LOCAL         -> plan.getPackageMobileLocal()        != null ? plan.getPackageMobileLocal()        : 0;
+            case MOBILE_LONG_DISTANCE -> plan.getPackageMobileLongDistance() != null ? plan.getPackageMobileLongDistance() : 0;
+            default                   -> 0;
         };
     }
 
@@ -135,6 +136,6 @@ public class CallCostingService {
     private static void markOutOfCost(Call call, CallStatus status) {
         call.setCallStatus(status);
         call.setCost(BigDecimal.ZERO.setScale(2, RoundingMode.UNNECESSARY));
-        call.setMinutesFromQuota(0);
+        call.setMinutesFromQuota(BigDecimal.ZERO.setScale(1, RoundingMode.UNNECESSARY));
     }
 }

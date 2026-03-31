@@ -104,7 +104,7 @@ class AuditServiceTest {
 
     @Test
     void simulate_chargesAllCalls_whenPlanHasNoPackage() {
-        // 2 ligações de 60s → cada uma: ceil(60/30)=2 frações → 2*(0.09/2) = 0.09
+        // 2 ligações de 60s → cada uma: ceil(60/30)/2 = 1.0 min → 2*(0.09/2) = 0.09
         Call c1 = buildCall("uid1", LocalDateTime.of(2026, 3, 1, 9, 0, 0), 60, CallType.FIXED_LOCAL);
         Call c2 = buildCall("uid2", LocalDateTime.of(2026, 3, 2, 10, 0, 0), 60, CallType.FIXED_LOCAL);
 
@@ -117,7 +117,7 @@ class AuditServiceTest {
         assertThat(result.lines()).hasSize(2);
         assertThat(result.lines().get(0).cost()).isEqualByComparingTo(new BigDecimal("0.09"));
         assertThat(result.lines().get(1).cost()).isEqualByComparingTo(new BigDecimal("0.09"));
-        assertThat(result.summary().quotaMinutesUsed()).isZero();
+        assertThat(result.summary().quotaMinutesUsed()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(result.summary().totalCost()).isEqualByComparingTo(new BigDecimal("0.18"));
     }
 
@@ -128,7 +128,7 @@ class AuditServiceTest {
     @Test
     void simulate_zerosAllCosts_whenUnifiedPackageCoversTotalMonth() {
         plan.setPackageType(PackageType.UNIFIED);
-        plan.setPackageTotalMinutes(10); // 10 min → 20 frações; 2 ligações de 60s = 4 frações total → cobertas
+        plan.setPackageTotalMinutes(10); // 10 min; 2 ligações de 60s = 2.0 min total → cobertas
 
         Call c1 = buildCall("uid1", LocalDateTime.of(2026, 3, 1, 9, 0, 0), 60, CallType.FIXED_LOCAL);
         Call c2 = buildCall("uid2", LocalDateTime.of(2026, 3, 2, 10, 0, 0), 60, CallType.FIXED_LOCAL);
@@ -143,7 +143,7 @@ class AuditServiceTest {
             assertThat(line.cost()).isEqualByComparingTo(BigDecimal.ZERO);
             assertThat(line.quotaUsedThisCall()).isPositive();
         });
-        assertThat(result.summary().quotaMinutesUsed()).isEqualTo(4);
+        assertThat(result.summary().quotaMinutesUsed()).isEqualByComparingTo(new BigDecimal("2.0"));
         assertThat(result.summary().totalCost()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
@@ -154,9 +154,9 @@ class AuditServiceTest {
     @Test
     void simulate_chargesCallsAfterQuotaExhausted_whenUnifiedPackageRunsOut() {
         plan.setPackageType(PackageType.UNIFIED);
-        plan.setPackageTotalMinutes(2); // 2 min → 4 frações de pacote
+        plan.setPackageTotalMinutes(2); // 2 min de pacote
 
-        // 3 ligações de 60s (2 frações cada): 2 primeiras cobertas (4 frações), 3ª cobrada
+        // 3 ligações de 60s (1.0 min cada): 2 primeiras cobertas, 3ª cobrada
         Call c1 = buildCall("uid1", LocalDateTime.of(2026, 3, 1, 9, 0, 0),  60, CallType.FIXED_LOCAL);
         Call c2 = buildCall("uid2", LocalDateTime.of(2026, 3, 2, 10, 0, 0), 60, CallType.FIXED_LOCAL);
         Call c3 = buildCall("uid3", LocalDateTime.of(2026, 3, 3, 11, 0, 0), 60, CallType.FIXED_LOCAL);
@@ -172,20 +172,20 @@ class AuditServiceTest {
         AuditCallLineDTO line3 = result.lines().get(2);
 
         assertThat(line1.cost()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(line1.quotaUsedThisCall()).isEqualTo(2);
-        assertThat(line1.quotaAccumulated()).isEqualTo(2);
+        assertThat(line1.quotaUsedThisCall()).isEqualByComparingTo(new BigDecimal("1.0"));
+        assertThat(line1.quotaAccumulated()).isEqualByComparingTo(new BigDecimal("1.0"));
 
         assertThat(line2.cost()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(line2.quotaUsedThisCall()).isEqualTo(2);
-        assertThat(line2.quotaAccumulated()).isEqualTo(4);
+        assertThat(line2.quotaUsedThisCall()).isEqualByComparingTo(new BigDecimal("1.0"));
+        assertThat(line2.quotaAccumulated()).isEqualByComparingTo(new BigDecimal("2.0"));
 
-        // Pacote esgotado: 3ª ligação cobrada normalmente, contador congela em 4
+        // Pacote esgotado: 3ª ligação cobrada normalmente, contador congela em 2.0
         assertThat(line3.cost()).isEqualByComparingTo(new BigDecimal("0.09"));
-        assertThat(line3.quotaUsedThisCall()).isZero();
-        assertThat(line3.quotaAccumulated()).isEqualTo(4);
+        assertThat(line3.quotaUsedThisCall()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(line3.quotaAccumulated()).isEqualByComparingTo(new BigDecimal("2.0"));
 
-        assertThat(result.summary().quotaMinutesUsed()).isEqualTo(4);
-        assertThat(result.summary().excessMinutes()).isEqualTo(2);
+        assertThat(result.summary().quotaMinutesUsed()).isEqualByComparingTo(new BigDecimal("2.0"));
+        assertThat(result.summary().excessMinutes()).isEqualByComparingTo(new BigDecimal("1.0"));
         assertThat(result.summary().totalCost()).isEqualByComparingTo(new BigDecimal("0.09"));
     }
 
@@ -196,10 +196,10 @@ class AuditServiceTest {
     @Test
     void simulate_chargesOnlyExcess_whenCallPartiallyExceedsUnifiedQuota() {
         plan.setPackageType(PackageType.UNIFIED);
-        plan.setPackageTotalMinutes(2); // 2 min → 4 frações de pacote
+        plan.setPackageTotalMinutes(2); // 2 min de pacote
 
-        // 1 ligação de 180s (6 frações): 4 frações cobertas pelo pacote, 60s excedentes cobrados
-        // billableSeconds = 180 - (4*30) = 60s → ceil(60/30)=2 frações → 2*(0.09/2) = 0.09
+        // 1 ligação de 180s (3.0 min): 2.0 min cobertos pelo pacote, 60s excedentes cobrados
+        // billableSeconds = 180 - (2.0 * 60) = 60s → ceil(60/30)/2 = 1.0 min → 0.09
         Call c1 = buildCall("uid1", LocalDateTime.of(2026, 3, 1, 9, 0, 0), 180, CallType.FIXED_LOCAL);
 
         when(circuitRepository.findByNumber(CIRCUIT_NUMBER)).thenReturn(Optional.of(circuit));
@@ -209,19 +209,19 @@ class AuditServiceTest {
         AuditResultDTO result = auditService.simulate(CIRCUIT_NUMBER, MONTH, YEAR);
 
         AuditCallLineDTO line = result.lines().get(0);
-        assertThat(line.quotaUsedThisCall()).isEqualTo(4);
-        assertThat(line.quotaAccumulated()).isEqualTo(4);
+        assertThat(line.quotaUsedThisCall()).isEqualByComparingTo(new BigDecimal("2.0"));
+        assertThat(line.quotaAccumulated()).isEqualByComparingTo(new BigDecimal("2.0"));
         assertThat(line.cost()).isEqualByComparingTo(new BigDecimal("0.09"));
 
-        assertThat(result.summary().quotaMinutesUsed()).isEqualTo(4);
-        assertThat(result.summary().excessMinutes()).isEqualTo(2);
+        assertThat(result.summary().quotaMinutesUsed()).isEqualByComparingTo(new BigDecimal("2.0"));
+        assertThat(result.summary().excessMinutes()).isEqualByComparingTo(new BigDecimal("1.0"));
     }
 
     @Test
-    void simulate_consumes3Fractions_for61SecondCallWithinQuota() {
-        // US-020 critério 1: ligação de 61s consome 3 frações do pacote (ceil(61/30)=3)
+    void simulate_consumes1Point5Minutes_for61SecondCallWithinQuota() {
+        // ligação de 61s: ceil(61/30)/2 = 1.5 min debitados do plano
         plan.setPackageType(PackageType.UNIFIED);
-        plan.setPackageTotalMinutes(10); // 20 frações disponíveis
+        plan.setPackageTotalMinutes(10); // 10 min disponíveis
 
         Call c1 = buildCall("uid1", LocalDateTime.of(2026, 3, 1, 9, 0, 0), 61, CallType.FIXED_LOCAL);
 
@@ -231,9 +231,9 @@ class AuditServiceTest {
 
         AuditResultDTO result = auditService.simulate(CIRCUIT_NUMBER, MONTH, YEAR);
 
-        assertThat(result.lines().get(0).quotaUsedThisCall()).isEqualTo(3);
+        assertThat(result.lines().get(0).quotaUsedThisCall()).isEqualByComparingTo(new BigDecimal("1.5"));
         assertThat(result.lines().get(0).cost()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(result.summary().quotaMinutesUsed()).isEqualTo(3);
+        assertThat(result.summary().quotaMinutesUsed()).isEqualByComparingTo(new BigDecimal("1.5"));
     }
 
     // -------------------------------------------------------------------------
@@ -298,8 +298,8 @@ class AuditServiceTest {
         AuditResultDTO result = auditService.simulate(CIRCUIT_NUMBER, MONTH, YEAR);
 
         assertThat(result.lines().get(0).cost()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(result.lines().get(0).quotaUsedThisCall()).isZero();
-        assertThat(result.summary().quotaMinutesUsed()).isZero();
+        assertThat(result.lines().get(0).quotaUsedThisCall()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.summary().quotaMinutesUsed()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     // -------------------------------------------------------------------------
@@ -309,10 +309,10 @@ class AuditServiceTest {
     @Test
     void simulate_returnsCorrectSummary_forMixedCalls() {
         plan.setPackageType(PackageType.UNIFIED);
-        plan.setPackageTotalMinutes(1); // 1 min → 2 frações de pacote
+        plan.setPackageTotalMinutes(1); // 1 min de pacote
 
-        // c1: 60s = 2 frações → coberta (2 frações do pacote)
-        // c2: 60s = 2 frações → pacote esgotado, cobrada (2 frações em excesso)
+        // c1: 60s = 1.0 min → coberta (1.0 min do pacote)
+        // c2: 60s = 1.0 min → pacote esgotado, cobrada (1.0 min em excesso)
         Call c1 = buildCall("uid1", LocalDateTime.of(2026, 3, 1, 9, 0, 0),  60, CallType.FIXED_LOCAL);
         Call c2 = buildCall("uid2", LocalDateTime.of(2026, 3, 2, 10, 0, 0), 60, CallType.FIXED_LOCAL);
 
@@ -323,9 +323,9 @@ class AuditServiceTest {
         AuditResultDTO result = auditService.simulate(CIRCUIT_NUMBER, MONTH, YEAR);
 
         assertThat(result.summary().totalCalls()).isEqualTo(2);
-        assertThat(result.summary().totalMinutes()).isEqualTo(4);
-        assertThat(result.summary().quotaMinutesUsed()).isEqualTo(2);
-        assertThat(result.summary().excessMinutes()).isEqualTo(2);
+        assertThat(result.summary().totalMinutes()).isEqualByComparingTo(new BigDecimal("2.0"));
+        assertThat(result.summary().quotaMinutesUsed()).isEqualByComparingTo(new BigDecimal("1.0"));
+        assertThat(result.summary().excessMinutes()).isEqualByComparingTo(new BigDecimal("1.0"));
         assertThat(result.summary().totalCost()).isEqualByComparingTo(new BigDecimal("0.09"));
     }
 

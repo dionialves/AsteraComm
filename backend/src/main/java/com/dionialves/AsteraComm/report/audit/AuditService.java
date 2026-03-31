@@ -53,46 +53,47 @@ public class AuditService {
         List<AuditCallLineDTO> lines = new ArrayList<>();
 
         // Acumuladores de quota (independentes por tipo em PER_CATEGORY)
-        int quotaAccumulated = 0;
-        int unifiedRemaining = resolveUnifiedQuota(plan);
-        Map<CallType, Integer> perCategoryRemaining = resolvePerCategoryQuota(plan);
+        BigDecimal quotaAccumulated = BigDecimal.ZERO;
+        BigDecimal unifiedRemaining = resolveUnifiedQuota(plan);
+        Map<CallType, BigDecimal> perCategoryRemaining = resolvePerCategoryQuota(plan);
 
         // Totalizadores para o resumo
-        int totalMinutes      = 0;
-        int quotaMinutesUsed  = 0;
-        BigDecimal totalCost  = BigDecimal.ZERO;
+        BigDecimal totalMinutes     = BigDecimal.ZERO;
+        BigDecimal quotaMinutesUsed = BigDecimal.ZERO;
+        BigDecimal totalCost        = BigDecimal.ZERO;
 
         for (Call call : calls) {
-            int billSeconds       = call.getBillSeconds();
-            CallType callType     = call.getCallType();
-            BigDecimal rate       = resolveRate(plan, callType);
-            int durationFractions = (int) Math.ceil(billSeconds / 30.0);
+            int billSeconds        = call.getBillSeconds();
+            CallType callType      = call.getCallType();
+            BigDecimal rate        = resolveRate(plan, callType);
+            BigDecimal durationMinutes = BigDecimal.valueOf(Math.ceil(billSeconds / 30.0))
+                    .divide(BigDecimal.valueOf(2), 1, RoundingMode.UNNECESSARY);
 
             BigDecimal cost;
-            int quotaUsedThisCall;
+            BigDecimal quotaUsedThisCall;
 
             if (billSeconds <= 3) {
                 cost              = BigDecimal.ZERO.setScale(2, RoundingMode.UNNECESSARY);
-                quotaUsedThisCall = 0;
+                quotaUsedThisCall = BigDecimal.ZERO;
             } else if (plan.getPackageType() == PackageType.UNIFIED) {
-                quotaUsedThisCall = applyQuota(unifiedRemaining, durationFractions);
-                cost              = decodeCost(billSeconds, rate, durationFractions, unifiedRemaining);
-                unifiedRemaining -= quotaUsedThisCall;
+                quotaUsedThisCall = applyQuota(unifiedRemaining, durationMinutes);
+                cost              = decodeCost(billSeconds, rate, durationMinutes, unifiedRemaining);
+                unifiedRemaining  = unifiedRemaining.subtract(quotaUsedThisCall);
             } else if (plan.getPackageType() == PackageType.PER_CATEGORY) {
-                int categoryRemaining = perCategoryRemaining.getOrDefault(callType, 0);
-                quotaUsedThisCall = applyQuota(categoryRemaining, durationFractions);
-                cost              = decodeCost(billSeconds, rate, durationFractions, categoryRemaining);
-                perCategoryRemaining.merge(callType, -quotaUsedThisCall, Integer::sum);
+                BigDecimal categoryRemaining = perCategoryRemaining.getOrDefault(callType, BigDecimal.ZERO);
+                quotaUsedThisCall = applyQuota(categoryRemaining, durationMinutes);
+                cost              = decodeCost(billSeconds, rate, durationMinutes, categoryRemaining);
+                perCategoryRemaining.merge(callType, quotaUsedThisCall.negate(), BigDecimal::add);
             } else {
                 // PackageType.NONE
-                quotaUsedThisCall = 0;
+                quotaUsedThisCall = BigDecimal.ZERO;
                 cost              = CallCostingService.calculateFractionCost(billSeconds, rate);
             }
 
-            quotaAccumulated += quotaUsedThisCall;
-            if (billSeconds > 3) totalMinutes += durationFractions;
-            quotaMinutesUsed += quotaUsedThisCall;
-            totalCost         = totalCost.add(cost);
+            quotaAccumulated = quotaAccumulated.add(quotaUsedThisCall);
+            if (billSeconds > 3) totalMinutes = totalMinutes.add(durationMinutes);
+            quotaMinutesUsed = quotaMinutesUsed.add(quotaUsedThisCall);
+            totalCost        = totalCost.add(cost);
 
             lines.add(new AuditCallLineDTO(
                     call.getUniqueId(),
@@ -107,7 +108,7 @@ public class AuditService {
             ));
         }
 
-        int excessMinutes = totalMinutes - quotaMinutesUsed;
+        BigDecimal excessMinutes = totalMinutes.subtract(quotaMinutesUsed);
 
         AuditSummaryDTO summary = new AuditSummaryDTO(
                 lines.size(),
@@ -121,30 +122,32 @@ public class AuditService {
     }
 
     private static BigDecimal decodeCost(int billSeconds, BigDecimal rate,
-                                         int durationFractions, int remaining) {
-        if (remaining >= durationFractions) {
+                                         BigDecimal durationMinutes, BigDecimal remaining) {
+        if (remaining.compareTo(durationMinutes) >= 0) {
             return BigDecimal.ZERO.setScale(2, RoundingMode.UNNECESSARY);
-        } else if (remaining > 0) {
-            int billableSeconds = billSeconds - (remaining * 30);
+        } else if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+            int billableSeconds = billSeconds - remaining.multiply(BigDecimal.valueOf(60)).intValue();
             return CallCostingService.calculateFractionCost(billableSeconds, rate);
         } else {
             return CallCostingService.calculateFractionCost(billSeconds, rate);
         }
     }
 
-    private static int applyQuota(int remaining, int durationFractions) {
-        if (remaining >= durationFractions) return durationFractions;
-        if (remaining > 0)                 return remaining;
-        return 0;
+    private static BigDecimal applyQuota(BigDecimal remaining, BigDecimal durationMinutes) {
+        if (remaining.compareTo(durationMinutes) >= 0) return durationMinutes;
+        if (remaining.compareTo(BigDecimal.ZERO) > 0)  return remaining;
+        return BigDecimal.ZERO;
     }
 
-    private int resolveUnifiedQuota(Plan plan) {
-        if (plan.getPackageType() != PackageType.UNIFIED) return 0;
-        return plan.getPackageTotalMinutes() != null ? plan.getPackageTotalMinutes() * 2 : 0;
+    private BigDecimal resolveUnifiedQuota(Plan plan) {
+        if (plan.getPackageType() != PackageType.UNIFIED) return BigDecimal.ZERO;
+        return plan.getPackageTotalMinutes() != null
+                ? BigDecimal.valueOf(plan.getPackageTotalMinutes())
+                : BigDecimal.ZERO;
     }
 
-    private Map<CallType, Integer> resolvePerCategoryQuota(Plan plan) {
-        Map<CallType, Integer> map = new EnumMap<>(CallType.class);
+    private Map<CallType, BigDecimal> resolvePerCategoryQuota(Plan plan) {
+        Map<CallType, BigDecimal> map = new EnumMap<>(CallType.class);
         if (plan.getPackageType() != PackageType.PER_CATEGORY) return map;
         putIfNotNull(map, CallType.FIXED_LOCAL,          plan.getPackageFixedLocal());
         putIfNotNull(map, CallType.FIXED_LONG_DISTANCE,  plan.getPackageFixedLongDistance());
@@ -153,8 +156,8 @@ public class AuditService {
         return map;
     }
 
-    private void putIfNotNull(Map<CallType, Integer> map, CallType type, Integer value) {
-        if (value != null && value > 0) map.put(type, value * 2);
+    private void putIfNotNull(Map<CallType, BigDecimal> map, CallType type, Integer value) {
+        if (value != null && value > 0) map.put(type, BigDecimal.valueOf(value));
     }
 
     public byte[] generatePdf(String circuitNumber, int month, int year, boolean onlyRelevant) {
@@ -231,7 +234,7 @@ public class AuditService {
             Color rowAlt = new Color(249, 250, 251);
             List<AuditCallLineDTO> lines = onlyRelevant
                     ? result.lines().stream()
-                        .filter(l -> l.quotaUsedThisCall() > 0 || l.cost().signum() > 0)
+                        .filter(l -> l.quotaUsedThisCall().signum() > 0 || l.cost().signum() > 0)
                         .toList()
                     : result.lines();
             for (int i = 0; i < lines.size(); i++) {
@@ -259,20 +262,22 @@ public class AuditService {
             BigDecimal totalCostLines = lines.stream()
                     .map(AuditCallLineDTO::cost)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
-            int totalBillSec = lines.stream().mapToInt(AuditCallLineDTO::billSeconds).sum();
-            int totalQuota   = lines.stream().mapToInt(AuditCallLineDTO::quotaUsedThisCall).sum();
-            int lastAccum    = lines.isEmpty() ? 0 : lines.get(lines.size() - 1).quotaAccumulated();
+            int totalBillSec           = lines.stream().mapToInt(AuditCallLineDTO::billSeconds).sum();
+            BigDecimal totalQuota      = lines.stream().map(AuditCallLineDTO::quotaUsedThisCall)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal lastAccum       = lines.isEmpty() ? BigDecimal.ZERO
+                    : lines.get(lines.size() - 1).quotaAccumulated();
             String totalCustoStr = "R$ " + String.format("%,.2f", totalCostLines)
                     .replace(",", "X").replace(".", ",").replace("X", ".");
             Color totalBg = new Color(243, 244, 246);
-            addPdfCell(table, "TOTAL",                      footFont, Element.ALIGN_LEFT,  totalBg);
-            addPdfCell(table, "",                           footFont, Element.ALIGN_LEFT,  totalBg);
-            addPdfCell(table, "",                           footFont, Element.ALIGN_LEFT,  totalBg);
-            addPdfCell(table, String.valueOf(totalBillSec), footFont, Element.ALIGN_RIGHT, totalBg);
-            addPdfCell(table, String.valueOf(totalQuota),   footFont, Element.ALIGN_RIGHT, totalBg);
-            addPdfCell(table, String.valueOf(lastAccum),    footFont, Element.ALIGN_RIGHT, totalBg);
-            addPdfCell(table, "",                           footFont, Element.ALIGN_RIGHT, totalBg);
-            addPdfCell(table, totalCustoStr,                footFont, Element.ALIGN_RIGHT, totalBg);
+            addPdfCell(table, "TOTAL",                           footFont, Element.ALIGN_LEFT,  totalBg);
+            addPdfCell(table, "",                                footFont, Element.ALIGN_LEFT,  totalBg);
+            addPdfCell(table, "",                                footFont, Element.ALIGN_LEFT,  totalBg);
+            addPdfCell(table, String.valueOf(totalBillSec),      footFont, Element.ALIGN_RIGHT, totalBg);
+            addPdfCell(table, totalQuota.toPlainString(),        footFont, Element.ALIGN_RIGHT, totalBg);
+            addPdfCell(table, lastAccum.toPlainString(),         footFont, Element.ALIGN_RIGHT, totalBg);
+            addPdfCell(table, "",                                footFont, Element.ALIGN_RIGHT, totalBg);
+            addPdfCell(table, totalCustoStr,                     footFont, Element.ALIGN_RIGHT, totalBg);
 
             doc.add(table);
             doc.close();

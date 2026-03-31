@@ -92,7 +92,7 @@ class CallCostingServiceTest {
 
         assertThat(call.getCallStatus()).isEqualTo(CallStatus.NO_CIRCUIT);
         assertThat(call.getCost()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(call.getMinutesFromQuota()).isEqualTo(0);
+        assertThat(call.getMinutesFromQuota()).isEqualByComparingTo(BigDecimal.ZERO);
         verifyNoInteractions(endpointRepository, callRepository);
     }
 
@@ -110,7 +110,7 @@ class CallCostingServiceTest {
 
         assertThat(call.getCallStatus()).isEqualTo(CallStatus.OUT_OF_SCOPE);
         assertThat(call.getCost()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(call.getMinutesFromQuota()).isEqualTo(0);
+        assertThat(call.getMinutesFromQuota()).isEqualByComparingTo(BigDecimal.ZERO);
         verifyNoInteractions(callRepository);
     }
 
@@ -123,7 +123,7 @@ class CallCostingServiceTest {
 
         assertThat(call.getCallStatus()).isEqualTo(CallStatus.OUT_OF_SCOPE);
         assertThat(call.getCost()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(call.getMinutesFromQuota()).isEqualTo(0);
+        assertThat(call.getMinutesFromQuota()).isEqualByComparingTo(BigDecimal.ZERO);
         verifyNoInteractions(callRepository);
     }
 
@@ -142,7 +142,7 @@ class CallCostingServiceTest {
 
         assertThat(call.getCallStatus()).isEqualTo(CallStatus.NO_PLAN);
         assertThat(call.getCost()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(call.getMinutesFromQuota()).isEqualTo(0);
+        assertThat(call.getMinutesFromQuota()).isEqualByComparingTo(BigDecimal.ZERO);
         verifyNoInteractions(callRepository);
     }
 
@@ -154,34 +154,36 @@ class CallCostingServiceTest {
     void applyCosting_setsZeroCost_whenCallFullyWithinUnifiedQuota() {
         plan.setPackageType(PackageType.UNIFIED);
         plan.setPackageTotalMinutes(100);
-        // quota = 100*2 = 200 frações; 60 usadas (30 min * 2); remaining = 140; call = 60s = 2 frações → coberta
+        // quota = 100 min; 30 min usados; remaining = 70 min; ligação 60s = 1.0 min → coberta
         Call call = buildCall(60, CallType.FIXED_LOCAL);
         when(endpointRepository.findById(CIRCUIT_NUMBER))
                 .thenReturn(Optional.of(buildEndpoint(OUTBOUND_CONTEXT)));
-        when(callRepository.sumQuotaMinutes(CIRCUIT_NUMBER, 3, 2026)).thenReturn(60);
+        when(callRepository.sumQuotaMinutes(CIRCUIT_NUMBER, 3, 2026))
+                .thenReturn(new BigDecimal("30.0"));
 
         callCostingService.applyCosting(call, OUTBOUND_CONTEXT);
 
         assertThat(call.getCallStatus()).isEqualTo(CallStatus.PROCESSED);
         assertThat(call.getCost()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(call.getMinutesFromQuota()).isEqualTo(2);
+        assertThat(call.getMinutesFromQuota()).isEqualByComparingTo(new BigDecimal("1.0"));
     }
 
     @Test
     void applyCosting_chargesPartialCost_whenCallPartiallyExceedsUnifiedQuota() {
         plan.setPackageType(PackageType.UNIFIED);
         plan.setPackageTotalMinutes(100);
-        // quota = 200 frações; 196 usadas (98 min * 2); remaining = 4; call = 180s = 6 frações
-        // billableSeconds = 180 - (4*30) = 60s → ceil(60/30)=2 frações → 2*(0.09/2)=0.09
+        // quota = 100 min; 98.0 min usados; remaining = 2.0 min; ligação 180s = 3.0 min
+        // billableSeconds = 180 - (2.0 * 60) = 60s → ceil(60/30)/2 = 1.0 min → 1*(0.09/2)*2 = 0.09
         Call call = buildCall(180, CallType.FIXED_LOCAL);
         when(endpointRepository.findById(CIRCUIT_NUMBER))
                 .thenReturn(Optional.of(buildEndpoint(OUTBOUND_CONTEXT)));
-        when(callRepository.sumQuotaMinutes(CIRCUIT_NUMBER, 3, 2026)).thenReturn(196);
+        when(callRepository.sumQuotaMinutes(CIRCUIT_NUMBER, 3, 2026))
+                .thenReturn(new BigDecimal("98.0"));
 
         callCostingService.applyCosting(call, OUTBOUND_CONTEXT);
 
         assertThat(call.getCallStatus()).isEqualTo(CallStatus.PROCESSED);
-        assertThat(call.getMinutesFromQuota()).isEqualTo(4);
+        assertThat(call.getMinutesFromQuota()).isEqualByComparingTo(new BigDecimal("2.0"));
         assertThat(call.getCost()).isEqualByComparingTo(new BigDecimal("0.09"));
     }
 
@@ -189,16 +191,17 @@ class CallCostingServiceTest {
     void applyCosting_chargesFullCost_whenUnifiedQuotaFullyExhausted() {
         plan.setPackageType(PackageType.UNIFIED);
         plan.setPackageTotalMinutes(100);
-        // quota = 200 frações; 200 usadas (esgotado); remaining = 0; call = 60s → ceil(60/30)=2 frações → 0.09
+        // quota = 100 min; 100.0 min usados (esgotado); remaining = 0; ligação 60s → 1.0 min → 0.09
         Call call = buildCall(60, CallType.FIXED_LOCAL);
         when(endpointRepository.findById(CIRCUIT_NUMBER))
                 .thenReturn(Optional.of(buildEndpoint(OUTBOUND_CONTEXT)));
-        when(callRepository.sumQuotaMinutes(CIRCUIT_NUMBER, 3, 2026)).thenReturn(200);
+        when(callRepository.sumQuotaMinutes(CIRCUIT_NUMBER, 3, 2026))
+                .thenReturn(new BigDecimal("100.0"));
 
         callCostingService.applyCosting(call, OUTBOUND_CONTEXT);
 
         assertThat(call.getCallStatus()).isEqualTo(CallStatus.PROCESSED);
-        assertThat(call.getMinutesFromQuota()).isEqualTo(0);
+        assertThat(call.getMinutesFromQuota()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(call.getCost()).isEqualByComparingTo(new BigDecimal("0.09"));
     }
 
@@ -209,7 +212,7 @@ class CallCostingServiceTest {
     @Test
     void applyCosting_chargesDirectly_whenPlanHasNoQuota() {
         plan.setPackageType(PackageType.NONE);
-        // 90s → ceil(90/30)=3 fractions → 3*(0.09/2)=0.135
+        // 90s → ceil(90/30)/2 = 1.5 min → 3*(0.09/2) = 0.135
         Call call = buildCall(90, CallType.FIXED_LOCAL);
         when(endpointRepository.findById(CIRCUIT_NUMBER))
                 .thenReturn(Optional.of(buildEndpoint(OUTBOUND_CONTEXT)));
@@ -217,7 +220,7 @@ class CallCostingServiceTest {
         callCostingService.applyCosting(call, OUTBOUND_CONTEXT);
 
         assertThat(call.getCallStatus()).isEqualTo(CallStatus.PROCESSED);
-        assertThat(call.getMinutesFromQuota()).isEqualTo(0);
+        assertThat(call.getMinutesFromQuota()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(call.getCost()).isEqualByComparingTo(new BigDecimal("0.135"));
         verifyNoInteractions(callRepository);
     }
@@ -229,39 +232,59 @@ class CallCostingServiceTest {
     @Test
     void applyCosting_usesPerTypeQuota_whenPlanIsPerCategory() {
         plan.setPackageType(PackageType.PER_CATEGORY);
-        plan.setPackageFixedLocal(50);   // 50 min → 100 frações para FIXED_LOCAL
-        plan.setPackageMobileLocal(20);  // 20 min for MOBILE_LOCAL (not used)
-        // 80 frações usadas (40 min * 2); remaining = 20; call = 60s = 2 frações → coberta
+        plan.setPackageFixedLocal(50);   // 50 min para FIXED_LOCAL
+        plan.setPackageMobileLocal(20);  // 20 min para MOBILE_LOCAL (não usado)
+        // 40.0 min usados; remaining = 10.0 min; ligação 60s = 1.0 min → coberta
         Call call = buildCall(60, CallType.FIXED_LOCAL);
         when(endpointRepository.findById(CIRCUIT_NUMBER))
                 .thenReturn(Optional.of(buildEndpoint(OUTBOUND_CONTEXT)));
         when(callRepository.sumQuotaMinutesByType(CIRCUIT_NUMBER, CallType.FIXED_LOCAL.name(), 3, 2026))
-                .thenReturn(80);
+                .thenReturn(new BigDecimal("40.0"));
 
         callCostingService.applyCosting(call, OUTBOUND_CONTEXT);
 
         assertThat(call.getCallStatus()).isEqualTo(CallStatus.PROCESSED);
         assertThat(call.getCost()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(call.getMinutesFromQuota()).isEqualTo(2);
+        assertThat(call.getMinutesFromQuota()).isEqualByComparingTo(new BigDecimal("1.0"));
         verify(callRepository, never()).sumQuotaMinutes(any(), anyInt(), anyInt());
     }
 
     @Test
-    void applyCosting_consumes3Fractions_for61SecondCallWithinQuota() {
+    void applyCosting_consumes1Point5Minutes_for61SecondCallWithinQuota() {
         plan.setPackageType(PackageType.UNIFIED);
         plan.setPackageTotalMinutes(100);
-        // US-020 critério 1: ligação de 61s consome 3 frações do pacote (ceil(61/30)=3)
-        // quota = 200 frações; 0 usadas; remaining = 200; coberta por completo
+        // ligação de 61s: ceil(61/30)/2 = 3/2 = 1.5 min debitados do plano
+        // quota = 100 min; 0 usados; remaining = 100 min; coberta por completo
         Call call = buildCall(61, CallType.FIXED_LOCAL);
         when(endpointRepository.findById(CIRCUIT_NUMBER))
                 .thenReturn(Optional.of(buildEndpoint(OUTBOUND_CONTEXT)));
-        when(callRepository.sumQuotaMinutes(CIRCUIT_NUMBER, 3, 2026)).thenReturn(0);
+        when(callRepository.sumQuotaMinutes(CIRCUIT_NUMBER, 3, 2026))
+                .thenReturn(BigDecimal.ZERO);
 
         callCostingService.applyCosting(call, OUTBOUND_CONTEXT);
 
         assertThat(call.getCallStatus()).isEqualTo(CallStatus.PROCESSED);
         assertThat(call.getCost()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(call.getMinutesFromQuota()).isEqualTo(3);
+        assertThat(call.getMinutesFromQuota()).isEqualByComparingTo(new BigDecimal("1.5"));
+    }
+
+    @Test
+    void applyCosting_consumes7Point5Minutes_for7min27secCallWithinQuota() {
+        plan.setPackageType(PackageType.UNIFIED);
+        plan.setPackageTotalMinutes(100);
+        // ligação de 7:27 = 447s: ceil(447/30)/2 = 15/2 = 7.5 min debitados do plano
+        // quota = 100 min; 0 usados; remaining = 100 min; coberta por completo
+        Call call = buildCall(447, CallType.FIXED_LOCAL);
+        when(endpointRepository.findById(CIRCUIT_NUMBER))
+                .thenReturn(Optional.of(buildEndpoint(OUTBOUND_CONTEXT)));
+        when(callRepository.sumQuotaMinutes(CIRCUIT_NUMBER, 3, 2026))
+                .thenReturn(BigDecimal.ZERO);
+
+        callCostingService.applyCosting(call, OUTBOUND_CONTEXT);
+
+        assertThat(call.getCallStatus()).isEqualTo(CallStatus.PROCESSED);
+        assertThat(call.getCost()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(call.getMinutesFromQuota()).isEqualByComparingTo(new BigDecimal("7.5"));
     }
 
     // -------------------------------------------------------------------------
@@ -269,9 +292,9 @@ class CallCostingServiceTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void applyCosting_roundsUpTo1Fraction_for15Seconds() {
+    void applyCosting_roundsUpTo0Point5Minutes_for15Seconds() {
         plan.setPackageType(PackageType.NONE);
-        // 15s → ceil(15/30)=1 fraction → 1*(0.09/2)=0.045
+        // 15s → ceil(15/30)/2 = 0.5 min → 1*(0.09/2) = 0.045
         Call call = buildCall(15, CallType.FIXED_LOCAL);
         when(endpointRepository.findById(CIRCUIT_NUMBER))
                 .thenReturn(Optional.of(buildEndpoint(OUTBOUND_CONTEXT)));
@@ -282,9 +305,9 @@ class CallCostingServiceTest {
     }
 
     @Test
-    void applyCosting_roundsUpTo2Fractions_for35Seconds() {
+    void applyCosting_roundsUpTo1Minute_for35Seconds() {
         plan.setPackageType(PackageType.NONE);
-        // 35s → ceil(35/30)=2 fractions → 2*(0.09/2)=0.09
+        // 35s → ceil(35/30)/2 = 1.0 min → 2*(0.09/2) = 0.09
         Call call = buildCall(35, CallType.FIXED_LOCAL);
         when(endpointRepository.findById(CIRCUIT_NUMBER))
                 .thenReturn(Optional.of(buildEndpoint(OUTBOUND_CONTEXT)));
@@ -308,7 +331,7 @@ class CallCostingServiceTest {
 
         assertThat(call.getCallStatus()).isEqualTo(CallStatus.PROCESSED);
         assertThat(call.getCost()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(call.getMinutesFromQuota()).isEqualTo(0);
+        assertThat(call.getMinutesFromQuota()).isEqualByComparingTo(BigDecimal.ZERO);
         verifyNoInteractions(callRepository);
     }
 
@@ -322,14 +345,14 @@ class CallCostingServiceTest {
 
         assertThat(call.getCallStatus()).isEqualTo(CallStatus.PROCESSED);
         assertThat(call.getCost()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(call.getMinutesFromQuota()).isEqualTo(0);
+        assertThat(call.getMinutesFromQuota()).isEqualByComparingTo(BigDecimal.ZERO);
         verifyNoInteractions(callRepository);
     }
 
     @Test
     void applyCosting_chargesNormally_whenBillSecondsIsFour() {
         plan.setPackageType(PackageType.NONE);
-        // 4s → ceil(4/30)=1 fraction → 0.045
+        // 4s → ceil(4/30)/2 = 0.5 min → 0.045
         Call call = buildCall(4, CallType.FIXED_LOCAL);
         when(endpointRepository.findById(CIRCUIT_NUMBER))
                 .thenReturn(Optional.of(buildEndpoint(OUTBOUND_CONTEXT)));

@@ -12,7 +12,7 @@ public record AuditCallLineDTO(
         CallType      callType,
         int           billSeconds,
         BigDecimal    ratePerMinute,
-        int           quotaUsedThisCall,
-        int           quotaAccumulated,
+        BigDecimal    quotaUsedThisCall,
+        BigDecimal    quotaAccumulated,
         BigDecimal    cost
 ) {}

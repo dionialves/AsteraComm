@@ -62,7 +62,7 @@ public interface CallRepository extends JpaRepository<Call, Long>,
             "AND call_status = 'PROCESSED' " +
             "AND EXTRACT(MONTH FROM call_date) = :month " +
             "AND EXTRACT(YEAR  FROM call_date) = :year", nativeQuery = true)
-    int sumQuotaMinutes(@Param("circuitNumber") String circuitNumber,
+    BigDecimal sumQuotaMinutes(@Param("circuitNumber") String circuitNumber,
             @Param("month") int month,
             @Param("year") int year);
 
@@ -72,7 +72,7 @@ public interface CallRepository extends JpaRepository<Call, Long>,
             "AND call_status = 'PROCESSED' " +
             "AND EXTRACT(MONTH FROM call_date) = :month " +
             "AND EXTRACT(YEAR  FROM call_date) = :year", nativeQuery = true)
-    int sumQuotaMinutesByType(@Param("circuitNumber") String circuitNumber,
+    BigDecimal sumQuotaMinutesByType(@Param("circuitNumber") String circuitNumber,
             @Param("callType") String callType,
             @Param("month") int month,
             @Param("year") int year);

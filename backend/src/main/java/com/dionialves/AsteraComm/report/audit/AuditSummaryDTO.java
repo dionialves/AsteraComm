@@ -4,8 +4,8 @@ import java.math.BigDecimal;
 
 public record AuditSummaryDTO(
         int        totalCalls,
-        int        totalMinutes,
-        int        quotaMinutesUsed,
-        int        excessMinutes,
+        BigDecimal totalMinutes,
+        BigDecimal quotaMinutesUsed,
+        BigDecimal excessMinutes,
         BigDecimal totalCost
 ) {}
