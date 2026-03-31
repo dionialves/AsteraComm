@@ -68,7 +68,7 @@ start_services() {
 
     if [ "$1" == "build" ]; then
         print_status "Reconstruindo imagens (isso pode levar alguns minutos)..."
-        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME build --no-cache
+        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME build
     fi
 
     sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME up -d

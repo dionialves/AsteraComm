@@ -21,4 +21,6 @@ jobs:
           script: |
             cd ~/AsteraComm
             git pull origin main
-            ./prod.sh build
+            sudo docker compose pull asterisk
+            sudo docker compose build backend
+            sudo docker compose up -d

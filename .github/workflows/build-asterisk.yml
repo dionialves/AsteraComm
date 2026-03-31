@@ -1,0 +1,36 @@
+name: Build Asterisk Image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'asterisk/Dockerfile'
+      - 'asterisk/odbc.ini'
+      - 'asterisk/odbcinst.ini'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and push
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Asterisk image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./asterisk
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/asteracomm-asterisk:latest

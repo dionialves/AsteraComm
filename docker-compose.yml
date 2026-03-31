@@ -40,7 +40,7 @@ services:
   asterisk:
     network_mode: host
     platform: linux/amd64
-    build: ./asterisk
+    image: ghcr.io/${GHCR_OWNER}/asteracomm-asterisk:latest
     container_name: asterisk
     volumes:
       - ./asterisk/config:/etc/asterisk
