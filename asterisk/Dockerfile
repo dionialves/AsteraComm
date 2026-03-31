@@ -18,7 +18,7 @@ RUN wget https://downloads.asterisk.org/pub/telephony/asterisk/asterisk-22-curre
     rm -rf asterisk-22-current.tar.gz &&  \
     mv asterisk-* /usr/src/asterisk && \
     cd /usr/src/asterisk && \
-    ./configure && \
+    ./configure CFLAGS="-march=x86-64 -mtune=generic" && \
     make -j$(nproc) && \
     make install && \
     make samples && \
