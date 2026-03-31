@@ -1,86 +1,47 @@
 # AsteraComm Backend
 
-AsteraComm Backend é a parte do sistema responsável pela comunicação com o Asterisk. Atualmente, o backend fornece uma API simples que consulta e exibe os endpoints registrados no Asterisk. A arquitetura foi projetada para ser expandida futuramente, com a adição de funcionalidades como gerenciamento de chamadas, filas e outros recursos do Asterisk. O objetivo é fornecer uma plataforma escalável e centralizada para monitorar e administrar o Asterisk de maneira eficiente.
+AsteraComm Backend é a aplicação principal do sistema — responsável pela interface web (Thymeleaf/HTMX) e pela comunicação com o Asterisk via AMI. Gerencia circuitos SIP, troncos, clientes, planos, DIDs e relatórios de chamadas.
 
-O backend é a espinha dorsal do AsteraComm, e pode ser integrado com o frontend para oferecer uma solução completa de monitoramento e gerenciamento do Asterisk.
-<br>
-<br>
-## 🚀 Tecnologias
+## Tecnologias
 
-- **Java 21**: A principal linguagem utilizada no desenvolvimento do backend.
-- **Spring Boot**: Framework para a construção de APIs RESTful.
-- **PostgreSQL**: Banco de dados utilizado para armazenar informações sobre o Asterisk e os dados do sistema.
-- **JPA/Hibernate**: Para a interação com o banco de dados.
-- **Maven**: Gerenciador de dependências e construção do projeto.
-<br>
+- **Java 21** + **Spring Boot**
+- **Thymeleaf + HTMX** — UI server-side rendering
+- **Spring Security** — autenticação via sessão (form login)
+- **PostgreSQL** — banco de dados principal
+- **Flyway** — migrations de schema
+- **JPA/Hibernate** — ORM
+- **Maven** — build
 
-## 🌐 Repositórios
+## Repositório Principal
 
-- **Projeto Principal**: [AsteraComm](https://github.com/dionialves/AsteraComm)
-  - O repositório principal inclui o frontend e a documentação completa do projeto.
-  
-- **Backend**: [AsteraComm-backend](https://github.com/dionialves/AsteraComm-backend)
-  - Este repositório contém apenas o backend, a API que interage com o Asterisk.
-  
-- **Frontend**: [AsteraComm-frontend](https://github.com/dionialves/AsteraComm-frontend)
-  - Repositório do frontend, onde o gerenciamento visual do Asterisk acontece.
-<br>
+- [AsteraComm](https://github.com/dionialves/AsteraComm) — contém backend, infra (Docker, Asterisk, Nginx) e documentação completa.
 
-## ⚙️ Como Rodar o Backend Localmente
+## Como rodar localmente
 
-### ✅ Pré-requisitos para execução do AsteraComm-backend
+Use os scripts na raiz do repositório principal:
 
-Para executar este projeto, você precisará ter os seguintes itens instalados e funcionando:
-
-- Java 21
-- PostgreSQL (acessível e em funcionamento)
-- Arquivo `.env` na raiz do projeto com as variáveis:
-
-```env
-DB_URL=localhost
-DB_USER=seu_usuario
-DB_PASSWORD=sua_senha
+```bash
+./dev.sh        # Sobe todos os serviços com hot reload
+./dev.sh build  # Rebuild + sobe
+./dev.sh stop   # Para os serviços
+./dev.sh logs backend  # Logs do backend
 ```
 
-### Passos para rodar
+A aplicação estará disponível em `http://localhost:8090`.
 
-1. Clone o repositório:
-    ```bash
-    git clone https://github.com/dionialves/AsteraComm-backend.git
-    cd AsteraComm-backend
-    ```
+### Credenciais padrão
 
-2. Construa o projeto:
-    ```bash
-    mvn clean install
-    ```
+- App: `admin@asteracomm.com` / `admin123`
+- DB: `asteracomm` / `asteracomm`
 
-3. Inicie o backend:
-    ```bash
-    mvn spring-boot:run
-    ```
+## Profiles Spring
 
-4. A API estará disponível em `http://localhost:8090`.
-<br>
+| Profile | Ativado por | Uso |
+|---|---|---|
+| `dev` | `SPRING_PROFILES_ACTIVE=dev` | Hot reload, cache desabilitado |
+| `prod` | `SPRING_PROFILES_ACTIVE=prod` | Imagem compilada, ddl-auto=validate |
 
-## 📦 Endpoints Disponíveis
-
-Atualmente, o único endpoint disponível é:
-
-### /api/endpoints
-
-- **GET**: Lista todos os endpoints registrados no Asterisk.
-
-Demais endpoints, como gerenciamento de chamadas, filas e outros, serão implementados em versões futuras.
-<br>
-
-## 🔗 Links Úteis
+## Links úteis
 
 - [Documentação do Asterisk](https://wiki.asterisk.org/)
-- [AsteraComm Projeto Principal](https://github.com/dionialves/AsteraComm)
-- [AsteraComm Frontend](https://github.com/dionialves/AsteraComm-frontend)
-- [AsteraComm Backend](https://github.com/dionialves/AsteraComm-backend)
-
-## 📄 Licença
-
-Distribuído sob a licença MIT. Veja `LICENSE` para mais informações.
+- [HTMX](https://htmx.org/)
