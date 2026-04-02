@@ -16,6 +16,7 @@
 
 ### Bug Fixes (FIX)
 1. [FIX-073 — Group filter da página de Circuitos não permanece ativo após modificação de página](#fix-073)
+2. [FIX-074 — Status de tronco com autenticação por IP não exibido corretamente](#fix-074)
 
 ---
 
@@ -238,3 +239,21 @@ A re-renderização da listagem não restaura o estado visual do botão ativo ne
 1. Ao selecionar um filtro e editar/salvar um circuito, o filtro permanece ativo após o reload da listagem.
 2. Ao navegar entre páginas (paginação), o filtro ativo é mantido.
 3. O botão visualmente destacado corresponde sempre ao filtro em uso.
+
+---
+
+### FIX-074
+
+**Titulo:** Status de tronco com autenticação por IP não exibido corretamente
+
+**Descrição:**
+Troncos com `authType = IP_AUTH` aparecem sempre como "Não registrado" na listagem. O mecanismo atual consulta registros SIP (`pjsip show registrations` via AMI), mas troncos IP Auth não utilizam registro — a autenticação é feita por IP de origem, sem handshake de registro com o provedor.
+
+**Causa provável:**
+O `EndpointStatusService` consulta status via registrations, que só existe para troncos `CREDENTIAL`. Troncos `IP_AUTH` não possuem entrada em `ps_registrations`, portanto nunca retornam status positivo.
+
+**Critérios de Aceite:**
+
+1. Troncos `CREDENTIAL` continuam exibindo "Registrado" / "Não registrado" como antes.
+2. Troncos `IP_AUTH` exibem badge distinto (ex.: "IP Auth") sem tentar consultar registro SIP.
+3. Nenhuma regressão no comportamento de troncos `CREDENTIAL` existentes.
