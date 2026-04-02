@@ -16,6 +16,14 @@
 1. [US-012 — Reorganização de pacotes em `domain/`](#us-012)
 2. [US-066 — Menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
 3. [RF-075 — Paridade de funcionalidades entre `dev.sh` e `prod.sh`](#rf-075)
+4. [RF-086 — Eliminar lógica de custeio duplicada entre `AuditService` e `CallCostingService`](#rf-086)
+5. [RF-087 — Substituir hack de formatação de moeda por `NumberFormat`](#rf-087)
+6. [RF-088 — Substituir parsing frágil de texto AMI por consulta estruturada ao banco](#rf-088)
+7. [RF-089 — Extrair valores hard-coded para constantes ou propriedades](#rf-089)
+8. [RF-090 — Eliminar N+1 query na listagem de clientes](#rf-090)
+9. [RF-091 — Adicionar cache ao dashboard](#rf-091)
+10. [RF-092 — Padronizar `FetchType` em `Circuit`](#rf-092)
+11. [RF-093 — Decompor serviços com múltiplas responsabilidades (`AuditService`, `CostPerCircuitService`)](#rf-093)
 
 ---
 
@@ -35,6 +43,181 @@ Como desenvolvedor, quero que os scripts `dev.sh` e `prod.sh` tenham as mesmas f
 3. **`stop [serviço]` em ambos:** quando um serviço for informado (`./dev.sh stop backend`), para apenas aquele container (`docker compose stop <serviço>`); sem argumento, mantém o comportamento atual (para tudo).
 4. **`help` atualizado:** ambos os scripts refletem os novos comandos na saída de ajuda.
 5. **Sem regressão:** comandos existentes (`start`, `build`, `logs`, `stop` sem argumento) continuam funcionando identicamente.
+
+---
+
+### RF-086
+
+**Titulo:** Eliminar lógica de custeio duplicada entre `AuditService` e `CallCostingService`
+
+**Descrição:**
+Como desenvolvedor, quero que a lógica de resolução de tarifa e quota exista em um único lugar, para que alterações nas regras de custeio não precisem ser aplicadas em dois services separados e de forma independente.
+
+**Contexto técnico:**
+`AuditService` possui implementações próprias de `resolveRate`, `resolveUnifiedQuota`, `resolvePerCategoryQuota` e `decodeCost` que replicam o que `CallCostingService` já implementa. O método `calculateFractionCost` já é reaproveitado (`AuditService:90,130` chama `CallCostingService.calculateFractionCost`), mas a resolução de tarifa e quota permanece duplicada. Se a regra de tarifa mudar, precisa ser corrigida nos dois services.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Métodos compartilhados:** `resolveRate(Plan, CallType)` e os métodos de resolução de quota são `public static` em `CallCostingService` (ou extraídos para uma classe utilitária compartilhada).
+2. **AuditService sem reimplementação:** `AuditService` não possui nenhuma implementação própria de resolução de tarifa ou quota — delega para `CallCostingService`.
+3. **Resultado idêntico:** o resultado de `AuditService.simulate()` é idêntico antes e depois da refatoração para os três tipos de pacote (`NONE`, `UNIFIED`, `PER_CATEGORY`).
+4. **Testes:** testes de `AuditService` e `CallCostingService` continuam passando sem alteração.
+
+---
+
+### RF-087
+
+**Titulo:** Substituir hack de formatação de moeda por `NumberFormat`
+
+**Descrição:**
+Como desenvolvedor, quero que a formatação de valores monetários use a API padrão do Java, para eliminar a dependência frágil de locale implícito da JVM e o padrão de replace encadeado ilegível.
+
+**Contexto técnico:**
+`AuditService:213,250,251,270` e `CostPerCircuitService:144` usam `.replace(",","X").replace(".",",").replace("X",".")` para converter o separador decimal do formato JVM para o formato PT-BR. Esse padrão quebra silenciosamente se o locale padrão da JVM for diferente do esperado.
+
+**Estimativa:** 0,5 story point
+
+**Critérios de Aceite:**
+
+1. **Zero ocorrências** do pattern `.replace(",","X")` no projeto.
+2. **Método utilitário:** `formatBrl(BigDecimal)` extraído como método privado (ou classe utilitária) usando `NumberFormat.getInstance(new Locale("pt","BR"))` com scale fixo de 2 casas decimais.
+3. **Saída idêntica:** formato `R$ 1.234,56` nos PDFs gerados idêntico ao atual.
+4. **Comportamento independente** do locale padrão da JVM.
+
+---
+
+### RF-088
+
+**Titulo:** Substituir parsing frágil de texto AMI por consulta estruturada ao banco
+
+**Descrição:**
+Como desenvolvedor, quero que o status de troncos e endpoints seja lido diretamente das tabelas do banco do Asterisk, para eliminar a fragilidade do parsing de saída de texto CLI que quebra com qualquer mudança de formatação do Asterisk.
+
+**Contexto técnico:**
+`TrunkRegistrationStatusService:47-52` faz split de strings na saída de `pjsip show registrations`. `EndpointStatusService:54-60` faz split de strings na saída de `pjsip show contacts`. Ambos assumem posições fixas de colunas no output CLI — qualquer mudança de versão do Asterisk quebra o parsing silenciosamente. O banco do Asterisk já é acessível via JPA (as tabelas `ps_endpoints`, `ps_aors` etc. já são lidas/escritas pelo sistema).
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **Nenhum parsing de texto CLI** nos dois services.
+2. **Status de tronco** lido da tabela `ps_registrations` via entidade `@Immutable` + repositório JPA.
+3. **Status de endpoint** lido da tabela `ps_contacts` via entidade `@Immutable` + repositório JPA.
+4. **Sem chamadas AMI** para leitura de status — apenas para reload (`pjsip reload`, `dialplan reload`).
+5. **Testes:** cobrem tronco registrado, não registrado e sem entrada na tabela.
+
+---
+
+### RF-089
+
+**Titulo:** Extrair valores hard-coded para constantes ou propriedades
+
+**Descrição:**
+Como desenvolvedor, quero que literais mágicos espalhados pelo código sejam nomeados semanticamente ou configuráveis via properties, para facilitar manutenção e evitar inconsistências ao mudar convenções de nomenclatura.
+
+**Contexto técnico:**
+- `AsteriskProvisioningService`: prefixos `"internal-"` e `"pstn-"` repetidos 7 vezes no corpo dos métodos (linhas 67, 151, 152, 203, 242, 264, 288, 294).
+- `DashboardService:145-146`, `AuditService:165-166`, `CostPerCircuitService:55-57`: arrays manuais de nomes de meses em PT-BR duplicados em 3 locais.
+- `AsteriskProvisioningService`: literais de configuração PJSIP sem nome (`"60"`, `"1"`, `"yes"`, `"ulaw,alaw"`).
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Prefixos de contexto** extraídos para `private static final String` com nome descritivo em `AsteriskProvisioningService`.
+2. **Arrays de meses** substituídos por `Month.of(i).getDisplayName(TextStyle.FULL, new Locale("pt","BR"))` — sem array manual em nenhum arquivo.
+3. **Literais de configuração PJSIP** extraídos para constantes nomeadas.
+4. **Comportamento idêntico** em provisionamento e relatórios.
+5. **Sem regressão** nos testes existentes.
+
+---
+
+### RF-090
+
+**Titulo:** Eliminar N+1 query na listagem de clientes
+
+**Descrição:**
+Como desenvolvedor, quero que a listagem de clientes execute um número fixo de queries independente do tamanho da página, para evitar degradação de performance à medida que o volume de clientes cresce.
+
+**Contexto técnico:**
+`CustomerService:41` chama `circuitRepository.countByCustomerId(c.getId())` dentro de `page.map(this::toResponseDTO)`, resultando em 1 query por cliente da página. Com 20 clientes por página = 21 queries por request. Com 50 clientes = 51 queries.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Máximo 2 queries** por chamada a `CustomerService.getAll()` (dados + count para paginação), independente do tamanho da página.
+2. **`circuitCount` correto** para clientes com 0, 1 e N circuitos.
+3. **`CircuitRepository` removido** de `CustomerService` — a contagem é calculada na própria query de clientes via `LEFT JOIN ... GROUP BY`.
+4. **Testes de integração** validam a contagem com H2.
+
+---
+
+### RF-091
+
+**Titulo:** Adicionar cache ao dashboard
+
+**Descrição:**
+Como desenvolvedor, quero que os dados do dashboard sejam cacheados por um período configurável, para reduzir a carga no banco causada pelo polling frequente da interface.
+
+**Contexto técnico:**
+`DashboardService.getDashboard()` executa ~12 queries a cada chamada. O dashboard utiliza polling via HTMX, podendo gerar dezenas de chamadas por minuto com múltiplos usuários simultâneos. Caffeine é dependência transitiva do Spring Boot e está disponível sem adição de dependências.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Cache funcional:** segunda chamada ao dashboard dentro do TTL não executa queries no banco.
+2. **Invalidação por circuito:** criação e deleção de circuito evictam o cache.
+3. **Invalidação por chamadas:** processamento de novas chamadas evicta o cache.
+4. **TTL configurável** via `dashboard.cache.ttl.seconds` em `application.properties`, com valor padrão de 60 segundos.
+5. **Testes:** verificam que o repositório não é chamado na segunda invocação dentro do TTL.
+
+---
+
+### RF-092
+
+**Titulo:** Padronizar `FetchType` em `Circuit`
+
+**Descrição:**
+Como desenvolvedor, quero que as associações de `Circuit` usem estratégia de fetch consistente e justificada, para evitar carregamento desnecessário de dados e potenciais `LazyInitializationException`.
+
+**Contexto técnico:**
+`Circuit.java:32`: `Customer` é `FetchType.LAZY`. `Circuit.java:36`: `Plan` é `FetchType.EAGER` sem justificativa técnica. O `EAGER` no `Plan` significa que toda listagem de circuitos (mesmo mostrando apenas número e status) carrega o plano completo com todas as suas colunas de tarifa.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **`Plan` em `Circuit`** com `FetchType.LAZY`.
+2. **Nenhum `LazyInitializationException`** em nenhum fluxo existente (listagem, detalhe, provisionamento, custeio, auditoria).
+3. **Queries que precisam do plano** usam `@EntityGraph` ou `JOIN FETCH` explícito.
+4. **Testes de integração** cobrem os fluxos que acessam `circuit.getPlan()`.
+
+---
+
+### RF-093
+
+**Titulo:** Decompor serviços com múltiplas responsabilidades (`AuditService`, `CostPerCircuitService`)
+
+**Descrição:**
+Como desenvolvedor, quero que cada classe tenha uma única razão para mudar, extraindo a geração de PDF para classes dedicadas, para que alterações de layout de relatório não interfiram com a lógica de negócio.
+
+**Contexto técnico:**
+- `AuditService` (308 linhas): mistura lógica de simulação de custeio com geração de PDF. Mudança de layout do PDF e mudança de regra de custeio são razões independentes para alterar a mesma classe.
+- `CostPerCircuitService` (146 linhas): mistura agregação de dados com geração de PDF. Ambas as classes têm imports de `com.lowagie` ao lado de imports de domínio.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **`AuditPdfGenerator`** extraído de `AuditService`: recebe `AuditResultDTO` e retorna `byte[]`. `AuditService` não tem nenhum import de `com.lowagie`.
+2. **`CostPerCircuitPdfGenerator`** extraído de `CostPerCircuitService`: recebe `CostPerCircuitResponseDTO` e retorna `byte[]`. `CostPerCircuitService` não tem nenhum import de `com.lowagie`.
+3. **Geradores de PDF** não têm dependência de repositórios — trabalham apenas com DTOs.
+4. **Comportamento dos PDFs** idêntico ao atual (layout, dados, formatação).
+5. **Testes existentes** continuam passando sem alteração.
 
 ---
 
