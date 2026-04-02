@@ -23,13 +23,13 @@
 - US-007: Vinculação DID-Circuito com provisionamento automático de Extensions
 - US-008: Refatoração — EndpointStatusService delegar conexão AMI ao AmiService
 - US-009: Vinculação Circuito-Tronco com provisionamento automático de contextos
-- US-009: Cadastro de clientes e vínculo obrigatório com circuito
+- US-070: Cadastro de clientes e vínculo obrigatório com circuito
 - US-010: Geração dinâmica de `extensions_trunks.conf` para contextos de tronco
-- US-010: Custeio de ligações por circuito com franquia e tarifação
+- US-071: Custeio de ligações por circuito com franquia e tarifação
 - US-014: Dashboard inicial com visão geral operacional e financeira
 - US-015: Relatório de custo de ligações por circuito no período
 - US-016: Entidade Call — mapeamento e processamento das ligações do CDR
-- US-016: Ferramenta de auditoria de custo de ligações por circuito
+- US-072: Ferramenta de auditoria de custo de ligações por circuito
 - US-017: Enriquecimento de ligações com circuito via channel
 - US-018: Vínculo de plano de cobrança ao circuito e seleção de cliente no frontend
 - US-019: Migrações de schema com Flyway
@@ -72,8 +72,8 @@
 - US-062: Refatoração — organizar pacote `report` com sub-pacotes por relatório
 - US-063: Modal de detalhes do circuito a partir da página de Auditoria
 - US-064: Modais de perfil e senha no padrão do sistema
-- US-067: Tronco SIP com autenticação por IP (IP Auth)
-- US-067: Refatoração — remover métricas de faturamento do dashboard
+- US-068: Tronco SIP com autenticação por IP (IP Auth)
+- US-069: Refatoração — remover métricas de faturamento do dashboard
 
 ### Bug Fixes
 - FIX: Auditoria — circuito não encontrado ao processar (seletor usava `id` em vez de `number`)
