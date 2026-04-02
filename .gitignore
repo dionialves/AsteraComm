@@ -5,3 +5,26 @@ CLAUDE.md
 # Dados sigilosos — nunca commitar
 dados/
 postgres/init/03-seed-real.sql
+
+# Backend
+backend/.env
+backend/src/main/resources/.reload-trigger
+backend/.tool-versions
+
+backend/target/
+backend/.mvn/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache

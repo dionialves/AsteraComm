@@ -54,7 +54,7 @@ check_docker() {
         exit 1
     fi
 
-    if ! sudo docker info &>/dev/null; then
+    if ! docker info &>/dev/null; then
         print_error "Docker não está rodando. Por favor, inicie o Docker."
         exit 1
     fi
@@ -68,10 +68,10 @@ start_services() {
 
     if [ "$1" == "build" ]; then
         print_status "Reconstruindo imagens (isso pode levar alguns minutos)..."
-        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME build --no-cache
+        docker compose -f $COMPOSE_FILE -p $PROJECT_NAME build --no-cache
     fi
 
-    sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME up -d
+    docker compose -f $COMPOSE_FILE -p $PROJECT_NAME up -d
 
     echo ""
     print_status "Serviços iniciados com sucesso!"
@@ -93,15 +93,15 @@ start_services() {
 stop_services() {
     print_header
     print_status "Parando serviços de produção..."
-    sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME down
+    docker compose -f $COMPOSE_FILE -p $PROJECT_NAME down
     print_status "Serviços parados."
 }
 
 show_logs() {
     if [ -n "$1" ]; then
-        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME logs -f "$1"
+        docker compose -f $COMPOSE_FILE -p $PROJECT_NAME logs -f "$1"
     else
-        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME logs -f
+        docker compose -f $COMPOSE_FILE -p $PROJECT_NAME logs -f
     fi
 }
 
@@ -109,7 +109,7 @@ show_status() {
     print_header
     print_status "Status dos containers:"
     echo ""
-    sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME ps
+    docker compose -f $COMPOSE_FILE -p $PROJECT_NAME ps
 }
 
 show_help() {

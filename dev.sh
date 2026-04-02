@@ -53,7 +53,7 @@ check_docker() {
         exit 1
     fi
 
-    if ! sudo docker info &>/dev/null; then
+    if ! docker info &>/dev/null; then
         print_error "Docker não está rodando. Por favor, inicie o Docker."
         exit 1
     fi
@@ -67,10 +67,10 @@ start_services() {
 
     if [ "$1" == "build" ]; then
         print_status "Reconstruindo containers..."
-        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME build --no-cache
+        docker compose -f $COMPOSE_FILE -p $PROJECT_NAME build --no-cache
     fi
 
-    sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME up -d
+    docker compose -f $COMPOSE_FILE -p $PROJECT_NAME up -d
 
     echo ""
     print_status "Serviços iniciados com sucesso!"
@@ -95,16 +95,16 @@ rebuild_service() {
 
     if [ -n "$SERVICE" ]; then
         print_status "Reconstruindo '$SERVICE' do zero..."
-        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME stop "$SERVICE"
-        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME rm -f "$SERVICE"
-        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME build --no-cache "$SERVICE"
-        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME up -d "$SERVICE"
+        docker compose -f $COMPOSE_FILE -p $PROJECT_NAME stop "$SERVICE"
+        docker compose -f $COMPOSE_FILE -p $PROJECT_NAME rm -f "$SERVICE"
+        docker compose -f $COMPOSE_FILE -p $PROJECT_NAME build --no-cache "$SERVICE"
+        docker compose -f $COMPOSE_FILE -p $PROJECT_NAME up -d "$SERVICE"
         print_status "Serviço '$SERVICE' reconstruído e reiniciado."
     else
         print_status "Reconstruindo todos os serviços do zero..."
-        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME down
-        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME build --no-cache
-        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME up -d
+        docker compose -f $COMPOSE_FILE -p $PROJECT_NAME down
+        docker compose -f $COMPOSE_FILE -p $PROJECT_NAME build --no-cache
+        docker compose -f $COMPOSE_FILE -p $PROJECT_NAME up -d
         print_status "Todos os serviços reconstruídos e reiniciados."
     fi
 }
@@ -112,15 +112,15 @@ rebuild_service() {
 stop_services() {
     print_header
     print_status "Parando serviços de desenvolvimento..."
-    sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME down
+    docker compose -f $COMPOSE_FILE -p $PROJECT_NAME down
     print_status "Serviços parados."
 }
 
 show_logs() {
     if [ -n "$1" ]; then
-        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME logs -f "$1"
+        docker compose -f $COMPOSE_FILE -p $PROJECT_NAME logs -f "$1"
     else
-        sudo docker compose -f $COMPOSE_FILE -p $PROJECT_NAME logs -f
+        docker compose -f $COMPOSE_FILE -p $PROJECT_NAME logs -f
     fi
 }
 
