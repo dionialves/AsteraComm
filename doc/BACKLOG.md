@@ -13,8 +13,30 @@
 ### Refactoring (RF)
 1. [US-012 — Reorganização de pacotes em `domain/`](#us-012)
 2. [US-066 — Menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
+3. [RF-075 — Paridade de funcionalidades entre `dev.sh` e `prod.sh`](#rf-075)
 
-### Bug Fixes (FIX)
+---
+
+### RF-075
+
+**Titulo:** Paridade de funcionalidades entre `dev.sh` e `prod.sh`
+
+**Descrição:**
+Como desenvolvedor, quero que os scripts `dev.sh` e `prod.sh` tenham as mesmas funcionalidades disponíveis, e que ambos suportem parada de serviço individual, para simplificar a operação do ambiente sem precisar lembrar qual comando existe em qual script.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **`prod.sh rebuild [serviço]`:** comando adicionado com o mesmo comportamento do `dev.sh` — para o serviço, remove o container, reconstrói sem cache e reinicia.
+2. **`dev.sh status`:** comando adicionado exibindo o estado dos containers via `docker compose ps`.
+3. **`stop [serviço]` em ambos:** quando um serviço for informado (`./dev.sh stop backend`), para apenas aquele container (`docker compose stop <serviço>`); sem argumento, mantém o comportamento atual (para tudo).
+4. **`help` atualizado:** ambos os scripts refletem os novos comandos na saída de ajuda.
+5. **Sem regressão:** comandos existentes (`start`, `build`, `logs`, `stop` sem argumento) continuam funcionando identicamente.
+
+---
+
+## Bug Fixes (FIX)
 1. [FIX-073 — Group filter da página de Circuitos não permanece ativo após modificação de página](#fix-073)
 2. [FIX-074 — Status de tronco com autenticação por IP não exibido corretamente](#fix-074)
 
