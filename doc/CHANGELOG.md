@@ -7,9 +7,6 @@
 
 ## [Unreleased]
 
-### Features
-- US-067: Exibir versão da aplicação abaixo da logo no menu lateral
-
 ---
 
 ## [1.0.0] - 2026-04-02
@@ -72,6 +69,7 @@
 - US-062: Refatoração — organizar pacote `report` com sub-pacotes por relatório
 - US-063: Modal de detalhes do circuito a partir da página de Auditoria
 - US-064: Modais de perfil e senha no padrão do sistema
+- US-067: Exibir versão da aplicação abaixo da logo no menu lateral
 - US-068: Tronco SIP com autenticação por IP (IP Auth)
 - US-069: Refatoração — remover métricas de faturamento do dashboard
 
