@@ -16,14 +16,20 @@
 1. [US-012 — Reorganização de pacotes em `domain/`](#us-012)
 2. [US-066 — Menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
 3. [RF-075 — Paridade de funcionalidades entre `dev.sh` e `prod.sh`](#rf-075)
-4. [RF-086 — Eliminar lógica de custeio duplicada entre `AuditService` e `CallCostingService`](#rf-086)
-5. [RF-087 — Substituir hack de formatação de moeda por `NumberFormat`](#rf-087)
-6. [RF-088 — Substituir parsing frágil de texto AMI por consulta estruturada ao banco](#rf-088)
-7. [RF-089 — Extrair valores hard-coded para constantes ou propriedades](#rf-089)
-8. [RF-090 — Eliminar N+1 query na listagem de clientes](#rf-090)
-9. [RF-091 — Adicionar cache ao dashboard](#rf-091)
-10. [RF-092 — Padronizar `FetchType` em `Circuit`](#rf-092)
-11. [RF-093 — Decompor serviços com múltiplas responsabilidades (`AuditService`, `CostPerCircuitService`)](#rf-093)
+4. [RF-080 — Upsert no padrão de atualização de status de troncos e endpoints](#rf-080)
+5. [RF-081 — Remover double save em `CallProcessingService`](#rf-081)
+6. [RF-082 — Transação por registro em `CallProcessingService`](#rf-082)
+7. [RF-083 — Conexão persistente no `AmiService`](#rf-083)
+8. [RF-084 — Substituir `System.err.println` por logger estruturado](#rf-084)
+9. [RF-085 — Falha AMI rastreável no provisionamento](#rf-085)
+10. [RF-086 — Eliminar lógica de custeio duplicada entre `AuditService` e `CallCostingService`](#rf-086)
+11. [RF-087 — Substituir hack de formatação de moeda por `NumberFormat`](#rf-087)
+12. [RF-088 — Substituir parsing frágil de texto AMI por consulta estruturada ao banco](#rf-088)
+13. [RF-089 — Extrair valores hard-coded para constantes ou propriedades](#rf-089)
+14. [RF-090 — Eliminar N+1 query na listagem de clientes](#rf-090)
+15. [RF-091 — Adicionar cache ao dashboard](#rf-091)
+16. [RF-092 — Padronizar `FetchType` em `Circuit`](#rf-092)
+17. [RF-093 — Decompor serviços com múltiplas responsabilidades (`AuditService`, `CostPerCircuitService`)](#rf-093)
 
 ---
 
@@ -43,6 +49,132 @@ Como desenvolvedor, quero que os scripts `dev.sh` e `prod.sh` tenham as mesmas f
 3. **`stop [serviço]` em ambos:** quando um serviço for informado (`./dev.sh stop backend`), para apenas aquele container (`docker compose stop <serviço>`); sem argumento, mantém o comportamento atual (para tudo).
 4. **`help` atualizado:** ambos os scripts refletem os novos comandos na saída de ajuda.
 5. **Sem regressão:** comandos existentes (`start`, `build`, `logs`, `stop` sem argumento) continuam funcionando identicamente.
+
+---
+
+### RF-080
+
+**Titulo:** Upsert no padrão de atualização de status de troncos e endpoints
+
+**Descrição:**
+Como desenvolvedor, quero que a atualização de status de troncos e endpoints use upsert em vez de delete-then-insert, para que uma falha durante o refresh não resulte em perda total dos dados de status.
+
+**Contexto técnico:**
+`TrunkRegistrationStatusService:38` chama `statusRepository.deleteAll()` antes de inserir os novos registros. `EndpointStatusService:74` faz o mesmo com `endpointStatusRepository.deleteAll()`. Se o processo for interrompido entre o `deleteAll()` e os `save()` (timeout AMI, restart da aplicação, exceção), a tabela fica vazia. Além disso, durante a janela entre delete e insert, qualquer consulta à UI retorna status ausente.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Falha AMI preserva dados:** se `amiService.sendCommandWithResponse` retornar `null` ou lançar exceção, os registros de status existentes são mantidos intactos.
+2. **Refresh normal atualiza dados:** registros presentes no novo snapshot são criados ou atualizados corretamente.
+3. **Remoção de entidades:** registros cujas entidades não existem mais no novo snapshot são removidos após a inserção dos novos.
+4. **Zero janela de dados ausentes:** em nenhum momento a tabela fica vazia durante um refresh normal.
+5. **Testes:** cobrem AMI falha (dados preservados), refresh normal (dados atualizados) e entidade removida (registro deletado).
+
+---
+
+### RF-081
+
+**Titulo:** Remover double save em `CallProcessingService`
+
+**Descrição:**
+Como desenvolvedor, quero que cada CDR processado gere exatamente um `save()` no banco, para evitar a persistência de registros `Call` incompletos e eliminar a operação de escrita redundante.
+
+**Contexto técnico:**
+`CallProcessingService:43-45` chama `callRepository.save(call)` duas vezes por CDR: a primeira antes de `callCostingService.applyCosting`, persistindo um `Call` sem status, sem custo e sem `minutesFromQuota`. Se `applyCosting` lançar exceção, o registro incompleto permanece no banco. A segunda chamada é a que de fato contém os dados completos.
+
+**Estimativa:** 0,5 story point
+
+**Critérios de Aceite:**
+
+1. **Exatamente 1 `save()`** por CDR processado.
+2. **Nenhum `Call` sem status** chega ao banco.
+3. **Teste** verifica que `callRepository.save()` é chamado uma única vez por invocação do loop.
+
+---
+
+### RF-082
+
+**Titulo:** Transação por registro em `CallProcessingService`
+
+**Descrição:**
+Como desenvolvedor, quero que o processamento de cada CDR seja atômico e independente, para que uma falha em um registro não comprometa os anteriores nem deixe o registro com falha em estado indeterminado.
+
+**Contexto técnico:**
+O método `process()` em `CallProcessingService` não é `@Transactional`. Se falhar no CDR #5 de uma lista de 10, os 4 anteriores já foram salvos (sem rollback possível), o #5 fica em estado parcial, e os CDRs #6-10 são abortados junto. Além disso, sem transação, não há garantia de isolamento durante a leitura do `cdrRepository.findUnprocessed()` e o `save()`.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Atomicidade por CDR:** cada registro é processado em sua própria transação com `propagation = REQUIRES_NEW`.
+2. **Falha isolada:** exceção no CDR #2 de uma lista de 3 faz rollback apenas do #2; #1 e #3 são processados e salvos normalmente.
+3. **CDR com falha reprocessável:** o CDR que falhou permanece como não processado e será tentado novamente na próxima execução do scheduler.
+4. **Teste:** simula exceção no costing do CDR #2 e verifica que #1 e #3 foram persistidos.
+
+---
+
+### RF-083
+
+**Titulo:** Conexão persistente no `AmiService`
+
+**Descrição:**
+Como desenvolvedor, quero que o `AmiService` mantenha uma única conexão AMI reutilizável, para eliminar o overhead de abrir e fechar uma conexão TCP a cada comando enviado.
+
+**Contexto técnico:**
+`AmiService.sendCommand` (linhas 29-33) e `sendCommandWithResponse` (linhas 39-45) criam `ManagerConnectionFactory`, abrem conexão, fazem login, enviam o comando e fazem logoff a cada chamada. Em um provisionamento de circuito completo, são 3 chamadas AMI separadas (`pjsip reload`, `dialplan reload`, status) — cada uma com seu próprio ciclo de conexão TCP.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Conexão singleton:** `AmiService` mantém uma única instância de `ManagerConnection` compartilhada entre todas as chamadas.
+2. **Reconexão lazy:** se a conexão estiver fechada ou inativa no momento de um comando, reconecta automaticamente antes de enviar.
+3. **Múltiplos comandos sequenciais** reutilizam a mesma conexão sem novo login/logoff.
+4. **Teste:** verifica que `login()` é chamado apenas uma vez em uma sequência de 3 comandos consecutivos.
+
+---
+
+### RF-084
+
+**Titulo:** Substituir `System.err.println` por logger estruturado
+
+**Descrição:**
+Como desenvolvedor, quero que erros de infraestrutura sejam registrados via SLF4J, para que possam ser controlados por nível de log, direcionados para arquivos e correlacionados com outros eventos do sistema.
+
+**Contexto técnico:**
+`AmiService:35,48` e `EndpointStatusService:34,65` usam `System.err.println` para reportar falhas. Isso contorna completamente o sistema de logging, não há nível de severidade configurável, não há stack trace estruturado, e não há integração com MDC ou correlação de requests.
+
+**Estimativa:** 0,5 story point
+
+**Critérios de Aceite:**
+
+1. **Zero `System.err.println`** nos arquivos `AmiService` e `EndpointStatusService`.
+2. **`@Slf4j`** adicionado nas classes afetadas.
+3. **Erros** registrados com `log.error(mensagem, excecao)` incluindo a exceção para stack trace completo.
+4. **Nível de log** configurável via `application.properties` para o pacote `asterisk`.
+
+---
+
+### RF-085
+
+**Titulo:** Falha AMI rastreável no provisionamento
+
+**Descrição:**
+Como desenvolvedor, quero que falhas no AMI durante operações de provisionamento sejam propagadas como exceções rastreáveis, para que inconsistências entre o banco de dados e o Asterisk sejam detectáveis em vez de silenciosas.
+
+**Contexto técnico:**
+`AmiService.sendCommand` é `@Async` e captura todas as exceções internamente. `sendCommandWithResponse` retorna `null` em caso de falha. No fluxo de provisionamento de `AsteriskProvisioningService`, o `@Transactional` protege o banco, mas o `amiService.sendCommand("pjsip reload")` é disparado de forma assíncrona após o commit — se falhar, o banco reflete a mudança mas o Asterisk não. Essa inconsistência é invisível.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **`sendCommand` síncrono no provisionamento:** o `@Async` é removido de `sendCommand` quando chamado pelo `AsteriskProvisioningService`, garantindo execução antes do retorno ao caller.
+2. **Exceção em falha AMI crítica:** quando `sendCommandWithResponse` retornar `null` em operação de provisionamento, uma exceção rastreável é lançada com mensagem descritiva.
+3. **Log `ERROR`** registrado com detalhes do comando que falhou.
+4. **Teste:** simula falha AMI no provisionamento e verifica que exceção é propagada ao controller.
 
 ---
 
