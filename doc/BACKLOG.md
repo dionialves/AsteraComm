@@ -9,6 +9,8 @@
 4. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
 5. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
 6. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
+7. [US-078 — Controle de Firewall por IP](#us-078)
+8. [US-079 — Integração com IXC Soft — Relatório de divergências](#us-079)
 
 ### Refactoring (RF)
 1. [US-012 — Reorganização de pacotes em `domain/`](#us-012)
@@ -321,3 +323,58 @@ O histórico de ligações da Getel Telecom contém calls com `circuit = null` p
 2. Circuitos recriados têm `active = false` indicando que são registros históricos.
 3. Calls sem código de circuito identificável no `channel` permanecem com `circuit = null`.
 4. Migração Flyway versionada e validada em homologação antes de rodar em produção.
+
+---
+
+### US-078
+
+**Titulo:** Controle de Firewall por IP
+
+**Descrição:**
+Como administrador, quero gerenciar quais IPs podem autenticar no servidor e que IPs com falhas de autenticação repetidas sejam bloqueados automaticamente, para proteger o sistema contra tentativas de uso indevido.
+
+**Estimativa:** 5 story points
+
+**Critérios de Aceite:**
+
+1. Administrador pode adicionar/remover regras de bloqueio ou permissão por IP manualmente.
+2. IPs com N falhas de autenticação consecutivas (configurável via `firewall.max.attempts`) são bloqueados automaticamente via `iptables`.
+3. Falhas por circuito inativo e circuito inexistente ambas contam para o contador de tentativas.
+4. Ao reiniciar o sistema, todas as regras BLOCK ativas são reaplicadas no `iptables`.
+5. Desbloquear um IP remove a regra do banco e desfaz o bloqueio no `iptables`.
+6. Badge visual distingue bloqueios automáticos (`AUTO`) de manuais (`MANUAL`).
+7. Testes unitários cobrem: incremento de contador, disparo do auto-bloqueio e reaplicação no startup.
+
+**Componentes:**
+- Entidade `FirewallRule`: `ip`, `type` (`ALLOW` | `BLOCK`), `reason`, `createdAt`, `autoBlocked`
+- `IxcSoftClient`: serviço que monitora eventos de falha AMI e acumula tentativas por IP
+- Endpoints: `GET /api/firewall`, `POST /api/firewall`, `DELETE /api/firewall/{id}`
+- Frontend: página `/firewall` com tabela de regras, badge por tipo e botão desbloquear
+
+---
+
+### US-079
+
+**Titulo:** Integração com IXC Soft — Relatório de divergências
+
+**Descrição:**
+Como administrador, quero um relatório que compare clientes e planos do IXC Soft com os do AsteraComm, exibindo as divergências, para manter os dois sistemas sincronizados.
+
+**Estimativa:** 3 story points
+
+**Critérios de Aceite:**
+
+1. Credenciais do IXC Soft configuráveis via `application.properties` (`ixcsoft.url`, `ixcsoft.token`) sem hardcode.
+2. Relatório exibe três categorias para clientes e planos:
+   - `Apenas no IXC Soft` — existe no IXC mas não no AsteraComm
+   - `Apenas no AsteraComm` — existe no AsteraComm mas não no IXC
+   - `Divergentes` — existe nos dois mas com dados diferentes (ex.: nome)
+3. Se a API do IXC Soft estiver indisponível, retorna erro claro sem derrubar o sistema.
+4. Exportação em CSV com todas as divergências.
+5. Testes unitários cobrem: item só no IXC, só no AsteraComm, divergente e API indisponível.
+
+**Componentes:**
+- `IxcSoftClient`: cliente HTTP que busca clientes e planos da API do IXC Soft
+- `IxcSoftComparisonService`: compara dados e produz resultado por categoria
+- Endpoint: `GET /api/reports/ixcsoft-comparison`
+- Frontend: página `/reports/ixcsoft-comparison` com seções por categoria e botão exportar CSV
