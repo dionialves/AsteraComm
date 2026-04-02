@@ -39,6 +39,8 @@ Como desenvolvedor, quero que os scripts `dev.sh` e `prod.sh` tenham as mesmas f
 ## Bug Fixes (FIX)
 1. [FIX-073 — Group filter da página de Circuitos não permanece ativo após modificação de página](#fix-073)
 2. [FIX-074 — Status de tronco com autenticação por IP não exibido corretamente](#fix-074)
+3. [FIX-076 — Calls sem circuito associado para ligações entrantes](#fix-076)
+4. [FIX-077 — Reconstruir circuitos excluídos e corrigir calls órfãs (Getel Telecom)](#fix-077)
 
 ---
 
@@ -279,3 +281,43 @@ O `EndpointStatusService` consulta status via registrations, que só existe para
 1. Troncos `CREDENTIAL` continuam exibindo "Registrado" / "Não registrado" como antes.
 2. Troncos `IP_AUTH` exibem badge distinto (ex.: "IP Auth") sem tentar consultar registro SIP.
 3. Nenhuma regressão no comportamento de troncos `CREDENTIAL` existentes.
+
+---
+
+### FIX-076
+
+**Titulo:** Calls sem circuito associado para ligações entrantes
+
+**Descrição:**
+Existem registros em `Call` sem circuito associado provenientes de ligações entrantes. O `ChannelParser` extrai o código do circuito do campo `channel`, o que funciona para ligações saintes (`PJSIP/4933401714-xxxxx`), mas falha para entrantes (`PJSIP/operadora-xxxxx`), onde o channel contém o nome do tronco e não o código do circuito. Para ligações entrantes, o circuito deve ser identificado via o campo `dst` (número discado = DID vinculado ao circuito).
+
+**Causa:**
+`CallProcessingService` usa apenas o `channel` para associar o circuito. Ligações entrantes chegam com o nome do tronco no channel, não o código do circuito.
+
+**Critérios de Aceite:**
+
+1. Ligações saintes continuam associadas ao circuito via `channel` (sem regressão).
+2. Ligações entrantes com DID cadastrado ficam associadas ao circuito vinculado ao DID via `dst`.
+3. Ligações entrantes com DID não cadastrado mantêm `circuit = null` sem erro.
+4. Testes unitários cobrem os três cenários: sainte, entrante com DID, entrante sem DID.
+
+---
+
+### FIX-077
+
+**Titulo:** Reconstruir circuitos excluídos e corrigir calls órfãs (Getel Telecom)
+
+**Descrição:**
+O histórico de ligações da Getel Telecom contém calls com `circuit = null` porque os circuitos originais foram excluídos. O campo `channel` dessas calls ainda preserva o código do circuito original, permitindo identificar e recriar os circuitos para restabelecer o vínculo.
+
+**Estratégia:**
+
+- **Etapa 1 — Diagnóstico:** query para identificar calls com `circuit = null` e `channel` contendo código de circuito válido; extrair códigos únicos e apresentar relatório antes de qualquer alteração.
+- **Etapa 2 — Correção via migração Flyway:** recriar os circuitos identificados com `active = false` (históricos, não operacionais) e atualizar as calls órfãs vinculando ao circuito recriado.
+
+**Critérios de Aceite:**
+
+1. Nenhuma `Call` com código de circuito identificável no `channel` permanece com `circuit = null`.
+2. Circuitos recriados têm `active = false` indicando que são registros históricos.
+3. Calls sem código de circuito identificável no `channel` permanecem com `circuit = null`.
+4. Migração Flyway versionada e validada em homologação antes de rodar em produção.
