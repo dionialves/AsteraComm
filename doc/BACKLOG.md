@@ -1,20 +1,27 @@
-# User Stories — AsteraComm
+# Backlog — AsteraComm
 
-## Indice
+## Índice
 
-1. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
-2. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
-3. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
-4. [US-012 — Refatoração: reorganização de pacotes em `domain/`](#us-012)
-5. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
-6. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
-7. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
-8. [US-066 — Refatoração: menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
-9. [US-067 — Exibir versão da aplicação abaixo da logo no frontend](#us-067)
+### Features (US)
+1. [US-011 — Fatura mensal por circuito (Invoice)](#us-011)
+2. [US-013 — Refatoração: múltiplos DIDs por circuito e seleção de CallerID](#us-013)
+3. [US-017 — Snapshot de estado do circuito, DID e plano no processamento da ligação](#us-017)
+4. [US-037 — Adicionar campo `linked_at` ao DID](#us-037)
+5. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
+6. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
+
+### Refactoring (RF)
+1. [US-012 — Reorganização de pacotes em `domain/`](#us-012)
+2. [US-066 — Menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
+
+### Bug Fixes (FIX)
+_(nenhum no momento)_
 
 ---
 
-## US-011
+## Features (US)
+
+### US-011
 
 **Titulo:** Fatura mensal por circuito (Invoice)
 
@@ -40,7 +47,114 @@ Como administrador, quero que cada circuito gere automaticamente uma fatura mens
 
 ---
 
-## US-012
+### US-013
+
+**Titulo:** Refatoração: múltiplos DIDs por circuito e seleção de CallerID
+
+**Descrição:**
+Como administrador, quero que um circuito possa ter mais de um DID associado, e que na tela de edição do circuito eu possa escolher qual DID será utilizado nas chamadas saintes, preenchendo automaticamente o campo `callerid` com o número do DID selecionado. Ao vincular o primeiro DID ao circuito, ele deve ser automaticamente definido como `callerid`.
+
+**Estimativa:** 3 story points
+
+**Critérios de Aceite:**
+
+1. **Relacionamento 1-N:** A entidade `DID` passa a ter uma FK opcional para `Circuit` (`circuit_id`), substituindo o vínculo anterior (se houver). Um circuito pode ter N DIDs; um DID pertence a no máximo um circuito.
+2. **DID ativo (callerid):** O circuito possui um campo `active_did_id` (FK para `DID`, nullable) que indica qual DID é o CallerID atual para chamadas saintes.
+3. **Preenchimento automático do `callerid`:** Sempre que `active_did_id` for alterado, o campo `callerid` do circuito é atualizado com o número do DID correspondente.
+4. **Primeiro DID automático:** Ao vincular o primeiro DID a um circuito (que ainda não possui `active_did_id`), esse DID é automaticamente definido como `active_did_id` e o `callerid` é preenchido.
+5. **Tela de edição do circuito:** Exibe a lista de DIDs associados ao circuito e um seletor para escolher o DID ativo. Ao selecionar, o campo `callerid` é atualizado visualmente e salvo no backend.
+6. **API:**
+   - `PATCH /api/v1/circuits/{id}/active-did` — altera o DID ativo do circuito.
+   - `GET /api/v1/circuits/{id}` — retorna a lista de DIDs vinculados e o `active_did_id`.
+7. **Testes:** Testes unitários cobrem: vínculo do primeiro DID (auto-set), troca de DID ativo e atualização do `callerid`.
+
+---
+
+### US-017
+
+**Titulo:** Snapshot de estado do circuito, DID e plano no processamento da ligação
+
+**Descrição:**
+Como desenvolvedor, quero que cada ligação processada registre um snapshot dos dados relevantes do circuito, DID e plano vigentes no momento do processamento, para que auditorias futuras não dependam do estado atual dessas entidades, que podem ter sido alteradas desde então.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **Campos de snapshot em `Call`:** A entidade `Call` passa a armazenar, no momento do processamento, os seguintes dados desnormalizados:
+   - Do **plano**: nome, valor da franquia de minutos (se houver), tarifas por tipo de destino (fixo local, fixo DDD, móvel local, móvel DDD, internacional).
+   - Do **circuito**: nome, `closing_day`.
+   - Do **DID**: número.
+2. **Preenchimento automático:** Ao processar uma ligação, o serviço de billing preenche os campos de snapshot com os valores vigentes naquele instante. Nenhuma ação manual é necessária.
+3. **Imutabilidade:** Os campos de snapshot nunca são atualizados após a criação do registro — alterações posteriores no plano, circuito ou DID não afetam chamadas já registradas.
+4. **Ferramenta de auditoria (US-016):** A ferramenta de auditoria passa a utilizar os dados do snapshot armazenados em `Call` para os cálculos, em vez de buscar o estado atual do plano/circuito.
+5. **Migração:** Uma migração Flyway adiciona as novas colunas à tabela de calls, com valor `NULL` para registros históricos (aceito para chamadas anteriores à feature).
+6. **Testes:** Testes unitários cobrem: snapshot preenchido corretamente no processamento, imutabilidade após alteração do plano, e que a auditoria usa os dados do snapshot e não os valores atuais.
+
+---
+
+### US-037
+
+**Titulo:** Adicionar campo `linked_at` ao DID
+
+**Descrição:**
+Como administrador, quero que cada DID registre a data em que foi vinculado a um circuito, para que a página de detalhe do circuito exiba a coluna "Vinculado em" com a data correta.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Campo `linked_at`:** A entidade `DID` passa a ter o campo `linked_at` (timestamp, nullable), preenchido automaticamente com a data/hora atual sempre que o DID é vinculado a um circuito (`circuit_id` atribuído).
+2. **Limpeza ao desvincular:** Ao desvincular o DID (circuito removido), `linked_at` é zerado (`NULL`).
+3. **Migração:** Uma migração Flyway adiciona a coluna `linked_at` à tabela de DIDs, com valor `NULL` para registros existentes.
+4. **API:** O endpoint `GET /api/v1/dids/by-circuit/{circuitId}` retorna o campo `linkedAt` no JSON de cada DID.
+5. **Frontend:** Nenhuma alteração necessária — a página de detalhe do circuito já usa `did.linkedAt` na coluna "Vinculado em".
+
+---
+
+### US-054
+
+**Titulo:** Criar circuito a partir do modal de cliente
+
+**Descrição:**
+Como administrador, quero poder criar um novo circuito diretamente pela aba "Circuitos" do modal de cliente, com o vínculo ao cliente já preenchido automaticamente, para agilizar o cadastro sem precisar sair da tela de clientes.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **Botão "+ Novo circuito":** Na aba "Circuitos" do modal de cliente, um botão "+ Novo circuito" abre o sub-modal em modo criação (campos vazios, exceto "Cliente" já preenchido e bloqueado).
+2. **Campo Cliente pré-preenchido:** O sub-modal em modo criação exibe o nome do cliente atual no chip de "Cliente" com estado fixo (não editável, sem botão de limpar).
+3. **Campos do formulário:** Senha (opcional), Tronco (obrigatório) e Plano (obrigatório) — os mesmos do sub-modal de edição. O campo "Código" não é exibido (gerado automaticamente pelo backend).
+4. **Validação:** Se Tronco ou Plano não estiverem selecionados ao salvar, exibe erro inline no sub-modal: "Tronco e Plano são obrigatórios."
+5. **Salvamento:** Ao salvar, envia `POST /api/circuit/circuits` com `{ password?, trunkName, planId, customerId }`. Em caso de sucesso, fecha o sub-modal, recarrega a lista de circuitos da aba e atualiza o `circuitCount` da linha na listagem.
+6. **Distinção visual:** O header do sub-modal exibe "Novo circuito" como título (em vez do código do circuito). O botão "Deletar" não é exibido no modo criação.
+7. **Comportamento preservado:** O fluxo de edição de circuito existente (clique no ícone de seta na linha) continua funcionando sem alterações.
+
+---
+
+### US-065
+
+**Titulo:** Relatório: clientes sem circuitos vinculados
+
+**Descrição:**
+Como administrador, quero acessar um relatório que lista todos os clientes que não possuem nenhum circuito vinculado, para identificar cadastros ociosos e tomar ações comerciais ou de limpeza.
+
+**Estimativa:** 2 story points
+
+**Critérios de Aceite:**
+
+1. **Endpoint backend:** `GET /api/reports/customers-without-circuits` retorna lista paginada de clientes (`id`, `name`, `document`, `enabled`, `createdAt`) que não possuem nenhum circuito vinculado (independente do estado `active`).
+2. **Parâmetros:** suporta `page`, `size`, `sort` e `search` (por nome ou documento).
+3. **Página frontend:** nova rota `/reports/customers-without-circuits` com listagem no padrão de layout canônico (header, toolbar com busca + paginação, tabela CSS Grid).
+4. **Menu lateral:** item "Sem circuito" adicionado dentro da seção "Operacional" (ver US-066).
+5. **Testes:** testes unitários no backend cobrem: cliente sem circuito aparece; cliente com ao menos um circuito não aparece.
+
+---
+
+## Refactoring (RF)
+
+### US-012
 
 **Titulo:** Refatoração: reorganização de pacotes em `domain/`
 
@@ -86,112 +200,7 @@ com.dionialves.AsteraComm/
 
 ---
 
-## US-013
-
-**Titulo:** Refatoração: múltiplos DIDs por circuito e seleção de CallerID
-
-**Descrição:**
-Como administrador, quero que um circuito possa ter mais de um DID associado, e que na tela de edição do circuito eu possa escolher qual DID será utilizado nas chamadas saintes, preenchendo automaticamente o campo `callerid` com o número do DID selecionado. Ao vincular o primeiro DID ao circuito, ele deve ser automaticamente definido como `callerid`.
-
-**Estimativa:** 3 story points
-
-**Critérios de Aceite:**
-
-1. **Relacionamento 1-N:** A entidade `DID` passa a ter uma FK opcional para `Circuit` (`circuit_id`), substituindo o vínculo anterior (se houver). Um circuito pode ter N DIDs; um DID pertence a no máximo um circuito.
-2. **DID ativo (callerid):** O circuito possui um campo `active_did_id` (FK para `DID`, nullable) que indica qual DID é o CallerID atual para chamadas saintes.
-3. **Preenchimento automático do `callerid`:** Sempre que `active_did_id` for alterado, o campo `callerid` do circuito é atualizado com o número do DID correspondente.
-4. **Primeiro DID automático:** Ao vincular o primeiro DID a um circuito (que ainda não possui `active_did_id`), esse DID é automaticamente definido como `active_did_id` e o `callerid` é preenchido.
-5. **Tela de edição do circuito:** Exibe a lista de DIDs associados ao circuito e um seletor para escolher o DID ativo. Ao selecionar, o campo `callerid` é atualizado visualmente e salvo no backend.
-6. **API:**
-   - `PATCH /api/v1/circuits/{id}/active-did` — altera o DID ativo do circuito.
-   - `GET /api/v1/circuits/{id}` — retorna a lista de DIDs vinculados e o `active_did_id`.
-7. **Testes:** Testes unitários cobrem: vínculo do primeiro DID (auto-set), troca de DID ativo e atualização do `callerid`.
-
----
-
-## US-017
-
-**Titulo:** Snapshot de estado do circuito, DID e plano no processamento da ligação
-
-**Descrição:**
-Como desenvolvedor, quero que cada ligação processada registre um snapshot dos dados relevantes do circuito, DID e plano vigentes no momento do processamento, para que auditorias futuras não dependam do estado atual dessas entidades, que podem ter sido alteradas desde então.
-
-**Estimativa:** 2 story points
-
-**Critérios de Aceite:**
-
-1. **Campos de snapshot em `Call`:** A entidade `Call` passa a armazenar, no momento do processamento, os seguintes dados desnormalizados:
-   - Do **plano**: nome, valor da franquia de minutos (se houver), tarifas por tipo de destino (fixo local, fixo DDD, móvel local, móvel DDD, internacional).
-   - Do **circuito**: nome, `closing_day`.
-   - Do **DID**: número.
-2. **Preenchimento automático:** Ao processar uma ligação, o serviço de billing preenche os campos de snapshot com os valores vigentes naquele instante. Nenhuma ação manual é necessária.
-3. **Imutabilidade:** Os campos de snapshot nunca são atualizados após a criação do registro — alterações posteriores no plano, circuito ou DID não afetam chamadas já registradas.
-4. **Ferramenta de auditoria (US-016):** A ferramenta de auditoria passa a utilizar os dados do snapshot armazenados em `Call` para os cálculos, em vez de buscar o estado atual do plano/circuito.
-5. **Migração:** Uma migração Flyway adiciona as novas colunas à tabela de calls, com valor `NULL` para registros históricos (aceito para chamadas anteriores à feature).
-6. **Testes:** Testes unitários cobrem: snapshot preenchido corretamente no processamento, imutabilidade após alteração do plano, e que a auditoria usa os dados do snapshot e não os valores atuais.
-
----
-
-## US-037
-
-**Titulo:** Adicionar campo `linked_at` ao DID
-
-**Descrição:**
-Como administrador, quero que cada DID registre a data em que foi vinculado a um circuito, para que a página de detalhe do circuito exiba a coluna "Vinculado em" com a data correta.
-
-**Estimativa:** 1 story point
-
-**Critérios de Aceite:**
-
-1. **Campo `linked_at`:** A entidade `DID` passa a ter o campo `linked_at` (timestamp, nullable), preenchido automaticamente com a data/hora atual sempre que o DID é vinculado a um circuito (`circuit_id` atribuído).
-2. **Limpeza ao desvincular:** Ao desvincular o DID (circuito removido), `linked_at` é zerado (`NULL`).
-3. **Migração:** Uma migração Flyway adiciona a coluna `linked_at` à tabela de DIDs, com valor `NULL` para registros existentes.
-4. **API:** O endpoint `GET /api/v1/dids/by-circuit/{circuitId}` retorna o campo `linkedAt` no JSON de cada DID.
-5. **Frontend:** Nenhuma alteração necessária — a página de detalhe do circuito já usa `did.linkedAt` na coluna "Vinculado em".
-
----
-
-## US-054
-
-**Titulo:** Criar circuito a partir do modal de cliente
-
-**Descrição:**
-Como administrador, quero poder criar um novo circuito diretamente pela aba "Circuitos" do modal de cliente, com o vínculo ao cliente já preenchido automaticamente, para agilizar o cadastro sem precisar sair da tela de clientes.
-
-**Estimativa:** 2 story points
-
-**Critérios de Aceite:**
-
-1. **Botão "+ Novo circuito":** Na aba "Circuitos" do modal de cliente, um botão "+ Novo circuito" abre o sub-modal em modo criação (campos vazios, exceto "Cliente" já preenchido e bloqueado).
-2. **Campo Cliente pré-preenchido:** O sub-modal em modo criação exibe o nome do cliente atual no chip de "Cliente" com estado fixo (não editável, sem botão de limpar).
-3. **Campos do formulário:** Senha (opcional), Tronco (obrigatório) e Plano (obrigatório) — os mesmos do sub-modal de edição. O campo "Código" não é exibido (gerado automaticamente pelo backend).
-4. **Validação:** Se Tronco ou Plano não estiverem selecionados ao salvar, exibe erro inline no sub-modal: "Tronco e Plano são obrigatórios."
-5. **Salvamento:** Ao salvar, envia `POST /api/circuit/circuits` com `{ password?, trunkName, planId, customerId }`. Em caso de sucesso, fecha o sub-modal, recarrega a lista de circuitos da aba e atualiza o `circuitCount` da linha na listagem.
-6. **Distinção visual:** O header do sub-modal exibe "Novo circuito" como título (em vez do código do circuito). O botão "Deletar" não é exibido no modo criação.
-7. **Comportamento preservado:** O fluxo de edição de circuito existente (clique no ícone de seta na linha) continua funcionando sem alterações.
-
----
-
-## US-065
-
-**Titulo:** Relatório: clientes sem circuitos vinculados
-
-**Descrição:**
-Como administrador, quero acessar um relatório que lista todos os clientes que não possuem nenhum circuito vinculado, para identificar cadastros ociosos e tomar ações comerciais ou de limpeza.
-
-**Estimativa:** 2 story points
-
-**Critérios de Aceite:**
-
-1. **Endpoint backend:** `GET /api/reports/customers-without-circuits` retorna lista paginada de clientes (`id`, `name`, `document`, `enabled`, `createdAt`) que não possuem nenhum circuito vinculado (independente do estado `active`).
-2. **Parâmetros:** suporta `page`, `size`, `sort` e `search` (por nome ou documento).
-3. **Página frontend:** nova rota `/reports/customers-without-circuits` com listagem no padrão de layout canônico (header, toolbar com busca + paginação, tabela CSS Grid).
-4. **Menu lateral:** item "Sem circuito" adicionado dentro da seção "Operacional" (ver US-066).
-5. **Testes:** testes unitários no backend cobrem: cliente sem circuito aparece; cliente com ao menos um circuito não aparece.
-
----
-
-## US-066
+### US-066
 
 **Titulo:** Refatoração: menu lateral com seção "Operacional" e relatórios como links diretos
 
@@ -207,25 +216,11 @@ Como administrador, quero que o menu lateral tenha uma seção "Operacional" que
    - Custo por Circuito → `/reports/cost-per-circuit`
 2. **Expansão automática:** se a rota atual for `/reports/*`, "Operacional" já inicia expandido.
 3. **Estado ativo:** o link do relatório atual aparece destacado no padrão visual dos demais itens ativos do menu.
-4. **Remoção da página de índice:** `frontend/src/pages/reports/index.astro` é excluída. Qualquer link que apontava para `/reports` é removido ou redirecionado.
-5. **Escopo:** `Layout.astro` (ou componente de menu) + remoção de `reports/index.astro` — zero impacto nas páginas de relatório individuais.
+4. **Remoção da página de índice:** a página de índice de relatórios é excluída. Qualquer link que apontava para `/reports` é removido ou redirecionado.
+5. **Escopo:** template de layout (menu lateral) + remoção da página de índice — zero impacto nas páginas de relatório individuais.
 
 ---
 
-## US-067
+## Bug Fixes (FIX)
 
-**Titulo:** Exibir versão da aplicação abaixo da logo no menu lateral
-
-**Descrição:**
-Como administrador, quero visualizar a versão atual da aplicação abaixo da logo no menu lateral, para saber imediatamente qual versão está em execução. A versão exibida deve sempre refletir o valor do `<version>` no `pom.xml` — alterar o `pom.xml` é suficiente para atualizar a exibição no próximo deploy.
-
-**Estimativa:** 1 story point
-
-**Critérios de Aceite:**
-
-1. **Injeção via `@ControllerAdvice`:** Um `@ControllerAdvice` lê a versão com `@Value("${project.version}")` e a adiciona ao `Model` de todas as views sob o atributo `appVersion`. Nenhum controller individual precisa ser alterado.
-2. **Exibição no template:** O fragment/layout do menu lateral exibe `v${appVersion}` abaixo da logo, em tipografia menor e cor discreta, seguindo o padrão visual existente.
-3. **Fonte de verdade única:** Somente o `<version>` do `pom.xml` precisa ser alterado para que a versão exibida mude — zero alterações em templates ou código Java.
-4. **Fallback:** Se `appVersion` estiver vazio ou nulo, o template não exibe nada (sem quebrar o layout).
-5. **Testes:** Teste unitário cobre o `@ControllerAdvice` populando `appVersion` corretamente no model.
-
+_(nenhum no momento)_
