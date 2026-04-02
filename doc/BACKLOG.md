@@ -15,7 +15,7 @@
 2. [US-066 — Menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
 
 ### Bug Fixes (FIX)
-_(nenhum no momento)_
+1. [FIX-073 — Group filter da página de Circuitos não permanece ativo após modificação de página](#fix-073)
 
 ---
 
@@ -223,4 +223,18 @@ Como administrador, quero que o menu lateral tenha uma seção "Operacional" que
 
 ## Bug Fixes (FIX)
 
-_(nenhum no momento)_
+### FIX-073
+
+**Titulo:** Group filter da página de Circuitos não permanece ativo após modificação de página
+
+**Descrição:**
+O button group (Todos / Online / Offline / Inativos) da listagem de Circuitos perde o estado ativo quando a página sofre uma modificação (ex.: edição de circuito, navegação entre páginas, reload da listagem). O filtro volta para "Todos" em vez de manter o selecionado.
+
+**Causa provável:**
+A re-renderização da listagem não restaura o estado visual do botão ativo nem reenvia o parâmetro de filtro para o fetch.
+
+**Critérios de Aceite:**
+
+1. Ao selecionar um filtro e editar/salvar um circuito, o filtro permanece ativo após o reload da listagem.
+2. Ao navegar entre páginas (paginação), o filtro ativo é mantido.
+3. O botão visualmente destacado corresponde sempre ao filtro em uso.
