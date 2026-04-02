@@ -10,6 +10,7 @@
 6. [US-054 — Criar circuito a partir do modal de cliente](#us-054)
 7. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
 8. [US-066 — Refatoração: menu lateral com seção "Operacional" e relatórios como links diretos](#us-066)
+9. [US-067 — Exibir versão da aplicação abaixo da logo no frontend](#us-067)
 
 ---
 
@@ -208,4 +209,23 @@ Como administrador, quero que o menu lateral tenha uma seção "Operacional" que
 3. **Estado ativo:** o link do relatório atual aparece destacado no padrão visual dos demais itens ativos do menu.
 4. **Remoção da página de índice:** `frontend/src/pages/reports/index.astro` é excluída. Qualquer link que apontava para `/reports` é removido ou redirecionado.
 5. **Escopo:** `Layout.astro` (ou componente de menu) + remoção de `reports/index.astro` — zero impacto nas páginas de relatório individuais.
+
+---
+
+## US-067
+
+**Titulo:** Exibir versão da aplicação abaixo da logo no menu lateral
+
+**Descrição:**
+Como administrador, quero visualizar a versão atual da aplicação abaixo da logo no menu lateral, para saber imediatamente qual versão está em execução. A versão exibida deve sempre refletir o valor do `<version>` no `pom.xml` — alterar o `pom.xml` é suficiente para atualizar a exibição no próximo deploy.
+
+**Estimativa:** 1 story point
+
+**Critérios de Aceite:**
+
+1. **Injeção via `@ControllerAdvice`:** Um `@ControllerAdvice` lê a versão com `@Value("${project.version}")` e a adiciona ao `Model` de todas as views sob o atributo `appVersion`. Nenhum controller individual precisa ser alterado.
+2. **Exibição no template:** O fragment/layout do menu lateral exibe `v${appVersion}` abaixo da logo, em tipografia menor e cor discreta, seguindo o padrão visual existente.
+3. **Fonte de verdade única:** Somente o `<version>` do `pom.xml` precisa ser alterado para que a versão exibida mude — zero alterações em templates ou código Java.
+4. **Fallback:** Se `appVersion` estiver vazio ou nulo, o template não exibe nada (sem quebrar o layout).
+5. **Testes:** Teste unitário cobre o `@ControllerAdvice` populando `appVersion` corretamente no model.
 
