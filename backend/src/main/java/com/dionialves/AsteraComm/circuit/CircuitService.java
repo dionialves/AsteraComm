@@ -80,8 +80,7 @@ public class CircuitService {
         circuit.setTrunkName(dto.trunkName());
         circuit.setCustomer(customer);
         circuit.setPlan(resolvePlan(dto.planId()));
-        if (dto.active() != null)
-            circuit.setActive(dto.active());
+        circuit.setActive(dto.active() == null ? false : dto.active());
         Circuit saved = circuitRepository.save(circuit);
 
         asteriskProvisioningService.reprovision(saved, previousTrunkName);

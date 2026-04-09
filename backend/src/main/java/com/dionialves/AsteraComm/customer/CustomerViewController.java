@@ -84,6 +84,7 @@ public class CustomerViewController {
             @RequestParam(value = "enabled", required = false) Boolean enabled,
             Model model) {
         try {
+            System.out.println(enabled);
             customerService.update(id, new CustomerCreateDTO(name, Boolean.TRUE.equals(enabled)));
             model.addAttribute("toastMsg", "Cliente atualizado com sucesso.");
             model.addAttribute("toastType", "success");
