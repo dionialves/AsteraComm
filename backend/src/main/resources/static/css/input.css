@@ -167,10 +167,11 @@
 .report-row:last-child { border-bottom: none; }
 .audit-row {
   display: grid;
-  grid-template-columns: 150px minmax(0,1fr) 100px 90px 115px 115px 115px 100px;
+  grid-template-columns: 130px minmax(0,1fr) 90px 80px 80px 95px 95px 90px 80px;
   gap: 4px;
   padding: 10px 16px;
   align-items: center;
+  overflow-x: auto;
 }
 .audit-row:last-child { border-bottom: none; }
 

@@ -56,26 +56,28 @@
     </div>
 
     <!-- Barra de controles -->
-    <div class="flex items-center justify-between mb-3">
-      <!-- Toggle: apenas chamadas relevantes -->
-      <div class="flex items-center gap-2">
-        <button id="toggle-relevant" role="switch" aria-checked="false"
-                class="relative shrink-0 w-9 h-5 rounded-[99px] bg-[#e0e0e0] border-none cursor-pointer p-0 outline-none transition-colors duration-200">
-          <span id="toggle-thumb"
-                class="absolute top-[2px] left-[2px] w-4 h-4 rounded-full bg-white block transition-transform duration-200">
-          </span>
-        </button>
-        <span class="text-[13px] text-[#1a1a1a] select-none">Apenas chamadas relevantes</span>
-      </div>
-      <!-- Toggle: apenas ligações efetuadas (tabela) -->
-      <div class="flex items-center gap-2">
-        <button id="toggle-outgoing-table" role="switch" aria-checked="false"
-                class="relative shrink-0 w-9 h-5 rounded-[99px] bg-[#e0e0e0] border-none cursor-pointer p-0 outline-none transition-colors duration-200">
-          <span id="toggle-thumb-outgoing-table"
-                class="absolute top-[2px] left-[2px] w-4 h-4 rounded-full bg-white block transition-transform duration-200">
-          </span>
-        </button>
-        <span class="text-[13px] text-[#1a1a1a] select-none">Apenas ligações efetuadas</span>
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+      <div class="flex flex-wrap items-center gap-4">
+        <!-- Toggle: apenas chamadas relevantes -->
+        <div class="flex items-center gap-2">
+          <button id="toggle-relevant" role="switch" aria-checked="false"
+                  class="relative shrink-0 w-9 h-5 rounded-[99px] bg-[#e0e0e0] border-none cursor-pointer p-0 outline-none transition-colors duration-200">
+            <span id="toggle-thumb"
+                  class="absolute top-[2px] left-[2px] w-4 h-4 rounded-full bg-white block transition-transform duration-200">
+            </span>
+          </button>
+          <span class="text-[13px] text-[#1a1a1a] select-none">Apenas chamadas relevantes</span>
+        </div>
+        <!-- Toggle: apenas ligações efetuadas -->
+        <div class="flex items-center gap-2">
+          <button id="toggle-outgoing-table" role="switch" aria-checked="false"
+                  class="relative shrink-0 w-9 h-5 rounded-[99px] bg-[#e0e0e0] border-none cursor-pointer p-0 outline-none transition-colors duration-200">
+            <span id="toggle-thumb-outgoing-table"
+                  class="absolute top-[2px] left-[2px] w-4 h-4 rounded-full bg-white block transition-transform duration-200">
+            </span>
+          </button>
+          <span class="text-[13px] text-[#1a1a1a] select-none">Apenas ligações efetuadas</span>
+        </div>
       </div>
       <!-- PDF -->
       <a id="btn-pdf-audit"
@@ -92,10 +94,10 @@
     </div>
 
     <!-- Tabela de chamadas -->
-    <div class="rounded-xl border border-[#e0e0e0] overflow-hidden mb-4">
+    <div class="rounded-xl border border-[#e0e0e0] overflow-x-auto mb-4">
 
       <!-- Header (fundo branco) -->
-      <div class="audit-row bg-white border-b border-[#e0e0e0]">
+      <div class="audit-row bg-white border-b border-[#e0e0e0] grid-cols-audit">
         <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Data/hora</span>
         <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Destino</span>
         <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Tipo</span>
