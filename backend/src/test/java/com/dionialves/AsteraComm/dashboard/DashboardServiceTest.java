@@ -1,6 +1,7 @@
 package com.dionialves.AsteraComm.dashboard;
 
 import com.dionialves.AsteraComm.call.CallRepository;
+import com.dionialves.AsteraComm.call.OrphanCallReportService;
 import com.dionialves.AsteraComm.circuit.CircuitRepository;
 import com.dionialves.AsteraComm.trunk.TrunkRepository;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,9 @@ class DashboardServiceTest {
 
     @Mock
     private CallRepository callRepository;
+
+    @Mock
+    private OrphanCallReportService orphanCallReportService;
 
     @InjectMocks
     private DashboardService dashboardService;

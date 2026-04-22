@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="table">
+
+  <!-- Vazio -->
+  <div th:if="${orphans == null or orphans.empty}"
+       class="py-10 text-center text-[13px] text-[#aaa]">
+    Selecione o período e clique em Processar.
+  </div>
+
+  <th:block th:if="${orphans != null}">
+
+    <!-- Card de contexto -->
+    <div class="bg-white rounded-xl p-4 mb-4 border border-[#e0e0e0]">
+      <p class="text-[13px] text-[#1a1a1a]">
+        Período: <strong th:text="${month + '/' + year}">—</strong>
+        — <strong th:text="${#lists.size(orphans)}">0</strong> chamada(s) órfã(s) encontrada(s)
+      </p>
+    </div>
+
+    <!-- Tabela de chamadas -->
+    <div class="rounded-xl border border-[#e0e0e0] overflow-x-auto">
+
+      <!-- Header -->
+      <div class="orphan-row bg-white border-b border-[#e0e0e0]">
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Unique ID</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Data</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Destino</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Canal</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Código Canal</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide text-center">Status</span>
+      </div>
+
+      <!-- Vazio -->
+      <div th:if="${orphans.empty}" class="py-10 text-center text-[13px] text-[#aaa]">
+        Nenhuma chamada órfã encontrada para este período.
+      </div>
+
+      <!-- Linhas -->
+      <div th:each="orphan : ${orphans}"
+           class="orphan-row bg-white border-b border-[#f0f0f0]">
+
+        <span class="text-[13px] font-mono text-[#1a1a1a]"
+              th:text="${orphan.uniqueId}"></span>
+
+        <span class="text-[13px] font-mono text-[#1a1a1a]"
+              th:text="${#temporals.format(orphan.callDate, 'dd/MM/yy HH:mm')}"></span>
+
+        <span class="text-[13px] font-mono text-[#1a1a1a]"
+              th:text="${orphan.dst != null ? orphan.dst : '—'}"></span>
+
+        <span class="text-[13px] font-mono text-[#555]"
+              th:text="${orphan.channel != null ? orphan.channel : '—'}"></span>
+
+        <span class="text-[13px] font-mono text-[#1a1a1a]"
+              th:text="${orphan.circuitCode != null ? orphan.circuitCode : '—'}"></span>
+
+        <!-- Badge Resolvível / Não resolvível -->
+        <span class="flex justify-center">
+          <span th:class="|rounded-[99px] text-[11px] px-[8px] py-[2px] font-medium whitespace-nowrap
+                           ${orphan.resolvable ? 'bg-[#E1F5EE] text-[#085041]' : 'bg-[#FEE2E2] text-[#dc2626]'}|"
+                th:text="${orphan.resolvable ? 'Resolvível' : 'Não resolvível'}">
+          </span>
+        </span>
+
+      </div>
+    </div>
+
+  </th:block>
+
+</div>
+
+<style>
+  .orphan-row {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr 1.5fr 1fr 120px;
+    gap: 0;
+    padding: 10px 16px;
+    align-items: center;
+  }
+</style>
+
+</body>
+</html>

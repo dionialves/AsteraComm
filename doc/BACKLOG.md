@@ -33,6 +33,7 @@
 17. [RF-093 — Decompor serviços com múltiplas responsabilidades (`AuditService`, `CostPerCircuitService`)](#rf-093)
 18. [RF-096 — Normalizar número de DID no lookup inbound do processamento de ligações](#rf-096)
 19. [RF-097 — Reverter elementos desconexos da Auditoria (direção, filtro, totalizadores)](#rf-097)
+20. [RF-099 — Título da task](#rf-099)
 
 ---
 
@@ -919,4 +920,6 @@ Criar um novo endpoint `/reports/call-history` com serviço, controller e templa
 - O Codificador não deve alterar o `AuditService` além do que está especificado na RF-097. Não é para fatorar a query comum entre os dois relatórios — cada um usa seu próprio service.
 - O totalizador de minutos do histórico pode usar a mesma fórmula de arredondamento do histórico (ceil(billSeconds/30)/2) para consistência visual com a Auditoria.
 - A query `findByCircuitNumberAndPeriod` internamente consulta a tabela de DID via JOIN; como o histórico quer **todas** as ligações (inclusive inbound via dst→did), essa query já serve perfeitamente — nenhuma alteração no repository é necessária.
+
+---
 

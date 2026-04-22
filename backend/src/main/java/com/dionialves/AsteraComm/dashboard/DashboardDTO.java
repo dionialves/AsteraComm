@@ -12,7 +12,8 @@ public record DashboardDTO(
         List<MonthlyBillingStat> monthlyBilling,
         List<CircuitConsumption> nearLimitCircuits,
         List<TopCircuit> topCircuits,
-        CircuitOverageStats circuitOverage) {
+        CircuitOverageStats circuitOverage,
+        long orphanCalls) {
 
     public record CircuitStats(long total, long online, long offline) {
     }

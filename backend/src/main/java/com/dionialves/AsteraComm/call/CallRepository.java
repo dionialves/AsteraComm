@@ -156,4 +156,13 @@ public interface CallRepository extends JpaRepository<Call, Long>,
     List<Object[]> findPerCategoryCircuitConsumption(@Param("month") int month, @Param("year") int year);
 
     List<Call> findByCircuitIsNull();
+
+    @Query(value = """
+        SELECT * FROM asteracomm_calls
+        WHERE circuit_number IS NULL
+        AND EXTRACT(MONTH FROM call_date) = :month
+        AND EXTRACT(YEAR  FROM call_date) = :year
+        ORDER BY call_date DESC
+        """, nativeQuery = true)
+    List<Call> findOrphanCallsByPeriod(@Param("month") int month, @Param("year") int year);
 }

@@ -97,3 +97,43 @@
 - `simulate_inboundCallsAppearInResult` — chamada INBOUND incluída no resultado
 - `process_setsDirectionInbound_whenDstIsDid` — direção INBOUND quando dst é DID
 - `process_setsDirectionOutbound_whenDstIsNotDid` — direção OUTBOUND quando dst não é DID
+
+---
+
+### RF-098: Refatorar relatório de chamadas órfãs com filtro por período e card no dashboard
+
+**Problema:** O relatório antigo em `/admin/reconcile-calls` carregava 100% das chamadas órfãs sem filtro de período, causando tela em branco/timeout com alto volume. O acesso estava escondido sem link direto no dashboard.
+
+**Solução:**
+- Substituído o serviço `CallCircuitReconciliationService` pelo novo `OrphanCallReportService` com filtro obrigatório de mês/ano.
+- Novo endpoint `/reports/orphan-calls` com formulário de filtro (mês/ano) e tabela HTMX.
+- Novo card "Chamadas órfãs (mês)" no dashboard com badge "Atenção" quando count > 0.
+- Link "Chamadas Órfãs" adicionado ao menu lateral dentro da seção Relatórios.
+- Query limitada ao período selecionado: `findOrphanCallsByPeriod(month, year)` com `EXTRACT(MONTH/YEAR)`.
+
+**Arquivos alterados:**
+- `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportDTO.java` — novo record
+- `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` — novo service com filtro por período
+- `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportController.java` — novo controller em `/reports/orphan-calls`
+- `backend/src/main/java/com/dionialves/AsteraComm/call/CallRepository.java` — novo método `findOrphanCallsByPeriod`
+- `backend/src/main/java/com/dionialves/AsteraComm/dashboard/DashboardDTO.java` — novo campo `orphanCalls`
+- `backend/src/main/java/com/dionialves/AsteraComm/dashboard/DashboardService.java` — populador do campo `orphanCalls`
+- `backend/src/main/resources/templates/pages/reports/orphan-calls.html` — novo template de filtro
+- `backend/src/main/resources/templates/pages/reports/orphan-calls-table.html` — novo fragmento de tabela
+- `backend/src/main/resources/templates/pages/dashboard/index.html` — card de chamadas órfãs
+- `backend/src/main/resources/templates/layout/base.html` — item de menu em Relatórios
+
+**Arquivos removidos:**
+- `backend/src/main/java/com/dionialves/AsteraComm/call/CallCircuitReconciliationController.java`
+- `backend/src/main/java/com/dionialves/AsteraComm/call/CallCircuitReconciliationService.java`
+- `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallDTO.java`
+- `backend/src/main/java/com/dionialves/AsteraComm/call/ReconciliationResultDTO.java`
+- `backend/src/main/resources/templates/pages/admin/reconcile-calls.html`
+- `backend/src/test/java/com/dionialves/AsteraComm/call/CallCircuitReconciliationServiceTest.java`
+
+**Testes novos:**
+- `findOrphanCalls_returnsEmpty_whenNoOrphansForPeriod`
+- `findOrphanCalls_returnsResolvable_whenChannelMatchesExistingCircuit`
+- `findOrphanCalls_returnsNotResolvable_whenCircuitMissing`
+- `findOrphanCalls_returnsNotResolvable_whenCdrMissing`
+- `countOrphanCallsCurrentMonth_returnsCountForCurrentMonth`
