@@ -21,6 +21,7 @@ public class SecurityConfigurations {
                         .requestMatchers("/login", "/css/**", "/js/**", "/images/**", "/actuator/health").permitAll()
                         .requestMatchers("/users/**").hasRole("ADMIN")
                         .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/reports/orphan-calls/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .formLogin(form -> form
                         .loginPage("/login")

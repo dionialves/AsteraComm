@@ -118,17 +118,10 @@ class OrphanCallReportServiceTest {
     @Test
     void countOrphanCallsCurrentMonth_returnsCountForCurrentMonth() {
         LocalDate now = LocalDate.now();
-        Call orphan = new Call();
-        orphan.setId(10L);
-        orphan.setUniqueId("unique-010");
-        orphan.setCallDate(LocalDateTime.now());
-        orphan.setDst("11988888888");
-
-        when(callRepository.findOrphanCallsByPeriod(now.getMonthValue(), now.getYear()))
-                .thenReturn(List.of(orphan));
+        when(callRepository.countOrphanCallsByPeriod(now.getMonthValue(), now.getYear())).thenReturn(3L);
 
         long count = service.countOrphanCallsCurrentMonth();
 
-        assertThat(count).isEqualTo(1);
+        assertThat(count).isEqualTo(3L);
     }
 }

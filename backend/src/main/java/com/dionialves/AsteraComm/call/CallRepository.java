@@ -94,7 +94,7 @@ public interface CallRepository extends JpaRepository<Call, Long>,
             """, nativeQuery = true)
     List<Object[]> findDailyCallStats(@Param("startDate") LocalDate startDate);
 
-    @Query(value = """
+@Query(value = """
             SELECT
                 EXTRACT(YEAR  FROM call_date)::int AS year,
                 EXTRACT(MONTH FROM call_date)::int AS month,
@@ -106,6 +106,23 @@ public interface CallRepository extends JpaRepository<Call, Long>,
             ORDER BY year, month
             """, nativeQuery = true)
     List<Object[]> findMonthlyCallCosts(@Param("startDate") LocalDate startDate);
+
+    @Query(value = """
+        SELECT * FROM asteracomm_calls
+        WHERE circuit_number IS NULL
+        AND EXTRACT(MONTH FROM call_date) = :month
+        AND EXTRACT(YEAR  FROM call_date) = :year
+        ORDER BY call_date DESC
+        """, nativeQuery = true)
+    List<Call> findOrphanCallsByPeriod(@Param("month") int month, @Param("year") int year);
+
+    @Query(value = """
+        SELECT COUNT(*) FROM asteracomm_calls
+        WHERE circuit_number IS NULL
+        AND EXTRACT(MONTH FROM call_date) = :month
+        AND EXTRACT(YEAR  FROM call_date) = :year
+        """, nativeQuery = true)
+    long countOrphanCallsByPeriod(@Param("month") int month, @Param("year") int year);
 
     @Query(value = """
             SELECT
@@ -154,15 +171,4 @@ public interface CallRepository extends JpaRepository<Call, Long>,
                 p.package_mobile_local, p.package_mobile_long_distance
             """, nativeQuery = true)
     List<Object[]> findPerCategoryCircuitConsumption(@Param("month") int month, @Param("year") int year);
-
-    List<Call> findByCircuitIsNull();
-
-    @Query(value = """
-        SELECT * FROM asteracomm_calls
-        WHERE circuit_number IS NULL
-        AND EXTRACT(MONTH FROM call_date) = :month
-        AND EXTRACT(YEAR  FROM call_date) = :year
-        ORDER BY call_date DESC
-        """, nativeQuery = true)
-    List<Call> findOrphanCallsByPeriod(@Param("month") int month, @Param("year") int year);
 }

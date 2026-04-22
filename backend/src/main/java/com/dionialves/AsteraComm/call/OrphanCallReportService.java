@@ -53,6 +53,6 @@ public class OrphanCallReportService {
 
     public long countOrphanCallsCurrentMonth() {
         LocalDate now = LocalDate.now();
-        return callRepository.findOrphanCallsByPeriod(now.getMonthValue(), now.getYear()).size();
+        return callRepository.countOrphanCallsByPeriod(now.getMonthValue(), now.getYear());
     }
 }

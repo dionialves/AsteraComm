@@ -33,7 +33,6 @@
 17. [RF-093 — Decompor serviços com múltiplas responsabilidades (`AuditService`, `CostPerCircuitService`)](#rf-093)
 18. [RF-096 — Normalizar número de DID no lookup inbound do processamento de ligações](#rf-096)
 19. [RF-097 — Reverter elementos desconexos da Auditoria (direção, filtro, totalizadores)](#rf-097)
-20. [RF-099 — Título da task](#rf-099)
 
 ---
 
