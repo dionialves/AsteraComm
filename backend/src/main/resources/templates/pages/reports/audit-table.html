@@ -170,9 +170,17 @@
       var btn    = document.getElementById('toggle-relevant');
       var thumb  = document.getElementById('toggle-thumb');
       var pdfBtn = document.getElementById('btn-pdf-audit');
-      if (!btn) return;
+      if (!btn || !pdfBtn) return;
 
-      var baseHref = pdfBtn ? pdfBtn.getAttribute('href') : '';
+      function setParam(href, param, value) {
+        var hasParam = href.indexOf(param + '=') !== -1;
+        if (hasParam) {
+          return href.replace(new RegExp(param + '=(true|false)'), param + '=' + value);
+        }
+        var sep = href.indexOf('?') !== -1 ? '&' : '?';
+        return href + sep + param + '=' + value;
+      }
+
       var relevantActive = false;
 
       btn.addEventListener('click', function () {
@@ -191,12 +199,8 @@
           row.style.display = (relevantActive && row.dataset.relevant === 'false') ? 'none' : '';
         });
 
-        if (pdfBtn) {
-          var newHref = relevantActive
-            ? baseHref.replace('onlyRelevant=false', 'onlyRelevant=true')
-            : baseHref.replace('onlyRelevant=true', 'onlyRelevant=false');
-          pdfBtn.setAttribute('href', newHref);
-        }
+        var href = pdfBtn.getAttribute('href');
+        pdfBtn.setAttribute('href', setParam(href, 'onlyRelevant', relevantActive));
       });
 
       // Toggle: apenas ligações efetuadas
@@ -217,12 +221,8 @@
           document.querySelectorAll('.audit-row[data-outgoing]').forEach(function (row) {
             row.style.display = (outgoingActive && row.dataset.outgoing === 'INBOUND') ? 'none' : '';
           });
-          if (pdfBtn) {
-            var newHref = outgoingActive
-              ? baseHref + '&onlyOutgoing=true'
-              : baseHref.replace('&onlyOutgoing=true', '');
-            pdfBtn.setAttribute('href', newHref);
-          }
+          var href = pdfBtn.getAttribute('href');
+          pdfBtn.setAttribute('href', setParam(href, 'onlyOutgoing', outgoingActive));
         });
       }
     })();

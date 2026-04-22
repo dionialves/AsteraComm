@@ -361,6 +361,9 @@ class AuditServiceTest {
     void simulate_returnsOnlyOutbound_whenOnlyOutgoingTrue() {
         plan.setPackageType(PackageType.NONE);
 
+        // c1 OUTBOUND 60s: 1.0 min, custo 0.09
+        // c2 INBOUND  60s: 1.0 min, custo 0.09 (filtrada)
+        // c3 OUTBOUND 60s: 1.0 min, custo 0.09
         Call c1 = buildCall("uid1", LocalDateTime.of(2026, 3, 1, 9, 0, 0), 60, CallType.FIXED_LOCAL, CallDirection.OUTBOUND);
         Call c2 = buildCall("uid2", LocalDateTime.of(2026, 3, 2, 10, 0, 0), 60, CallType.FIXED_LOCAL, CallDirection.INBOUND);
         Call c3 = buildCall("uid3", LocalDateTime.of(2026, 3, 3, 11, 0, 0), 60, CallType.FIXED_LOCAL, CallDirection.OUTBOUND);
@@ -373,12 +376,21 @@ class AuditServiceTest {
 
         assertThat(result.lines()).hasSize(2);
         assertThat(result.lines()).allMatch(l -> l.direction() == CallDirection.OUTBOUND);
+
+        // Summary recalculado apenas sobre as 2 linhas visíveis (c1 e c3)
+        assertThat(result.summary().totalCalls()).isEqualTo(2);
+        assertThat(result.summary().totalMinutes()).isEqualByComparingTo(new BigDecimal("2.0"));
+        assertThat(result.summary().quotaMinutesUsed()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.summary().excessMinutes()).isEqualByComparingTo(new BigDecimal("2.0"));
+        assertThat(result.summary().totalCost()).isEqualByComparingTo(new BigDecimal("0.18"));
     }
 
     @Test
     void simulate_returnsAll_whenOnlyOutgoingFalse() {
         plan.setPackageType(PackageType.NONE);
 
+        // c1 OUTBOUND 60s: 1.0 min, custo 0.09
+        // c2 INBOUND  60s: 1.0 min, custo 0.09
         Call c1 = buildCall("uid1", LocalDateTime.of(2026, 3, 1, 9, 0, 0), 60, CallType.FIXED_LOCAL, CallDirection.OUTBOUND);
         Call c2 = buildCall("uid2", LocalDateTime.of(2026, 3, 2, 10, 0, 0), 60, CallType.FIXED_LOCAL, CallDirection.INBOUND);
 
@@ -389,6 +401,10 @@ class AuditServiceTest {
         AuditResultDTO result = auditService.simulate(CIRCUIT_NUMBER, MONTH, YEAR, false);
 
         assertThat(result.lines()).hasSize(2);
+
+        assertThat(result.summary().totalCalls()).isEqualTo(2);
+        assertThat(result.summary().totalMinutes()).isEqualByComparingTo(new BigDecimal("2.0"));
+        assertThat(result.summary().totalCost()).isEqualByComparingTo(new BigDecimal("0.18"));
     }
 
     @Test
@@ -405,5 +421,9 @@ class AuditServiceTest {
 
         assertThat(result.lines()).hasSize(1);
         assertThat(result.lines().get(0).direction()).isEqualTo(CallDirection.INBOUND);
+
+        assertThat(result.summary().totalCalls()).isEqualTo(1);
+        assertThat(result.summary().totalMinutes()).isEqualByComparingTo(new BigDecimal("1.0"));
+        assertThat(result.summary().totalCost()).isEqualByComparingTo(new BigDecimal("0.09"));
     }
 }

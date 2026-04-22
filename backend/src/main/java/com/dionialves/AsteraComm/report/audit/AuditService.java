@@ -115,23 +115,36 @@ public class AuditService {
         }
 
         // Filter outgoing only if requested
+        List<AuditCallLineDTO> filteredLines;
         if (onlyOutgoing) {
-            lines = lines.stream()
+            filteredLines = lines.stream()
                     .filter(l -> l.direction() == CallDirection.OUTBOUND)
                     .toList();
+        } else {
+            filteredLines = lines;
         }
 
-        BigDecimal excessMinutes = totalMinutes.subtract(quotaMinutesUsed);
+        // Recalcular summary a partir das linhas filtradas
+        int totalBillSec = filteredLines.stream().mapToInt(AuditCallLineDTO::billSeconds).sum();
+        BigDecimal filteredTotalMinutes = BigDecimal.valueOf(Math.ceil(totalBillSec / 30.0))
+                .divide(BigDecimal.valueOf(2), 1, RoundingMode.UNNECESSARY);
+        BigDecimal filteredQuotaUsed = filteredLines.stream()
+                .map(AuditCallLineDTO::quotaUsedThisCall)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal filteredCost = filteredLines.stream()
+                .map(AuditCallLineDTO::cost)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal filteredExcess = filteredTotalMinutes.subtract(filteredQuotaUsed);
 
         AuditSummaryDTO summary = new AuditSummaryDTO(
-                lines.size(),
-                totalMinutes,
-                quotaMinutesUsed,
-                excessMinutes,
-                totalCost
+                filteredLines.size(),
+                filteredTotalMinutes,
+                filteredQuotaUsed,
+                filteredExcess,
+                filteredCost
         );
 
-        return new AuditResultDTO(circuit.getNumber(), plan.getName(), month, year, lines, summary);
+        return new AuditResultDTO(circuit.getNumber(), plan.getName(), month, year, filteredLines, summary);
     }
 
     private static BigDecimal decodeCost(int billSeconds, BigDecimal rate,
