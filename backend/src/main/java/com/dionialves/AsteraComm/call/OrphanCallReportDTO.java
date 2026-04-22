@@ -8,6 +8,7 @@ public record OrphanCallReportDTO(
         LocalDateTime callDate,
         String        dst,
         String        channel,
+        String        dstChannel,
         String        circuitCode,
         boolean       resolvable
 ) {}

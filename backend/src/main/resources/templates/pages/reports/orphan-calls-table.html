@@ -29,6 +29,7 @@
         <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Data</span>
         <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Destino</span>
         <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Canal</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Canal Destino</span>
         <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Código Canal</span>
         <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide text-center">Status</span>
       </div>
@@ -53,6 +54,9 @@
 
         <span class="text-[13px] font-mono text-[#555]"
               th:text="${orphan.channel != null ? orphan.channel : '—'}"></span>
+
+        <span class="text-[13px] font-mono text-[#555]"
+              th:text="${orphan.dstChannel != null ? orphan.dstChannel : '—'}"></span>
 
         <span class="text-[13px] font-mono text-[#1a1a1a]"
               th:text="${orphan.circuitCode != null ? orphan.circuitCode : '—'}"></span>

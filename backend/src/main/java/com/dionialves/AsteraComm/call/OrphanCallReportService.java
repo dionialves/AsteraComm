@@ -27,11 +27,22 @@ public class OrphanCallReportService {
         for (Call call : orphans) {
             Optional<CdrRecord> cdrOpt = cdrRepository.findByUniqueId(call.getUniqueId());
             String channel = cdrOpt.map(CdrRecord::getChannel).orElse(null);
+            String dstChannel = cdrOpt.map(CdrRecord::getDstchannel).orElse(null);
             String circuitCode = null;
             boolean resolvable = false;
 
+            // Tentativa 1: via channel (OUTBOUND)
             if (channel != null && !channel.isBlank()) {
                 circuitCode = channelParser.parse(channel);
+                if (circuitCode != null && !circuitCode.isBlank()
+                        && circuitRepository.findByNumber(circuitCode).isPresent()) {
+                    resolvable = true;
+                }
+            }
+
+            // Tentativa 2: via dstChannel (INBOUND)
+            if (!resolvable && dstChannel != null && !dstChannel.isBlank()) {
+                circuitCode = channelParser.parse(dstChannel);
                 if (circuitCode != null && !circuitCode.isBlank()
                         && circuitRepository.findByNumber(circuitCode).isPresent()) {
                     resolvable = true;
@@ -44,6 +55,7 @@ public class OrphanCallReportService {
                     call.getCallDate(),
                     call.getDst(),
                     channel,
+                    dstChannel,
                     circuitCode,
                     resolvable
             ));
