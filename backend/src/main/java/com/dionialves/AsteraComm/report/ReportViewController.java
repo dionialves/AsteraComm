@@ -82,11 +82,13 @@ public class ReportViewController {
             @RequestParam(required = false) String circuitNumber,
             @RequestParam(defaultValue = "0") int month,
             @RequestParam(defaultValue = "0") int year,
+            @RequestParam(defaultValue = "false") boolean onlyOutgoing,
             Model model) {
 
         model.addAttribute("month",         month);
         model.addAttribute("year",          year);
         model.addAttribute("circuitNumber", circuitNumber);
+        model.addAttribute("onlyOutgoing",  onlyOutgoing);
 
         if (circuitNumber == null || circuitNumber.isBlank()) {
             model.addAttribute("errorMsg", "Selecione um circuito para simular.");
@@ -97,7 +99,7 @@ public class ReportViewController {
             return "pages/reports/audit-table :: table";
         }
         try {
-            AuditResultDTO result = auditService.simulate(circuitNumber, month, year);
+            AuditResultDTO result = auditService.simulate(circuitNumber, month, year, onlyOutgoing);
             model.addAttribute("result", result);
         } catch (Exception e) {
             model.addAttribute("errorMsg", e.getMessage());
@@ -111,9 +113,10 @@ public class ReportViewController {
             @RequestParam String circuitNumber,
             @RequestParam int month,
             @RequestParam int year,
-            @RequestParam(defaultValue = "false") boolean onlyRelevant) {
+            @RequestParam(defaultValue = "false") boolean onlyRelevant,
+            @RequestParam(defaultValue = "false") boolean onlyOutgoing) {
 
-        byte[] pdf = auditService.generatePdf(circuitNumber, month, year, onlyRelevant);
+        byte[] pdf = auditService.generatePdf(circuitNumber, month, year, onlyRelevant, onlyOutgoing);
         return pdfResponse(pdf, "auditoria-" + circuitNumber + "-" + month + "-" + year + ".pdf");
     }
 

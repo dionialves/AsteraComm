@@ -2,6 +2,7 @@ package com.dionialves.AsteraComm.report.audit;
 
 import com.dionialves.AsteraComm.call.Call;
 import com.dionialves.AsteraComm.call.CallCostingService;
+import com.dionialves.AsteraComm.call.CallDirection;
 import com.dionialves.AsteraComm.call.CallRepository;
 import com.dionialves.AsteraComm.call.CallType;
 import com.dionialves.AsteraComm.circuit.Circuit;
@@ -36,6 +37,10 @@ public class AuditService {
     private final CallRepository    callRepository;
 
     public AuditResultDTO simulate(String circuitNumber, int month, int year) {
+        return simulate(circuitNumber, month, year, false);
+    }
+
+    public AuditResultDTO simulate(String circuitNumber, int month, int year, boolean onlyOutgoing) {
         Circuit circuit = circuitRepository.findByNumber(circuitNumber)
                 .orElseThrow(() -> new NotFoundException("Circuito não encontrado: " + circuitNumber));
 
@@ -46,10 +51,10 @@ public class AuditService {
 
         List<Call> calls = callRepository.findByCircuitNumberAndPeriod(circuitNumber, month, year);
 
-        return buildResult(circuit, plan, month, year, calls);
+        return buildResult(circuit, plan, month, year, calls, onlyOutgoing);
     }
 
-    private AuditResultDTO buildResult(Circuit circuit, Plan plan, int month, int year, List<Call> calls) {
+    private AuditResultDTO buildResult(Circuit circuit, Plan plan, int month, int year, List<Call> calls, boolean onlyOutgoing) {
         List<AuditCallLineDTO> lines = new ArrayList<>();
 
         // Acumuladores de quota (independentes por tipo em PER_CATEGORY)
@@ -104,8 +109,16 @@ public class AuditService {
                     rate,
                     quotaUsedThisCall,
                     quotaAccumulated,
-                    cost
+                    cost,
+                    call.getDirection()
             ));
+        }
+
+        // Filter outgoing only if requested
+        if (onlyOutgoing) {
+            lines = lines.stream()
+                    .filter(l -> l.direction() == CallDirection.OUTBOUND)
+                    .toList();
         }
 
         BigDecimal excessMinutes = totalMinutes.subtract(quotaMinutesUsed);
@@ -161,7 +174,11 @@ public class AuditService {
     }
 
     public byte[] generatePdf(String circuitNumber, int month, int year, boolean onlyRelevant) {
-        AuditResultDTO result = simulate(circuitNumber, month, year);
+        return generatePdf(circuitNumber, month, year, onlyRelevant, false);
+    }
+
+    public byte[] generatePdf(String circuitNumber, int month, int year, boolean onlyRelevant, boolean onlyOutgoing) {
+        AuditResultDTO result = simulate(circuitNumber, month, year, onlyOutgoing);
         String[] meses = {"Janeiro","Fevereiro","Março","Abril","Maio","Junho",
                           "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"};
         String mesNome = (month >= 1 && month <= 12) ? meses[month - 1] : String.valueOf(month);

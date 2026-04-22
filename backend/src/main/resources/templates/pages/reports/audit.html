@@ -77,13 +77,48 @@
                     Processar
                 </button>
 
+                <!-- Toggle: apenas ligações efetuadas -->
+                <div class="flex items-center gap-2 ml-2">
+                    <input type="checkbox" name="onlyOutgoing" value="true" id="cb-only-outgoing"
+                           class="hidden">
+                    <button id="toggle-outgoing" role="switch" aria-checked="false"
+                            class="relative shrink-0 w-9 h-5 rounded-[99px] bg-[#e0e0e0] border-none cursor-pointer p-0 outline-none transition-colors duration-200">
+                        <span id="toggle-thumb-outgoing"
+                              class="absolute top-[2px] left-[2px] w-4 h-4 rounded-full bg-white block transition-transform duration-200">
+                        </span>
+                    </button>
+                    <span class="text-[13px] text-[#1a1a1a] select-none">Apenas ligações efetuadas</span>
+                </div>
+
             </form>
         </div>
 
         <!-- ── Resultado (fragment vai aqui) ─────────────────────────────────────── -->
-        <div id="table-container"></div>
+    <div id="table-container"></div>
 
-    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('toggle-outgoing');
+        var thumb = document.getElementById('toggle-thumb-outgoing');
+        var checkbox = document.getElementById('cb-only-outgoing');
+        if (!btn) return;
+
+        btn.addEventListener('click', function () {
+          var active = !btn.getAttribute('aria-checked') || btn.getAttribute('aria-checked') === 'false';
+          btn.setAttribute('aria-checked', String(active));
+          checkbox.checked = active;
+          if (active) {
+            btn.style.backgroundColor = '#1D9E75';
+            thumb.style.transform = 'translateX(16px)';
+          } else {
+            btn.style.backgroundColor = '#e0e0e0';
+            thumb.style.transform = 'translateX(0)';
+          }
+        });
+      })();
+    </script>
+
+  </div>
 </body>
 
 </html>

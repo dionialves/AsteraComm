@@ -43,11 +43,16 @@ public class CallProcessingService {
                 circuitRepository.findByNumber(circuitCode).ifPresent(call::setCircuit);
             }
             // Tentativa 2: association via dst -> DID (inbound)
+            // Direction: se dst casou com DID → INBOUND; caso contrário → OUTBOUND
+            CallDirection direction = CallDirection.OUTBOUND;
             if (call.getCircuit() == null && cdr.getDst() != null && !cdr.getDst().isBlank()) {
-                didRepository.findByNumber(cdr.getDst())
-                        .filter(did -> did.getCircuit() != null)
-                        .ifPresent(did -> call.setCircuit(did.getCircuit()));
+                var didOpt = didRepository.findByNumber(cdr.getDst()).filter(did -> did.getCircuit() != null);
+                if (didOpt.isPresent()) {
+                    call.setCircuit(didOpt.get().getCircuit());
+                    direction = CallDirection.INBOUND;
+                }
             }
+            call.setDirection(direction);
             callRepository.save(call);
             callCostingService.applyCosting(call, cdr.getDcontext());
             callRepository.save(call);

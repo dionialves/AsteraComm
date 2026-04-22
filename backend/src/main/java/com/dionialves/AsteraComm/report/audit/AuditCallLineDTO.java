@@ -1,5 +1,6 @@
 package com.dionialves.AsteraComm.report.audit;
 
+import com.dionialves.AsteraComm.call.CallDirection;
 import com.dionialves.AsteraComm.call.CallType;
 
 import java.math.BigDecimal;
@@ -14,5 +15,6 @@ public record AuditCallLineDTO(
         BigDecimal    ratePerMinute,
         BigDecimal    quotaUsedThisCall,
         BigDecimal    quotaAccumulated,
-        BigDecimal    cost
+        BigDecimal    cost,
+        CallDirection direction
 ) {}

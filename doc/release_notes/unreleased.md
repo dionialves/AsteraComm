@@ -31,3 +31,40 @@
 
 **Arquivos alterados:**
 - `backend/src/test/java/com/dionialves/AsteraComm/circuit/CircuitServiceTest.java` — 2 testes corrigidos
+
+---
+
+## Refactoring
+
+### RF-094: Relatório de auditoria com direção de chamada e filtro de ligações efetuadas
+
+**Problema:** O relatório de auditoria exibe chamadas de entrada (inbound) e saída (outbound) sem distinção visual, e não havia filtro para exibir apenas ligações efetuadas (outbound) — as únicas que consomem minutos do plano e geram custo.
+
+**Solução:**
+- Criado enum `CallDirection` (`INBOUND`, `OUTBOUND`) persistido na tabela `asteracomm_calls` via coluna `direction`.
+- Detecção automática no `CallProcessingService`: se o `dst` casar com um DID cadastrado, a chamada é classificada como `INBOUND`; caso contrário, `OUTBOUND`.
+- Repositório expandido com JOIN na tabela de DIDs para buscar tanto chamadas saídas (via `circuit_number`) quanto recebidas (via `dst → DID`).
+- `AuditCallLineDTO` recebe campo `direction`; `AuditService` adiciona parâmetro `onlyOutgoing` com filtro e versão sobrecarregada de `simulate` e `generatePdf`.
+- Controller recebe `onlyOutgoing` nos endpoints de simulação e PDF.
+- UI adiciona segundo toggle "Apenas ligações efetuadas" com badge "Recebida"/"Efetuada" por linha.
+
+**Arquivos alterados:**
+- `backend/src/main/java/com/dionialves/AsteraComm/call/CallDirection.java` — novo enum
+- `backend/src/main/resources/db/migration/V11__add_direction_to_calls.sql` — nova migration
+- `backend/src/main/java/com/dionialves/AsteraComm/call/Call.java` — campo `direction`
+- `backend/src/main/java/com/dionialves/AsteraComm/call/CallProcessingService.java` — detecção de direção
+- `backend/src/main/java/com/dionialves/AsteraComm/call/CallRepository.java` — query expandida com LEFT JOIN
+- `backend/src/main/java/com/dionialves/AsteraComm/report/audit/AuditCallLineDTO.java` — campo `direction`
+- `backend/src/main/java/com/dionialves/AsteraComm/report/audit/AuditService.java` — filtro `onlyOutgoing` + overloads
+- `backend/src/main/java/com/dionialves/AsteraComm/report/ReportViewController.java` — parâmetro `onlyOutgoing`
+- `backend/src/main/resources/templates/pages/reports/audit.html` — toggle + checkbox
+- `backend/src/main/resources/templates/pages/reports/audit-table.html` — coluna direção + badge + JS toggle
+- `backend/src/test/java/com/dionialves/AsteraComm/report/audit/AuditServiceTest.java` — 3 novos cenários
+- `backend/src/test/java/com/dionialves/AsteraComm/call/CallProcessingServiceTest.java` — 2 novos cenários
+
+**Testes novos:**
+- `simulate_returnsOnlyOutbound_whenOnlyOutgoingTrue` — filtro retorna apenas OUTBOUND
+- `simulate_returnsAll_whenOnlyOutgoingFalse` — sem filtro retorna todos
+- `simulate_inboundCallsAppearInResult` — chamada INBOUND incluída no resultado
+- `process_setsDirectionInbound_whenDstIsDid` — direção INBOUND quando dst é DID
+- `process_setsDirectionOutbound_whenDstIsNotDid` — direção OUTBOUND quando dst não é DID

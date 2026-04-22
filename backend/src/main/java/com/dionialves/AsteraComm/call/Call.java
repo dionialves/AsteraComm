@@ -46,6 +46,10 @@ public class Call {
     @Column(name = "call_type", nullable = false)
     private CallType callType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "direction", nullable = false)
+    private CallDirection direction = CallDirection.OUTBOUND;
+
     @Column(name = "processed_at", nullable = false)
     private LocalDateTime processedAt;
 

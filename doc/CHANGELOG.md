@@ -11,6 +11,9 @@
 - FIX-076: Calls sem circuito associado para ligações entrantes
 - FIX-078: Corrige testes de CircuitServiceTest com comportamento alterado
 
+### Refactoring
+- RF-094: Relatório de auditoria com direção de chamada (INBOUND/OUTBOUND) e filtro de ligações efetuadas
+
 ---
 
 ## [1.0.0] - 2026-04-02

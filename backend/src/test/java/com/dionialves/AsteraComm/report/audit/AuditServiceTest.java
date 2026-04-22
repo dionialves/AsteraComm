@@ -1,6 +1,7 @@
 package com.dionialves.AsteraComm.report.audit;
 
 import com.dionialves.AsteraComm.call.Call;
+import com.dionialves.AsteraComm.call.CallDirection;
 import com.dionialves.AsteraComm.call.CallRepository;
 import com.dionialves.AsteraComm.call.CallStatus;
 import com.dionialves.AsteraComm.call.CallType;
@@ -62,6 +63,10 @@ class AuditServiceTest {
     }
 
     private Call buildCall(String uniqueId, LocalDateTime callDate, int billSeconds, CallType callType) {
+        return buildCall(uniqueId, callDate, billSeconds, callType, CallDirection.OUTBOUND);
+    }
+
+    private Call buildCall(String uniqueId, LocalDateTime callDate, int billSeconds, CallType callType, CallDirection direction) {
         Call call = new Call();
         call.setUniqueId(uniqueId);
         call.setCallDate(callDate);
@@ -73,6 +78,7 @@ class AuditServiceTest {
         call.setCallType(callType);
         call.setCallStatus(CallStatus.PROCESSED);
         call.setCircuit(circuit);
+        call.setDirection(direction);
         return call;
     }
 
@@ -345,5 +351,59 @@ class AuditServiceTest {
         assertThat(result.planName()).isEqualTo("Plano Básico");
         assertThat(result.month()).isEqualTo(MONTH);
         assertThat(result.year()).isEqualTo(YEAR);
+    }
+
+    // -------------------------------------------------------------------------
+    // Direction filtering
+    // -------------------------------------------------------------------------
+
+    @Test
+    void simulate_returnsOnlyOutbound_whenOnlyOutgoingTrue() {
+        plan.setPackageType(PackageType.NONE);
+
+        Call c1 = buildCall("uid1", LocalDateTime.of(2026, 3, 1, 9, 0, 0), 60, CallType.FIXED_LOCAL, CallDirection.OUTBOUND);
+        Call c2 = buildCall("uid2", LocalDateTime.of(2026, 3, 2, 10, 0, 0), 60, CallType.FIXED_LOCAL, CallDirection.INBOUND);
+        Call c3 = buildCall("uid3", LocalDateTime.of(2026, 3, 3, 11, 0, 0), 60, CallType.FIXED_LOCAL, CallDirection.OUTBOUND);
+
+        when(circuitRepository.findByNumber(CIRCUIT_NUMBER)).thenReturn(Optional.of(circuit));
+        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR))
+                .thenReturn(List.of(c1, c2, c3));
+
+        AuditResultDTO result = auditService.simulate(CIRCUIT_NUMBER, MONTH, YEAR, true);
+
+        assertThat(result.lines()).hasSize(2);
+        assertThat(result.lines()).allMatch(l -> l.direction() == CallDirection.OUTBOUND);
+    }
+
+    @Test
+    void simulate_returnsAll_whenOnlyOutgoingFalse() {
+        plan.setPackageType(PackageType.NONE);
+
+        Call c1 = buildCall("uid1", LocalDateTime.of(2026, 3, 1, 9, 0, 0), 60, CallType.FIXED_LOCAL, CallDirection.OUTBOUND);
+        Call c2 = buildCall("uid2", LocalDateTime.of(2026, 3, 2, 10, 0, 0), 60, CallType.FIXED_LOCAL, CallDirection.INBOUND);
+
+        when(circuitRepository.findByNumber(CIRCUIT_NUMBER)).thenReturn(Optional.of(circuit));
+        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR))
+                .thenReturn(List.of(c1, c2));
+
+        AuditResultDTO result = auditService.simulate(CIRCUIT_NUMBER, MONTH, YEAR, false);
+
+        assertThat(result.lines()).hasSize(2);
+    }
+
+    @Test
+    void simulate_inboundCallsAppearInResult() {
+        plan.setPackageType(PackageType.NONE);
+
+        Call inbound = buildCall("uid1", LocalDateTime.of(2026, 3, 1, 9, 0, 0), 60, CallType.FIXED_LOCAL, CallDirection.INBOUND);
+
+        when(circuitRepository.findByNumber(CIRCUIT_NUMBER)).thenReturn(Optional.of(circuit));
+        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR))
+                .thenReturn(List.of(inbound));
+
+        AuditResultDTO result = auditService.simulate(CIRCUIT_NUMBER, MONTH, YEAR);
+
+        assertThat(result.lines()).hasSize(1);
+        assertThat(result.lines().get(0).direction()).isEqualTo(CallDirection.INBOUND);
     }
 }

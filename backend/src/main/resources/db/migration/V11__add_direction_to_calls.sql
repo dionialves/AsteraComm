@@ -1,0 +1,2 @@
+ALTER TABLE asteracomm_calls
+    ADD COLUMN direction VARCHAR(10) NOT NULL DEFAULT 'OUTBOUND';
