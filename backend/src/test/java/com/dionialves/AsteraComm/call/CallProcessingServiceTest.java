@@ -4,6 +4,8 @@ import com.dionialves.AsteraComm.cdr.CdrRecord;
 import com.dionialves.AsteraComm.cdr.CdrRepository;
 import com.dionialves.AsteraComm.circuit.Circuit;
 import com.dionialves.AsteraComm.circuit.CircuitRepository;
+import com.dionialves.AsteraComm.did.DID;
+import com.dionialves.AsteraComm.did.DIDRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -41,6 +43,9 @@ class CallProcessingServiceTest {
 
     @Mock
     private CallCostingService callCostingService;
+
+    @Mock
+    private DIDRepository didRepository;
 
     @InjectMocks
     private CallProcessingService callProcessingService;
@@ -156,5 +161,50 @@ class CallProcessingServiceTest {
         callProcessingService.process();
 
         verify(callRepository, never()).save(any());
+    }
+
+    @Test
+    void process_shouldAssociateCircuitViaDstDid_whenInboundCall() {
+        Circuit circuit = new Circuit();
+        circuit.setNumber("4933401714");
+
+        DID did = new DID();
+        did.setNumber("5511999990000");
+        did.setCircuit(circuit);
+
+        CdrRecord cdr = buildCdr("1000.10", "ANSWERED", "PJSIP/operadora-0001");
+        cdr.setDst("5511999990000");
+
+        when(cdrRepository.findUnprocessed()).thenReturn(List.of(cdr));
+        when(callerIdParser.parse(any())).thenReturn("11933334444");
+        when(callTypeClassifier.classify(any())).thenReturn(CallType.FIXED_LOCAL);
+        when(channelParser.parse("PJSIP/operadora-0001")).thenReturn("operadora");
+        when(circuitRepository.findByNumber("operadora")).thenReturn(Optional.empty());
+        when(didRepository.findByNumber("5511999990000")).thenReturn(Optional.of(did));
+
+        callProcessingService.process();
+
+        ArgumentCaptor<Call> captor = ArgumentCaptor.forClass(Call.class);
+        verify(callRepository, times(2)).save(captor.capture());
+        assertThat(captor.getAllValues().get(0).getCircuit()).isEqualTo(circuit);
+    }
+
+    @Test
+    void process_shouldLeaveCircuitNull_whenDidNotFound() {
+        CdrRecord cdr = buildCdr("1000.11", "ANSWERED", "PJSIP/operadora-0001");
+        cdr.setDst("00000000000");
+
+        when(cdrRepository.findUnprocessed()).thenReturn(List.of(cdr));
+        when(callerIdParser.parse(any())).thenReturn("11933334444");
+        when(callTypeClassifier.classify(any())).thenReturn(CallType.FIXED_LOCAL);
+        when(channelParser.parse("PJSIP/operadora-0001")).thenReturn("operadora");
+        when(circuitRepository.findByNumber("operadora")).thenReturn(Optional.empty());
+        when(didRepository.findByNumber("00000000000")).thenReturn(Optional.empty());
+
+        callProcessingService.process();
+
+        ArgumentCaptor<Call> captor = ArgumentCaptor.forClass(Call.class);
+        verify(callRepository, times(2)).save(captor.capture());
+        assertThat(captor.getAllValues().get(0).getCircuit()).isNull();
     }
 }

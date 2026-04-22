@@ -30,6 +30,7 @@
 15. [RF-091 — Adicionar cache ao dashboard](#rf-091)
 16. [RF-092 — Padronizar `FetchType` em `Circuit`](#rf-092)
 17. [RF-093 — Decompor serviços com múltiplas responsabilidades (`AuditService`, `CostPerCircuitService`)](#rf-093)
+18. [RF-094 — Refatorar relatório de auditoria para incluir ligações recebidas e filtro de ligações efetuadas](#rf-094)
 
 ---
 
@@ -353,11 +354,139 @@ Como desenvolvedor, quero que cada classe tenha uma única razão para mudar, ex
 
 ---
 
-## Bug Fixes (FIX)
+### RF-094 · Refatorar relatório de auditoria para incluir ligações recebidas e filtro de ligações efetuadas
+
+- **Tipo:** Refactor
+- **Prioridade:** ALTA
+- **US relacionada:** US-016 (Auditoria de custeio)
+- **Sprint:** —
+- **Arquivos:**
+  - `backend/src/main/java/com/dionialves/AsteraComm/call/CallDirection.java` (novo)
+  - `backend/src/main/java/com/dionialves/AsteraComm/call/Call.java` (editar)
+  - `backend/src/main/java/com/dionialves/AsteraComm/call/CallRepository.java` (editar)
+  - `backend/src/main/java/com/dionialves/AsteraComm/call/CallProcessingService.java` (editar)
+  - `backend/src/main/java/com/dionialves/AsteraComm/report/audit/AuditCallLineDTO.java` (editar)
+  - `backend/src/main/java/com/dionialves/AsteraComm/report/audit/AuditService.java` (editar)
+  - `backend/src/main/java/com/dionialves/AsteraComm/report/ReportViewController.java` (editar)
+  - `backend/src/main/resources/templates/pages/reports/audit.html` (editar)
+  - `backend/src/main/resources/templates/pages/reports/audit-table.html` (editar)
+  - `backend/src/main/resources/db/migration/V11__add_direction_to_calls.sql` (novo)
+  - `backend/src/test/java/com/dionialves/AsteraComm/report/audit/AuditServiceTest.java` (editar)
+  - `backend/src/test/java/com/dionialves/AsteraComm/call/CallProcessingServiceTest.java` (editar)
+- **Dependências:** ✅ FIX-076 concluído — vínculos inbound resolvidos; prossegue com direction para auditoria
+
+#### Contexto / Problema
+Hoje o `CallProcessingService` associa a ligação ao circuito **apenas via `channel`**, o que funciona para saídas (`PJSIP/<circuito>-...`) mas falha para entradas (`PJSIP/<tronco>-...`). Por isso ligações recebidas (incoming) nunca ficam com `circuit_number` preenchido e, consequentemente, **não aparecem na auditoria de custeio**. O relatório mostra apenas ligações efetuadas (outbound).
+Além disso, o usuário precisa de um segundo toggle na UI para **exibir apenas ligações efetuadas**, filtrando de forma complementar ao toggle já existente "apenas chamadas relevantes".
+
+#### Abordagem escolhida
+1. Introduzir o enum `CallDirection` (`INBOUND`, `OUTBOUND`) na entidade `Call`, persistido via nova coluna `direction` na tabela `asteracomm_calls`. A detecção do direction acontece no `CallProcessingService` analisando o contexto do CDR: se `dst` for um DID cadastrado, é `INBOUND`; senão, `OUTBOUND`.
+2. Alterar o `CallRepository.findByCircuitNumberAndPeriod` para incluir **ambas** as direções — ligando tanto pelo `circuit` do campo `channel` (saídas) quanto pela busca inversa via DID para o campo `dst` (recebidas). Isso atende ao requisito sem precisar alterar o modelo de relacionamento (FIX-076 fará essa melhoria de forma própria; RF-094 depende do vínculo estar resolvido).
+3. Adicionar `direction` ao `AuditCallLineDTO` para que o template consiga exibir um badge "Entrante/Efetuada" e controlar o segundo toggle.
+4. No controller `/reports/audit/simulation` e `/reports/audit/pdf`, receber o parâmetro `onlyOutgoing` e passar para o service, que filtra as linhas do DTO antes de renderizar.
+5. Atualizar os templates para exibir o novo toggle e o novo badge por linha.
+
+#### Passo-a-passo de implementação
+
+1. **Criar** `backend/src/main/java/com/dionialves/AsteraComm/call/CallDirection.java` — enum com `INBOUND`, `OUTBOUND`.
+   ```java
+   package com.dionialves.AsteraComm.call;
+   public enum CallDirection {
+       INBOUND,
+       OUTBOUND
+   }
+   ```
+
+2. **Criar** migration `backend/src/main/resources/db/migration/V11__add_direction_to_calls.sql`
+   ```sql
+   ALTER TABLE asteracomm_calls
+       ADD COLUMN direction VARCHAR(10) NOT NULL DEFAULT 'OUTBOUND';
+   ```
+
+3. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/Call.java`
+   - Adicionar campo `direction` com `@Enumerated(EnumType.STRING)` e `@Column(name = "direction", nullable = false)`.
+   - Importar `CallDirection`.
+
+4. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/CallProcessingService.java`
+   - Resolver `direction` antes de salvar: se `cdr.getDst()` casar com um DID existente → `INBOUND`; senão → `OUTBOUND`.
+   - Injetar `DIDRepository` (já existe no pacote `did`).
+   - Determinar `circuitNumber` de forma dual: saídas pelo `channel`, recebidas pelo `dst`→DID (se não tiver circuito pelo channel).
+   - Chamar `call.setDirection(direction)` antes do primeiro save.
+   - **Risco:** não alterar a lógica de costing (mantida como está, pois custeio de recebidas = zero ou mesma taxa). O planejador não deve assumir mudança de regra de negócio.
+
+5. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/CallRepository.java`
+   - Expandir o método `findByCircuitNumberAndPeriod` (linha 50–58) com UNION lógica via `OR`: retornar chamadas onde `circuit_number = :circuitNumber` **OU** onde `dst` bate com um DID vinculado a esse circuito.
+   - Query equivalente (nativa):
+     ```sql
+     SELECT ca.* FROM asteracomm_calls ca
+     LEFT JOIN asteracomm_dids d ON d.number = ca.dst AND d.circuit_number = :circuitNumber
+     WHERE ca.call_status = 'PROCESSED'
+       AND EXTRACT(MONTH FROM ca.call_date) = :month
+       AND EXTRACT(YEAR  FROM ca.call_date) = :year
+       AND (ca.circuit_number = :circuitNumber OR d.circuit_number = :circuitNumber)
+     ORDER BY ca.call_date ASC
+     ```
+   - Alterar anotação `@Query` do método `findByCircuitNumberAndPeriod` para a consulta acima.
+
+6. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/report/audit/AuditCallLineDTO.java`
+   - Adicionar campo `CallDirection direction` ao record.
+
+7. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/report/audit/AuditService.java` (linhas ~98–108)
+   - No construtor de `AuditCallLineDTO` passar `call.getDirection()`.
+   - Alterar `simulate` para aceitar o parâmetro `boolean onlyOutgoing` opcional; passar para o `buildResult`.
+   - Em `buildResult`, após construir `lines`, se `onlyOutgoing` for `true`, filtrar para `CallDirection.OUTBOUND`.
+   - Recalcular `summary` a partir das linhas filtradas, pois o totalizador deve refletir apenas o que está visível.
+   - Criar versão sobrecarregada `simulate(String, int, int, boolean)`.
+
+8. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/report/ReportViewController.java`
+   - `/reports/audit/simulation` e `/reports/audit/pdf`: aceitar `@RequestParam(defaultValue = "false") boolean onlyOutgoing`.
+   - Encaminhar valor para `auditService.simulate(... onlyOutgoing)` e `auditService.generatePdf(...)`.
+   - Adicionar `onlyOutgoing` ao model na resposta da simulação (usado pelo JS do PDF).
+
+9. **Editar** `backend/src/main/resources/templates/pages/reports/audit.html`
+   - Inserir checkbox/toggle "Apenas ligações efetuadas" dentro do form `#audit-form` logo após o botão Processar (ou antes, mas o `hx-include` já cobre tudo).
+   - O input deve ser um `<input type="checkbox" name="onlyOutgoing" value="true" id="cb-only-outgoing">` oculto via CSS, controlado por um botão custom igual ao existente de relevantes.
+
+10. **Editar** `backend/src/main/resources/templates/pages/reports/audit-table.html`
+    - Expor na linha de cabeçalho e nas células uma nova coluna (ou span/tag) indicando a direção.
+    - Alinhar com o padrão visual: badge arredondado com cor suave.
+    - Badge `OUTBOUND` → texto "Efetuada", cor `bg-[#E6F1FB] text-[#0C447C]`.
+    - Badge `INBOUND` → texto "Recebida", cor `bg-[#FAECE7] text-[#712B13]`.
+    - Implementar a lógica JS do segundo toggle `toggle-outgoing`, atualizando a query-string do PDF com `&onlyOutgoing=true` quando ligado.
+    - Adicionar `data-outgoing="..."` nas linhas para facilitar o filtro client-side.
+    - Atualizar o PDF de forma que, se `onlyOutgoing=true`, o link do PDF inclua o parâmetro.
+
+11. **Rodar** `./mvnw test` e garantir que a suíte passa (incluindo os novos testes).
+
+#### Testes a criar/atualizar
+- `backend/src/test/java/com/dionialves/AsteraComm/report/audit/AuditServiceTest.java`
+  - Cenário: `simulate_returnsOnlyOutbound_whenOnlyOutgoingTrue` — com mixed calls, retorna apenas aqueles cuja direção é `OUTBOUND`.
+  - Cenário: `simulate_returnsAll_whenOnlyOutgoingFalse` — confirma que inbound e outbound aparecem.
+  - Cenário: `simulate_inboundCallsAppearInResult` — Call com direction = INBOUND é incluído.
+- `backend/src/test/java/com/dionialves/AsteraComm/call/CallProcessingServiceTest.java`
+  - Cenário: `process_setsDirectionInbound_whenDstIsDid` — mockar DIDRepository para retornar DID com circuito, verificar `CallDirection.INBOUND`.
+  - Cenário: `process_setsDirectionOutbound_whenDstIsNotDid` — verificar `CallDirection.OUTBOUND`.
+
+#### Critérios de aceitação
+- [ ] As chamadas recebidas de circuito identificadas via DID aparecem na tabela de auditoria com badge "Recebida" e circuito correto.
+- [ ] As chamadas efetuadas mantêm o comportamento atual e aparecem com badge "Efetuada".
+- [ ] O novo toggle "Apenas ligações efetuadas" filtra o relatório e o PDF para omitir chamadas `INBOUND`.
+- [ ] O toggle existente "Apenas chamadas relevantes" continua funcionando; os dois toggles combinam-se corretamente (interseção lógica).
+- [ ] A tabela exibe as colunas Data/Hora, Destino, Tipo, Direção, Duração, Tarifa, Min. pacote, Acum. pacote, Custo.
+- [ ] O `summary` (totalizadores) reflete apenas as linhas visíveis após a aplicação de ambos os filtros.
+- [ ] Todos os testes novos passam e nenhum teste existente regrediu.
+- [ ] `./mvnw test` passa sem warnings de compilação.
+- [ ] Migration `V11` aplica-se do zero em banco limpo.
+- [ ] Commit no padrão `tipo(código): titulo-curto`.
+- [ ] Entrada no `doc/changelog.md` seção `[Unreleased]` e descrição detalhada em `doc/release_notes/unreleased.md`.
+- [ ] Remoção da task do `doc/backlog.md` após conclusão.
+
+#### Riscos e observações
+- **Custeio de recebidas:** Recebidas não custam minutos no modelo atual — os DTOs devem ser renderizados com custo zero e quota zero. O Codificador não deve alterar a lógica de custeio para cobrar recebidas.
+- **Não alterar regra de plano:** O plano e tarifas permanecem os mesmos — direction é apenas informativo.
 1. [FIX-073 — Group filter da página de Circuitos não permanece ativo após modificação de página](#fix-073)
 2. [FIX-074 — Status de tronco com autenticação por IP não exibido corretamente](#fix-074)
-3. [FIX-076 — Calls sem circuito associado para ligações entrantes](#fix-076)
-4. [FIX-077 — Reconstruir circuitos excluídos e corrigir calls órfãs (Getel Telecom)](#fix-077)
+3. [FIX-077 — Reconstruir circuitos excluídos e corrigir calls órfãs (Getel Telecom)](#fix-077)
 
 ---
 
@@ -598,25 +727,6 @@ O `EndpointStatusService` consulta status via registrations, que só existe para
 1. Troncos `CREDENTIAL` continuam exibindo "Registrado" / "Não registrado" como antes.
 2. Troncos `IP_AUTH` exibem badge distinto (ex.: "IP Auth") sem tentar consultar registro SIP.
 3. Nenhuma regressão no comportamento de troncos `CREDENTIAL` existentes.
-
----
-
-### FIX-076
-
-**Titulo:** Calls sem circuito associado para ligações entrantes
-
-**Descrição:**
-Existem registros em `Call` sem circuito associado provenientes de ligações entrantes. O `ChannelParser` extrai o código do circuito do campo `channel`, o que funciona para ligações saintes (`PJSIP/4933401714-xxxxx`), mas falha para entrantes (`PJSIP/operadora-xxxxx`), onde o channel contém o nome do tronco e não o código do circuito. Para ligações entrantes, o circuito deve ser identificado via o campo `dst` (número discado = DID vinculado ao circuito).
-
-**Causa:**
-`CallProcessingService` usa apenas o `channel` para associar o circuito. Ligações entrantes chegam com o nome do tronco no channel, não o código do circuito.
-
-**Critérios de Aceite:**
-
-1. Ligações saintes continuam associadas ao circuito via `channel` (sem regressão).
-2. Ligações entrantes com DID cadastrado ficam associadas ao circuito vinculado ao DID via `dst`.
-3. Ligações entrantes com DID não cadastrado mantêm `circuit = null` sem erro.
-4. Testes unitários cobrem os três cenários: sainte, entrante com DID, entrante sem DID.
 
 ---
 

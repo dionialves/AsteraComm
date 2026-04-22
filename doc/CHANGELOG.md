@@ -7,6 +7,9 @@
 
 ## [Unreleased]
 
+### Bug Fixes
+- FIX-076: Calls sem circuito associado para ligações entrantes
+
 ---
 
 ## [1.0.0] - 2026-04-02

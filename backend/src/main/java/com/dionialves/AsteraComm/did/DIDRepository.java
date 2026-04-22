@@ -6,8 +6,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface DIDRepository extends JpaRepository<DID, Long> {
+
+    Optional<DID> findByNumber(String number);
 
     boolean existsByNumber(String number);
 
