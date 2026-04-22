@@ -32,7 +32,7 @@
 16. [RF-092 — Padronizar `FetchType` em `Circuit`](#rf-092)
 17. [RF-093 — Decompor serviços com múltiplas responsabilidades (`AuditService`, `CostPerCircuitService`)](#rf-093)
 18. [RF-096 — Normalizar número de DID no lookup inbound do processamento de ligações](#rf-096)
-20. [RF-097 — Reverter elementos desconexos da Auditoria (direção, filtro, totalizadores)](#rf-097)
+19. [RF-097 — Reverter elementos desconexos da Auditoria (direção, filtro, totalizadores)](#rf-097)
 
 ---
 
@@ -674,5 +674,249 @@ Como administrador, quero um relatório que compare clientes e planos do IXC Sof
 
 ---
 
-### RF-093 · Decompor serviços
+### RF-097 · Reverter elementos desconexos da Auditoria (direção, filtro, totalizadores)
+
+> **⚠️ Esta task anula parcialmente a RF-094.** A RF-094 adicionou `direction` no domínio `Call` (correto), mas introduziu elementos desconexos na ferramenta de Auditoria: coluna "Direção", toggle "Apenas ligações efetuadas", e totalizadores de chamadas recebidas com custo. O propósito da Auditoria é exclusivamente de **custeio de chamadas efetuadas** (OUTBOUND). Esses elementos poluem a interface e distorcem o resumo para o usuário.
+
+- **Tipo:** Refactor
+- **Prioridade:** ALTA
+- **US relacionada:** US-072 (Auditoria de custeio)
+- **Sprint:** —
+- **Arquivos:**
+  - `backend/src/main/java/com/dionialves/AsteraComm/report/audit/AuditService.java` (editar)
+  - `backend/src/main/java/com/dionialves/AsteraComm/report/audit/AuditCallLineDTO.java` (editar)
+  - `backend/src/main/java/com/dionialves/AsteraComm/report/audit/AuditResultDTO.java` (editar)
+  - `backend/src/main/java/com/dionialves/AsteraComm/report/audit/AuditSummaryDTO.java` (editar)
+  - `backend/src/main/java/com/dionialves/AsteraComm/report/ReportViewController.java` (editar)
+  - `backend/src/test/java/com/dionialves/AsteraComm/report/audit/AuditServiceTest.java` (editar)
+  - `backend/src/main/resources/templates/pages/reports/audit-table.html` (editar)
+  - `backend/src/main/resources/templates/pages/reports/audit.html` (editar)
+- **Dependências:** US-080 (novo relatório de histórico, para onde a coluna "Direção" e o filtro migrarão)
+
+#### Contexto / Problema
+Após a RF-094, o relatório de Auditoria passou a exibir:
+1. Coluna "Direção" (badge Recebida / Efetuada) na tabela detalhada e no PDF — irrelevante para custeio.
+2. Toggle "Apenas ligações efetuadas" — a Auditoria deveria mostrar **apenas** OUTBOUND por definição.
+3. Chamadas INBOUND apareciam na simulação com custo, quota e acumulador — distorce o resumo de consumo do plano, pois a franquia se aplica apenas a chamadas efetuadas.
+4. Totalizadores de resumo passaram a incluir chamadas recebidas no cálculo.
+
+#### Abordagem escolhida
+Remover da `AuditService` e dos DTOs de auditoria qualquer referência a `direction`. O `CallService` (`findByCircuitNumberAndPeriod`) internamente já filtra OUTBOUND apenas, mas o simulador não. Em vez de adicionar o filtro no `AuditService`, usar o repository existente e manter o comportamento original de só exibir custo de chamadas efetuadas (revertendo para o estado anterior ao adicionamento do `CallDirection` no relatório). A entidade `Call` continua com o campo `direction`, mas a ferramenta de Auditoria não lê mais esse campo. O filtro `onlyOutgoing` é removido completamente da API e templates.
+
+**Alternativa descartada:** manter `onlyOutgoing=true` como default e manter a coluna. Rejeitado porque a UI ficaria poluída e o PDF continuaria despropositado para o usuário final.
+
+#### Passo-a-passo de implementação
+
+1. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/report/audit/AuditCallLineDTO.java` — remover o campo `direction` (último parâmetro do record).
+   ```java
+   public record AuditCallLineDTO(
+           String        uniqueId,
+           LocalDateTime callDate,
+           String        dst,
+           CallType      callType,
+           int           billSeconds,
+           BigDecimal    ratePerMinute,
+           BigDecimal    quotaUsedThisCall,
+           BigDecimal    quotaAccumulated,
+           BigDecimal    cost
+   ) {}
+   ```
+
+2. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/report/audit/AuditService.java`:
+   - Em `simulate(String circuitNumber, int month, int year)`, remover o overload com `boolean onlyOutgoing`.
+   - Em `buildResult(...)`, remover o parâmetro `boolean onlyOutgoing`. Remover o `if (onlyOutgoing)` e a variável `filteredLines` — usar `lines` diretamente.
+   - No cálculo de `summary`, usar `lines` (não `filteredLines`).
+   - No `lines.add(new AuditCallLineDTO(...))`, remover o último argumento `call.getDirection()`.
+   - No método `generatePdf(...)`, remover os overloads e o parâmetro `onlyOutgoing`. Remover a passagem de `onlyOutgoing` para `simulate`.
+   - No PDF, remover o cabeçalho "Direção" (se houver — o PDF ainda não foi alterado para mostrar, mas verificar).
+
+3. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/report/ReportViewController.java`:
+   - Em `auditSimulation(...)`, remover o parâmetro `@RequestParam(defaultValue = "false") boolean onlyOutgoing`.
+   - Remover `model.addAttribute("onlyOutgoing", onlyOutgoing)`.
+   - Na chamada `auditService.simulate(circuitNumber, month, year, onlyOutgoing)`, voltar para `auditService.simulate(circuitNumber, month, year)`.
+   - Em `auditPdf(...)`, remover o parâmetro `@RequestParam(defaultValue = "false") boolean onlyOutgoing` e a passagem para `generatePdf`.
+
+4. **Editar** `backend/src/main/resources/templates/pages/reports/audit.html`:
+   - Remover o `hx-include` que referencia os toggles (deixar apenas `#audit-form` para o botão Processar).
+
+5. **Editar** `backend/src/main/resources/templates/pages/reports/audit-table.html`:
+   - Remover o toggle "Apenas ligações efetuadas" (div com `id="toggle-outgoing-table"` e seu span).
+   - Remover a coluna "Direção" do header (`<span>...Direção...</span>`) e das linhas (badge span th:text Recebida/Efetuada).
+   - Remover `th:attr="..., data-outgoing=${line.direction.name()}"`.
+   - Ajustar o `grid-cols-audit` de volta para 8 colunas (remover a coluna Direção). Verificar CSS: `grid-template-columns: repeat(9, minmax(100px, 1fr))` voltar para `repeat(8, ...)`.
+   - No JavaScript inline, remover o bloco de código inteiro do toggle `toggle-outgoing-table` e seu `addEventListener` (linhas ~209-229).
+   - No `setParam(href, 'onlyOutgoing', ...)`, remover essa linha (se existir no script do PDF).
+   - No link do PDF `btn-pdf-audit`, remover o parâmetro `onlyOutgoing`.
+
+6. **Editar** `backend/src/test/java/com/dionialves/AsteraComm/report/audit/AuditServiceTest.java`:
+   - Remover os testes de filtragem por direção (`simulate_returnsOnlyOutbound_whenOnlyOutgoingTrue`, `simulate_returnsAll_whenOnlyOutgoingFalse`, `simulate_inboundCallsAppearInResult`).
+   - Ajustar os testes restantes para não criarem chamadas com `CallDirection` diferente de OUTBOUND.
+   - O `buildCall` helper ainda pode criar com direction, mas o teste não verifica direção no resultado. Ou simplificar o helper para não aceitar mais o parâmetro de direction.
+
+#### Testes a criar/atualizar
+- `backend/src/test/java/com/dionialves/AsteraComm/report/audit/AuditServiceTest.java` — remover os 3 testes de direção.
+- Verificar que todos os demais testes de `AuditServiceTest` ainda passam (sem referência a `direction` nos asserts).
+
+#### Critérios de aceitação
+- [ ] O relatório de Auditoria não exibe a coluna "Direção".
+- [ ] O relatório de Auditoria não possui o toggle "Apenas ligações efetuadas".
+- [ ] O PDF de Auditoria não exibe a coluna "Direção" (se o PDF já tiver sido feito; senão, garantir que o generator não tenta).
+- [ ] O método `AuditService.simulate()` não aceita mais o parâmetro `onlyOutgoing`.
+- [ ] Chamadas em testes de auditoria são consideradas OUTBOUND por padrão (sem assert inbound).
+- [ ] `./mvnw test` passa sem regressão nos testes restantes.
+- [ ] Commit no padrão `refactor(rf-097): remove direcao e filtro de ligacoes da auditoria`.
+- [ ] Entrada no `doc/changelog.md` seção `[Unreleased]` e descrição detalhada em `doc/release_notes/unreleased.md`.
+- [ ] Remoção da task do `doc/backlog.md` após conclusão.
+
+#### Riscos e observações
+- **RF-093 (decomposição de PDF):** se o Codificador executar RF-097 antes de RF-093, o `AuditPdfGenerator` precisará também ser ajustado. Ordenação recomendada: executar RF-097 primeiro, depois RF-093 (que já está no backlog).
+- **CallProcessingServiceTest:** os testes que validam `INBOUND`/`OUTBOUND` no processamento de CDR devem permanecer intactos — a entidade `Call` ainda carrega `direction`. A task toca apenas na camada de relatório.
+- **Audit.html header:** o link de voltar (`th:href="@{/reports}"`) será removido quando US-066 for executada.
+
+---
+
+### US-080 · Histórico de ligações por circuito e mês
+
+- **Tipo:** User Story
+- **Prioridade:** ALTA
+- **US relacionada:** —
+- **Sprint:** —
+- **Arquivos:**
+  - `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryService.java` (novo)
+  - `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryController.java` (novo)
+  - `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryLineDTO.java` (novo)
+  - `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryResultDTO.java` (novo)
+  - `backend/src/test/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryServiceTest.java` (novo)
+  - `backend/src/main/resources/templates/pages/reports/call-history.html` (novo)
+  - `backend/src/main/resources/templates/pages/reports/call-history-table.html` (novo)
+- **Dependências:** RF-097 (remoção dos elementos desconexos da Auditoria)
+
+#### Contexto / Problema
+O usuário precisa visualizar, para um circuito e um mês específicos, **todas as ligações efetuadas e recebidas daquele circuito**, sem qualquer cálculo de custo, franquia ou tarifa. É um histórico operacional — diferente da Auditoria, que é ferramenta de custeio.
+
+#### Abordagem escolhida
+Criar um novo endpoint `/reports/call-history` com serviço, controller e templates dedicados. Reutilizar a query `CallRepository.findByCircuitNumberAndPeriod` para buscar as calls do circuito no período. O DTO deve conter apenas informações descritivas da chamada (data, destino, duração, tipo, direção, status/disposição). Sem interação com `Plan`, `CallCostingService` ou campos de quota/custo. Interface seguindo o padrão visual da Auditoria, mas com colunas relevantes ao histórico.
+
+#### Passo-a-passo de implementação
+
+1. **Criar** `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryLineDTO.java`
+   ```java
+   public record CallHistoryLineDTO(
+       String        uniqueId,
+       LocalDateTime callDate,
+       String        callerNumber,
+       String        dst,
+       String        disposition,
+       CallType      callType,
+       CallDirection direction,
+       int           billSeconds,
+       Integer       durationSeconds
+   ) {}
+   ```
+
+2. **Criar** `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryResultDTO.java`
+   ```java
+   public record CallHistoryResultDTO(
+       String                circuitNumber,
+       int                   month,
+       int                   year,
+       int                   totalCalls,
+       BigDecimal            totalMinutes,
+       List<CallHistoryLineDTO> lines
+   ) {}
+   ```
+   Totalizadores: total de chamadas e tempo total (em minutos, arredondado como em `AuditSummaryDTO`, mas sem custo/quota).
+
+3. **Criar** `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryService.java`
+   ```java
+   @RequiredArgsConstructor
+   @Service
+   public class CallHistoryService {
+       private final CircuitRepository circuitRepository;
+       private final CallRepository    callRepository;
+
+       public CallHistoryResultDTO getHistory(String circuitNumber, int month, int year) {
+           Circuit circuit = circuitRepository.findByNumber(circuitNumber)
+               .orElseThrow(() -> new NotFoundException("Circuito não encontrado: " + circuitNumber));
+
+           List<Call> calls = callRepository.findByCircuitNumberAndPeriod(circuitNumber, month, year);
+
+           List<CallHistoryLineDTO> lines = calls.stream()
+               .map(c -> new CallHistoryLineDTO(...))
+               .toList();
+
+           int totalCalls = lines.size();
+           int totalBillSec = lines.stream().mapToInt(CallHistoryLineDTO::billSeconds).sum();
+           BigDecimal totalMinutes = BigDecimal.valueOf(Math.ceil(totalBillSec / 30.0))
+               .divide(BigDecimal.valueOf(2), 1, RoundingMode.UNNECESSARY);
+
+           return new CallHistoryResultDTO(circuitNumber, month, year, totalCalls, totalMinutes, lines);
+       }
+   }
+   ```
+
+4. **Criar** `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryController.java`
+   ```java
+   @Controller
+   @RequiredArgsConstructor
+   @RequestMapping("/reports/call-history")
+   public class CallHistoryController {
+       private final CallHistoryService service;
+
+       @GetMapping
+       public String index(Model model) {
+           LocalDate now = LocalDate.now();
+           model.addAttribute("currentMonth", now.getMonthValue());
+           model.addAttribute("currentYear",  now.getYear());
+           return "pages/reports/call-history";
+       }
+
+       @GetMapping("/table")
+       public String table(@RequestParam String circuitNumber, @RequestParam int month, @RequestParam int year, Model model) {
+           model.addAttribute("month", month);
+           model.addAttribute("year", year);
+           if (circuitNumber == null || circuitNumber.isBlank()) {
+               model.addAttribute("errorMsg", "Selecione um circuito.");
+           } else {
+               model.addAttribute("result", service.getHistory(circuitNumber, month, year));
+           }
+           return "pages/reports/call-history-table :: table";
+       }
+   }
+   ```
+
+5. **Criar** template `backend/src/main/resources/templates/pages/reports/call-history.html` e `call-history-table.html` seguindo o padrão visual de Audit (`audit.html` + `audit-table.html`), mas sem:
+   - Contexto de plano (Plano).
+   - Colunas de tarifa, franquia, acumulador, custo.
+   - Toggle de "relevantes".
+   - Botão PDF.
+
+   Colunas da tabela: Data/Hora | Origem | Destino | Tipo | Direção | Duração | Status (Disposition).
+   Badge de direção: recebida (INBOUND) e efetuada (OUTBOUND).
+
+6. **Adicionar** item no menu lateral (`layout/base.html`) na seção FINANCEIRO → "Histórico de Ligações" após "Auditoria". URL `/reports/call-history`. Destacar quando `currentPath` começar com `/reports/call-history`.
+
+7. **Criar teste** `backend/src/test/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryServiceTest.java`:
+   - Cenário: `getHistory_throwsNotFound_whenCircuitNotFound`.
+   - Cenário: `getHistory_returnsEmpty_whenNoCalls`.
+   - Cenário: `getHistory_returnsCorrectLinesForMixedDirections` — calls OUTBOUND e INBOUND na lista.
+   - Cenário: `getHistory_calculatesTotalMinutesCorrectly`.
+
+#### Testes a criar/atualizar
+- `CallHistoryServiceTest` — cenários acima.
+
+#### Critérios de aceitação
+- [ ] Endpoint `/reports/call-history` abre página com SearchSelect de circuito, mês e ano, e botão "Processar".
+- [ ] O resultado exibe todas as ligações (efetuadas e recebidas) do circuito no mês/ano, com as colunas: Data/Hora, Origem, Destino, Tipo, Direção, Duração, Status.
+- [ ] Badge "Efetuada" / "Recebida" corretamente colorido como no layout da Auditoria anterior à RF-097.
+- [ ] Resumo exibe apenas total de chamadas e minutos totais (sem custo, franquia ou excedente).
+- [ ] `./mvnw test` passa (testes novos + existentes sem regressão).
+- [ ] Commit no padrão `feat(us-080): adiciona relatorio historico de ligacoes por circuito`.
+- [ ] Entrada no `doc/changelog.md` e `doc/release_notes/unreleased.md`.
+- [ ] Remoção da task do `doc/backlog.md` após conclusão.
+
+#### Riscos e observações
+- O Codificador não deve alterar o `AuditService` além do que está especificado na RF-097. Não é para fatorar a query comum entre os dois relatórios — cada um usa seu próprio service.
+- O totalizador de minutos do histórico pode usar a mesma fórmula de arredondamento do histórico (ceil(billSeconds/30)/2) para consistência visual com a Auditoria.
+- A query `findByCircuitNumberAndPeriod` internamente consulta a tabela de DID via JOIN; como o histórico quer **todas** as ligações (inclusive inbound via dst→did), essa query já serve perfeitamente — nenhuma alteração no repository é necessária.
 
