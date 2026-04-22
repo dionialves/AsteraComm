@@ -36,6 +36,35 @@
 
 ## Refactoring
 
+### RF-095: Script de reconciliação de ligações sem circuito via canal CDR
+
+**Problema:** Ligações históricas no banco possuem `circuit = null` e não aparecem na auditoria de custeio. Reprocessar esses CDRs recalcularia o custo usando o plano atual do circuito, alterando dados históricos incorretamente.
+
+**Solução:**
+- Criado `CallCircuitReconciliationService` que enumera chamadas sem circuito via `findByCircuitIsNull()`, analisa o `channel` do CDR original via `ChannelParser`, e atualiza **apenas** a FK `circuit_number` — preservando `cost`, `minutes_from_quota`, `call_status` e `call_type`.
+- Criado `CallCircuitReconciliationController` com GET (visualização) e POST (execução) em `/admin/reconcile-calls`.
+- Criado template `reconcile-calls.html` com tabela de órfãs, badge de resolvibilidade e botão de execução com CSRF.
+- Criados DTOs `OrphanCallDTO` e `ReconciliationResultDTO` como records.
+- Adicionado `findByCircuitIsNull()` no `CallRepository` para evitar carregar todos os registros em memória (performance).
+
+**Arquivos alterados:**
+- `backend/src/main/java/com/dionialves/AsteraComm/call/CallCircuitReconciliationService.java` — novo
+- `backend/src/main/java/com/dionialves/AsteraComm/call/CallCircuitReconciliationController.java` — novo
+- `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallDTO.java` — novo
+- `backend/src/main/java/com/dionialves/AsteraComm/call/ReconciliationResultDTO.java` — novo
+- `backend/src/main/java/com/dionialves/AsteraComm/call/CallRepository.java` — novo método `findByCircuitIsNull`
+- `backend/src/main/resources/templates/pages/admin/reconcile-calls.html` — novo
+- `backend/src/test/java/com/dionialves/AsteraComm/call/CallCircuitReconciliationServiceTest.java` — novo
+
+**Testes novos:**
+- `findOrphanCalls_returnsResolvable_whenChannelMatchesCircuit`
+- `findOrphanCalls_returnsNotResolvable_whenChannelEmpty`
+- `findOrphanCalls_returnsNotResolvable_whenCircuitMissing`
+- `reconcile_linksOnlyResolvableCalls`
+- `reconcile_preservesCostAndStatus`
+
+---
+
 ### RF-094: Relatório de auditoria com direção de chamada e filtro de ligações efetuadas
 
 **Problema:** O relatório de auditoria exibe chamadas de entrada (inbound) e saída (outbound) sem distinção visual, e não havia filtro para exibir apenas ligações efetuadas (outbound) — as únicas que consomem minutos do plano e geram custo.

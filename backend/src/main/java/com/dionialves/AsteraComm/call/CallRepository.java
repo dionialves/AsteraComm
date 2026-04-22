@@ -154,4 +154,6 @@ public interface CallRepository extends JpaRepository<Call, Long>,
                 p.package_mobile_local, p.package_mobile_long_distance
             """, nativeQuery = true)
     List<Object[]> findPerCategoryCircuitConsumption(@Param("month") int month, @Param("year") int year);
+
+    List<Call> findByCircuitIsNull();
 }

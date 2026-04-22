@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+    layout:decorate="~{layout/base}" lang="pt-BR">
+
+<head>
+    <title>Reconciliar Chamadas</title>
+</head>
+
+<body>
+    <div layout:fragment="content">
+
+        <!-- ── Cabeçalho ─────────────────────────────────────────────────────────── -->
+        <div class="mb-5">
+            <div class="flex items-center gap-2 mb-1">
+                <a th:href="@{/reports}"
+                   class="flex items-center justify-center w-[30px] h-[30px] rounded border border-[#d0d0d0] text-[#555] hover:bg-[#f5f5f5] transition-colors">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6"/>
+                    </svg>
+                </a>
+                <h1 class="text-[22px] font-medium text-[#1a1a1a]">Reconciliar Chamadas</h1>
+            </div>
+            <p class="text-[13px] text-[#888] ml-[38px]">Vincular chamadas órfãs ao circuito com base no canal CDR original</p>
+        </div>
+
+        <!-- ── Resultado da reconciliação ────────────────────────────────────────── -->
+        <div th:if="${result}" class="bg-white border border-[#e0e0e0] rounded-xl p-4 mb-4">
+            <h2 class="text-[16px] font-medium text-[#1a1a1a] mb-3">Resultado</h2>
+            <div class="flex gap-6 mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-[28px] font-semibold text-[#1D9E75]" th:text="${result.linked()}">0</span>
+                    <span class="text-[13px] text-[#555]">vinculadas</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-[28px] font-semibold text-[#E05C5C]" th:text="${result.skipped()}">0</span>
+                    <span class="text-[13px] text-[#555]">puladas</span>
+                </div>
+            </div>
+            <div th:if="${!result.skippedDetails().isEmpty()}">
+                <h3 class="text-[13px] font-medium text-[#555] mb-2">Detalhes das puladas:</h3>
+                <ul class="list-disc list-inside text-[12px] text-[#888]">
+                    <li th:each="detail : ${result.skippedDetails()}" th:text="${detail}"></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ── Tabela de órfãs ────────────────────────────────────────────────────── -->
+        <div class="bg-white border border-[#e0e0e0] rounded-xl overflow-hidden">
+            <div class="p-4 border-b border-[#e0e0e0] flex items-center justify-between">
+                <h2 class="text-[16px] font-medium text-[#1a1a1a]">
+                    Chamadas sem circuito
+                    <span class="text-[13px] font-normal text-[#888] ml-2"
+                          th:text="'(' + ${#lists.size(orphans)} + ')'">0</span>
+                </h2>
+                <form th:if="${!orphans.isEmpty()}" method="post" th:action="@{/admin/reconcile-calls}">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <button type="submit"
+                            class="flex items-center gap-1.5 bg-[#1D9E75] text-white text-[13px] font-medium px-4 py-[9px] rounded-md hover:opacity-90 transition-opacity">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Executar Reconciliação
+                    </button>
+                </form>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-[13px]">
+                    <thead>
+                        <tr class="border-b border-[#e0e0e0] bg-[#fafafa]">
+                            <th class="text-left px-4 py-3 font-medium text-[#555]">Unique ID</th>
+                            <th class="text-left px-4 py-3 font-medium text-[#555]">Data</th>
+                            <th class="text-left px-4 py-3 font-medium text-[#555]">Destino</th>
+                            <th class="text-left px-4 py-3 font-medium text-[#555]">Código Canal</th>
+                            <th class="text-left px-4 py-3 font-medium text-[#555]">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:if="${orphans.isEmpty()}" class="border-b border-[#e0e0e0]">
+                            <td colspan="5" class="px-4 py-6 text-center text-[#888]">Nenhuma chamada órfã encontrada</td>
+                        </tr>
+                        <tr th:each="orphan : ${orphans}" class="border-b border-[#e0e0e0] hover:bg-[#fafafa] transition-colors">
+                            <td class="px-4 py-3 text-[#1a1a1a]" th:text="${orphan.uniqueId()}">-</td>
+                            <td class="px-4 py-3 text-[#1a1a1a]" th:text="${#temporals.format(orphan.callDate(), 'dd/MM/yyyy HH:mm')}">-</td>
+                            <td class="px-4 py-3 text-[#1a1a1a]" th:text="${orphan.reasonOrDst()}">-</td>
+                            <td class="px-4 py-3 text-[#1a1a1a]" th:text="${orphan.circuitCode() ?: '-'}">-</td>
+                            <td class="px-4 py-3">
+                                <span th:if="${orphan.resolvable()}"
+                                      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#E8F5E9] text-[#1D9E75]">
+                                    Resolvível
+                                </span>
+                                <span th:unless="${orphan.resolvable()}"
+                                      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#FFEBEE] text-[#E05C5C]">
+                                    Não resolvível
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</body>
+
+</html>

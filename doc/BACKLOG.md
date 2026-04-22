@@ -11,6 +11,7 @@
 6. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
 7. [US-078 — Controle de Firewall por IP](#us-078)
 8. [US-079 — Integração com IXC Soft — Relatório de divergências](#us-079)
+9. [US-080 — Histórico de ligações por circuito e mês](#us-080)
 
 ### Refactoring (RF)
 1. [US-012 — Reorganização de pacotes em `domain/`](#us-012)
@@ -30,6 +31,8 @@
 15. [RF-091 — Adicionar cache ao dashboard](#rf-091)
 16. [RF-092 — Padronizar `FetchType` em `Circuit`](#rf-092)
 17. [RF-093 — Decompor serviços com múltiplas responsabilidades (`AuditService`, `CostPerCircuitService`)](#rf-093)
+18. [RF-096 — Normalizar número de DID no lookup inbound do processamento de ligações](#rf-096)
+20. [RF-097 — Reverter elementos desconexos da Auditoria (direção, filtro, totalizadores)](#rf-097)
 
 ---
 
@@ -668,3 +671,8 @@ Como administrador, quero um relatório que compare clientes e planos do IXC Sof
 - `IxcSoftComparisonService`: compara dados e produz resultado por categoria
 - Endpoint: `GET /api/reports/ixcsoft-comparison`
 - Frontend: página `/reports/ixcsoft-comparison` com seções por categoria e botão exportar CSV
+
+---
+
+### RF-093 · Decompor serviços
+
