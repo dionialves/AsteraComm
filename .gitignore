@@ -1,6 +1,8 @@
 .idea
 .tool-versions
 CLAUDE.md
+.DS_Store
+
 
 # Dados sigilosos — nunca commitar
 dados/
@@ -13,6 +15,7 @@ backend/.tool-versions
 
 backend/target/
 backend/.mvn/
+.mvn
 
 ### IntelliJ IDEA ###
 .idea
