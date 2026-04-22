@@ -730,6 +730,83 @@ O `EndpointStatusService` consulta status via registrations, que só existe para
 
 ---
 
+### FIX-076 · Calls sem circuito associado para ligações entrantes
+- **Tipo:** Bug Fix
+- **Prioridade:** ALTA
+- **US relacionada:** —
+- **Sprint:** —
+- **Arquivos:**
+  - `backend/src/main/java/com/dionialves/AsteraComm/call/CallProcessingService.java` (editar)
+  - `backend/src/main/java/com/dionialves/AsteraComm/did/DIDRepository.java` (editar)
+  - `backend/src/test/java/com/dionialves/AsteraComm/call/CallProcessingServiceTest.java` (editar)
+- **Dependências:** —
+
+#### Contexto / Problema
+O `CallProcessingService` associa a ligação ao circuito **apenas** analisando o campo `channel` do CDR via `ChannelParser`, que extrai o código após a barra (ex.: `PJSIP/4933401714-xxxxx → 4933401714`). Isso funciona corretamente para ligações **saintes** (outbound), pois o channel contém o circuito de origem.
+
+Para ligações **entrantes** (inbound), o campo `channel` contém o nome do **tronco** (ex.: `PJSIP/operadora-xxxxx`), não o circuito. Nesses casos, o `ChannelParser` devolve um valor que não corresponde a nenhum circuito existente, deixando a ligação com `circuit = null` no banco. A informação correta para identificar o circuito de uma chamada recebida está no campo `dst` (número discado), que é o DID vinculado ao circuito de destino.
+
+**Comportamento observado × esperado:**
+- Observado: Chamadas recebidas (inbound) ficam sem circuito (`circuit = null`) e, portanto, não aparecem em relatórios de auditoria e custo por circuito que filtram por `circuit_number`.
+- Esperado: Chamadas recebidas com DID cadastrado devem ser vinculadas ao circuito correspondente via destino (`dst` = DID); chamadas sem DID cadastrado devem permanecer com `circuit = null` sem lançar exceção.
+
+#### Abordagem escolhida
+1. **Dual lookup no `CallProcessingService`**: após tentar associar pelo `channel`, se o circuito ainda for `null`, tentar encontrar o circuito buscando o `dst` na tabela de DIDs. Se existir um DID com aquele número e ele estiver vinculado a um circuito, usar esse circuito.
+2. **Repositório de apoio**: adicionar um método `findByNumber(String number)` no `DIDRepository` para buscar DID por número exato.
+3. **Mantém comportamento de saídas**: o vínculo via `channel` continua sendo a primeira tentativa e o fluxo original não é alterado.
+4. **Alternativa descartada**: Adicionar coluna `direction` (INBOUND/OUTBOUND) na entidade `Call`. Essa abordagem foi descartada porque o usuário não solicitou separação por direção; a necessidade imediata é apenas o vínculo correto ao circuito. A direção poderá ser agregada futuramente em outra task.
+
+#### Passo-a-passo de implementação
+
+1. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/did/DIDRepository.java` — adicionar novo método.
+   - Adicionar `Optional<DID> findByNumber(String number);` (Spring Data JPA deriva `WHERE number = ?`).
+
+2. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/CallProcessingService.java` — modificar a lógica de associação de circuito.
+   - Injetar dependência `private final DIDRepository didRepository` (já existe no pacote `did`).
+   - No loop `for (CdrRecord cdr : unprocessed)`, após o bloco atual de associação via `channel` (linhas 39-42):
+     ```java
+     // Tentativa 1: association via channel (outbound)
+     String circuitCode = channelParser.parse(cdr.getChannel());
+     if (!circuitCode.isEmpty()) {
+         circuitRepository.findByNumber(circuitCode).ifPresent(call::setCircuit);
+     }
+     // Tentativa 2: association via dst -> DID (inbound)
+     if (call.getCircuit() == null && cdr.getDst() != null && !cdr.getDst().isBlank()) {
+         didRepository.findByNumber(cdr.getDst())
+                 .filter(did -> did.getCircuit() != null)
+                 .ifPresent(did -> call.setCircuit(did.getCircuit()));
+     }
+     ```
+   - Adicionar `import com.dionialves.AsteraComm.did.DIDRepository;`.
+
+3. **Rodar `./mvnw test`** e garantir que a suíte passa (incluindo os novos testes).
+
+#### Testes a criar/atualizar
+- `backend/src/test/java/com/dionialves/AsteraComm/call/CallProcessingServiceTest.java`
+  - Cenário: `process_associatesCircuitViaDstDid_whenInboundCall` — CDR com `channel = "PJSIP/operadora-0001"`, `dst = "5511999990000"`. Mockar `DIDRepository.findByNumber("5511999990000")` retornando um DID vinculado ao circuito `4933401714`. Verificar que o `Call` salvo tem `circuit` igual ao `Circuit` do DID.
+  - Cenário: `process_associatesCircuitViaChannel_whenOutboundCall` — CDR com `channel = "PJSIP/4933401714-0001"` e `dst` sem DID. Verificar que `circuit = "4933401714"` via channel (comportamento existente preservado).
+  - Cenário de erro/borda: `process_leavesCircuitNull_whenDidNotFound` — CDR com `dst = "00000000000"` sem DID correspondente. Mockar `DIDRepository.findByNumber("00000000000")` retornando `Optional.empty()`. Verificar que `circuit` continua `null` e `callRepository.save()` ainda é chamado normalmente.
+  - **Recomendação do revisor (não-bloqueante)**: No teste `process_shouldAssociateCircuit_whenChannelMatchesExistingCircuit`, adicionar `verify(didRepository, never()).findByNumber(any())` para garantir que a busca por DID nunca é feita quando o channel resolveu.
+
+#### Critérios de aceitação
+- [ ] Ligações saintes continuam associadas ao circuito via `channel` (sem regressão).
+- [ ] Ligações entrantes com DID cadastrado ficam associadas ao circuito vinculado ao DID via `dst`.
+- [ ] Ligações entrantes com DID não cadastrado mantêm `circuit = null` sem erro.
+- [ ] Todas as chamadas processadas (saintes ou entrantes) continuam passando por `callCostingService.applyCosting()` normalmente.
+- [ ] Todos os testes novos passam e nenhum teste existente regrediu.
+- [ ] `./mvnw test` passa sem warnings de compilação.
+- [ ] Commit no padrão `tipo(código): titulo-curto`.
+- [ ] Entrada no `doc/changelog.md` seção `[Unreleased]` e descrição detalhada em `doc/release_notes/unreleased.md`.
+- [ ] Remoção da task do `doc/backlog.md` após conclusão.
+
+#### Riscos e observações
+- **Impacto de performance marginal**: a busca por DID é lazy (única `SELECT` por `number`) e só executa quando o vínculo via channel falha. Não afeta a performance do loop principal de processamento de CDRs.
+- **Dependência de DID existente**: se o número recebido estiver no `dst` com prefixos ou sufixos adicionais (ex.: `005511999990000`), o lookup pode falhar. O Codificador NÃO deve implementar normalização de número no escopo desta task.
+- **Não adicionar campo `direction`**: o usuário não solicitou separar inbound/outbound nesta task. Não criar `CallDirection`, não adicionar coluna `direction` e não modificar DTOs de relatório. Essa responsabilidade ficará com tasks futuras (ex.: RF-094).
+- **Não alterar migration de schema**: nenhuma migração de banco é necessária para este fix — apenas código Java.
+
+---
+
 ### FIX-077
 
 **Titulo:** Reconstruir circuitos excluídos e corrigir calls órfãs (Getel Telecom)

@@ -223,7 +223,7 @@ class CircuitServiceTest {
     }
 
     @Test
-    void update_shouldKeepActiveTrueWhenDtoHasActiveNull() {
+    void update_shouldSetActiveFalse_whenDtoHasActiveNull() {
         testCircuit.setActive(true);
         CircuitCreateDTO dto = new CircuitCreateDTO("secret", "opasuite", 1L, 10L, null);
         when(circuitRepository.findByNumber("100000")).thenReturn(Optional.of(testCircuit));
@@ -233,7 +233,7 @@ class CircuitServiceTest {
 
         circuitService.update("100000", dto);
 
-        verify(circuitRepository).save(argThat(Circuit::isActive));
+        verify(circuitRepository).save(argThat(c -> !c.isActive()));
     }
 
     // === Novos testes US-018 — vínculo com plano ===
@@ -334,17 +334,15 @@ class CircuitServiceTest {
     }
 
     @Test
-    void delete_whenCallsExist_shouldDeactivateAndReturnCircuit() {
+    void delete_shouldThrowBusinessException_whenCallsExist() {
         when(circuitRepository.findByNumber("100000")).thenReturn(Optional.of(testCircuit));
         when(didRepository.existsByCircuit(testCircuit)).thenReturn(false);
         when(callRepository.existsByCircuitNumber("100000")).thenReturn(true);
-        when(circuitRepository.save(testCircuit)).thenReturn(testCircuit);
 
-        Optional<Circuit> result = circuitService.delete("100000");
+        assertThatThrownBy(() -> circuitService.delete("100000"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Não é possível excluir um circuito com chamadas associadas");
 
-        assertThat(result).isPresent();
-        assertThat(result.get().isActive()).isFalse();
-        verify(circuitRepository).save(argThat(c -> !c.isActive()));
         verifyNoInteractions(asteriskProvisioningService);
         verify(circuitRepository, never()).delete(any());
     }
