@@ -167,7 +167,7 @@
 .report-row:last-child { border-bottom: none; }
 .audit-row {
   display: grid;
-  grid-template-columns: 150px minmax(0,1fr) 120px 100px 120px 130px 95px 90px
+  grid-template-columns: 150px minmax(0,1fr) 120px 100px 120px 130px 95px 90px;
   gap: 4px;
   padding: 10px 16px;
   align-items: center;

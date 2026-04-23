@@ -93,8 +93,8 @@
         </span>
 
         <!-- Badge de direção -->
-        <span class="rounded-[99px] text-[11px] px-[8px] py-[2px] font-medium whitespace-nowrap
-                 ${line.direction?.name() == 'OUTBOUND' ? 'bg-[#E1F5EE] text-[#085041]' : 'bg-[#FAEEDA] text-[#854F0B]'}"
+        <span th:class="|rounded-[99px] text-[11px] px-[8px] py-[2px] font-medium whitespace-nowrap
+                         ${line.direction?.name() == 'OUTBOUND' ? 'bg-[#E1F5EE] text-[#085041]' : 'bg-[#FAEEDA] text-[#854F0B]'}|"
               th:text="${line.directionLabel}">
         </span>
 
