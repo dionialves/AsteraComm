@@ -7,6 +7,9 @@
 
 ## [Unreleased]
 
+### Features
+- US-080: Histórico de ligações por circuito e mês
+
 ### Bug Fixes
 - FIX-076: Calls sem circuito associado para ligações entrantes
 - FIX-078: Corrige testes de CircuitServiceTest com comportamento alterado

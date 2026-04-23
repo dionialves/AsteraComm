@@ -123,6 +123,12 @@
         Relatórios
       </a>
 
+      <a th:href="@{/reports/call-history}"
+           th:classappend="${currentPath != null and #strings.startsWith(currentPath, '/reports/call-history')} ? '!bg-white/[0.08] !text-white'"
+           class="flex items-center gap-[10px] px-3 py-[9px] pl-[38px] text-[13px] text-white/55 no-underline rounded-md mb-px transition-[background,color] duration-150 hover:bg-white/[0.05] hover:text-white/90">
+        Histórico de Ligações
+      </a>
+
       <!-- ADMINISTRAÇÃO (apenas ADMIN) -->
       <div sec:authorize="hasRole('ADMIN')">
         <span class="text-[10px] font-semibold tracking-[1px] text-white/35 uppercase pt-[14px] px-3 pb-1 block">Administração</span>

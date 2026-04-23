@@ -1,5 +1,39 @@
 # [Unreleased] — 2026-04-22
 
+## Features
+
+### US-080: Histórico de ligações por circuito e mês
+
+**Problema:** O usuário precisa visualizar, para um circuito e um mês específicos, todas as ligações efetuadas e recebidas daquele circuito, sem qualquer cálculo de custo, franquia ou tarifa. A Auditoria existente é uma ferramenta de custeio, não um histórico operacional.
+
+**Solução:** Criado novo endpoint `/reports/call-history` com:
+- `CallHistoryService` — busca chamadas via `CallRepository.findByCircuitNumberAndPeriod`
+- `CallHistoryController` — endpoints GET `/reports/call-history` e `/reports/call-history/table`
+- `CallHistoryLineDTO` — Dados da linha: uniqueId, data, origem, destino, tipo, direção, duração, status
+- `CallHistoryResultDTO` — Resultado com totalizadores (totalCalls, totalMinutes)
+- Templates `call-history.html` e `call-history-table.html` com layout similar à Auditoria
+- CSS `.call-history-row` em `input.css`
+- Item de menu "Histórico de Ligações" em `/reports/call-history` no sidebar
+
+**Arquivos criados:**
+- `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryLineDTO.java`
+- `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryResultDTO.java`
+- `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryService.java`
+- `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryController.java`
+- `backend/src/main/resources/templates/pages/reports/call-history.html`
+- `backend/src/main/resources/templates/pages/reports/call-history-table.html`
+- `backend/src/test/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryServiceTest.java`
+
+**Arquivos alterados:**
+- `backend/src/main/resources/static/css/input.css` — Added `.call-history-row` grid style
+- `backend/src/main/resources/templates/layout/base.html` — Added "Histórico de Ligações" menu item
+
+**Testes:**
+- `getHistory_throwsNotFoundException_whenCircuitNotFound`
+- `getHistory_returnsEmpty_whenNoCalls`
+- `getHistory_returnsCorrectLinesForMixedDirections`
+- `getHistory_calculatesTotalMinutesCorrectly`
+
 ## Bug Fixes
 
 ### FIX-076: Calls sem circuito associado para ligações entrantes

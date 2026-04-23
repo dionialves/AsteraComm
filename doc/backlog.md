@@ -11,7 +11,6 @@
 6. [US-065 — Relatório: clientes sem circuitos vinculados](#us-065)
 7. [US-078 — Controle de Firewall por IP](#us-078)
 8. [US-079 — Integração com IXC Soft — Relatório de divergências](#us-079)
-9. [US-080 — Histórico de ligações por circuito e mês](#us-080)
 
 ### Refactoring (RF)
 1. [US-012 — Reorganização de pacotes em `domain/`](#us-012)
@@ -31,10 +30,6 @@
 15. [RF-091 — Adicionar cache ao dashboard](#rf-091)
 16. [RF-092 — Padronizar `FetchType` em `Circuit`](#rf-092)
 17. [RF-093 — Decompor serviços com múltiplas responsabilidades (`AuditService`, `CostPerCircuitService`)](#rf-093)
-18. [RF-096 — Normalizar número de DID no lookup inbound do processamento de ligações](#rf-096)
-19. [RF-097 — Reverter elementos desconexos da Auditoria (direção, filtro, totalizadores)](#rf-097)
-20. [RF-100 — Vincular circuito no processamento via channel e dstChannel](#rf-100)
-21. [RF-103 — Relatório de chamadas órfãs: paginação, loader funcional e vinculação](#rf-103)
 22. [RF-104 — Remover dependência Tailwind CSS e migrar para CSS puro](#rf-104)
 
 ### Bug Fixes (FIX)
@@ -565,6 +560,71 @@ Como administrador, quero que o menu lateral tenha uma seção "Operacional" que
 
 ## Bug Fixes (FIX)
 
+1. [FIX-102 — Parâmetros não enviados ao simular auditoria](#fix-102)
+
+### FIX-102 · Parâmetros não enviados ao simular auditoria
+
+- **Tipo:** Bug Fix
+- **Prioridade:** ALTA
+- **US relacionada:** —
+- **Sprint:** —
+- **Arquivos:**
+  - `backend/src/main/resources/templates/pages/reports/audit.html` (editar)
+- **Dependências:** —
+
+#### Contexto / Problema
+
+O botão "Processar" na página de Auditoria (`audit.html`, linha 75) usa `hx-get="/reports/audit/simulation"` **sem** o atributo `hx-include`. Isso faz com que o HTMX envie a requisição GET sem serializar os campos do formulário (`circuitNumber`, `month`, `year`), resultando na URL `/reports/audit/simulation` sem nenhum query parameter. O controller `ReportViewController.auditSimulation()` recebe `circuitNumber = null`, `month = 0`, `year = 0`, e retorna a mensagem "Selecione um circuito para simular."
+
+**Comportamento observado:** Ao selecionar um circuito e clicar em "Processar", a resposta é sempre "Selecione um circuito para simular."
+
+**Comportamento esperado:** Ao selecionar um circuito, mês e ano e clicar em "Processar", a simulação de auditoria deve executar com os parâmetros informados e exibir o resultado.
+
+**Causa raiz:** A RF-097 removeu o atributo `hx-include` do botão "Processar" em `audit.html` junto com a remoção do parâmetro `onlyOutgoing`. A remoção foi documentada como "não precisava mais", mas isso era verdade apenas para o parâmetro `onlyOutgoing` — os demais parâmetros (`circuitNumber`, `month`, `year`) continuam necessários e dependem do `hx-include` para serem incluídos na requisição HTMX.
+
+Comparação com a página funcional `cost-per-circuit.html`:
+- ✅ `cost-per-circuit.html` (linha 67): `hx-include="#cpc-form"` — funciona corretamente
+- ❌ `audit.html` (linha 75): sem `hx-include` — envia requisição sem parâmetros
+
+#### Abordagem escolhida
+
+Adicionar `hx-include="#audit-form"` ao botão "Processar" em `audit.html`, seguindo o mesmo padrão já utilizado em `cost-per-circuit.html`. Isso instrui o HTMX a serializar todos os campos dentro do formulário `#audit-form` (o `<input type="hidden" name="circuitNumber">` do SearchSelect e os `<select>` de mês e ano) como query parameters na requisição GET.
+
+Alternativa descartada: usar `hx-include` listando campos individuais (ex.: `hx-include="[name=circuitNumber], [name=month], [name=year]"`). Motivo: o formulário já tem `id="audit-form"` e o padrão do projeto é incluir por ID de formulário, como em `cost-per-circuit.html`.
+
+#### Passo-a-passo de implementação
+
+1. **Editar** `backend/src/main/resources/templates/pages/reports/audit.html` — adicionar `hx-include="#audit-form"` ao botão "Processar"
+   - Localização: linha 75, no `<button type="button">`
+   - Antes:
+     ```html
+     hx-get="/reports/audit/simulation" hx-target="#table-container" hx-swap="innerHTML">
+     ```
+   - Depois:
+     ```html
+     hx-get="/reports/audit/simulation" hx-target="#table-container" hx-swap="innerHTML" hx-include="#audit-form">
+     ```
+
+#### Testes a criar/atualizar
+
+- Não há testes automatizados de template Thymeleaf no projeto. A verificação é funcional: selecionar um circuito, mês e ano na página de Auditoria e clicar em "Processar" deve exibir o resultado da simulação em vez da mensagem de erro.
+
+#### Critérios de aceitação
+
+- [ ] Ao selecionar um circuito (via SearchSelect), mês e ano na tela de Auditoria e clicar em "Processar", a requisição GET `/reports/audit/simulation` é enviada com os query parameters `circuitNumber`, `month` e `year` preenchidos.
+- [ ] A simulação exibe o resultado (tabela de chamadas + totalizadores) em vez da mensagem "Selecione um circuito para simular."
+- [ ] `./mvnw test` passa sem regressão.
+- [ ] Commit no padrão `fix(fix-102): corrige parametros nao enviados na simulacao de auditoria`.
+- [ ] Entrada no `doc/changelog.md` seção `[Unreleased]` e descrição detalhada em `doc/release-notes/unreleased.md`.
+- [ ] Remoção da task do `doc/backlog.md` após conclusão.
+
+#### Riscos e observações
+
+- **Apenas uma linha alterada** — risco mínimo de regressão.
+- O HTML do SearchSelect gera um `<input type="hidden" name="circuitNumber">` cujo valor é atualizado via JavaScript. Ao usar `hx-include="#audit-form"`, o HTMX serializa esse hidden input normalmente, pois ele está dentro do formulário.
+- O Codificador NÃO deve alterar o controller, service ou qualquer arquivo Java — o bug é exclusivamente no template HTML.
+- O Codificador NÃO deve remover ou alterar o atributo `onsubmit="return false;"` do formulário — ele impede o comportamento padrão de submit, e o botão usa `type="button"` para evitar submit implícito.
+
 ### FIX-073
 
 **Titulo:** Group filter da página de Circuitos não permanece ativo após modificação de página
@@ -674,772 +734,6 @@ Como administrador, quero um relatório que compare clientes e planos do IXC Sof
 - `IxcSoftComparisonService`: compara dados e produz resultado por categoria
 - Endpoint: `GET /api/reports/ixcsoft-comparison`
 - Frontend: página `/reports/ixcsoft-comparison` com seções por categoria e botão exportar CSV
-
----
-
-### US-080 · Histórico de ligações por circuito e mês
-
-- **Tipo:** User Story
-- **Prioridade:** ALTA
-- **US relacionada:** —
-- **Sprint:** —
-- **Arquivos:**
-  - `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryService.java` (novo)
-  - `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryController.java` (novo)
-  - `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryLineDTO.java` (novo)
-  - `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryResultDTO.java` (novo)
-  - `backend/src/test/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryServiceTest.java` (novo)
-  - `backend/src/main/resources/templates/pages/reports/call-history.html` (novo)
-  - `backend/src/main/resources/templates/pages/reports/call-history-table.html` (novo)
-- **Dependências:** RF-097 (remoção dos elementos desconexos da Auditoria)
-
-#### Contexto / Problema
-O usuário precisa visualizar, para um circuito e um mês específicos, **todas as ligações efetuadas e recebidas daquele circuito**, sem qualquer cálculo de custo, franquia ou tarifa. É um histórico operacional — diferente da Auditoria, que é ferramenta de custeio.
-
-#### Abordagem escolhida
-Criar um novo endpoint `/reports/call-history` com serviço, controller e templates dedicados. Reutilizar a query `CallRepository.findByCircuitNumberAndPeriod` para buscar as calls do circuito no período. O DTO deve conter apenas informações descritivas da chamada (data, destino, duração, tipo, direção, status/disposição). Sem interação com `Plan`, `CallCostingService` ou campos de quota/custo. Interface seguindo o padrão visual da Auditoria, mas com colunas relevantes ao histórico.
-
-#### Passo-a-passo de implementação
-
-1. **Criar** `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryLineDTO.java`
-   ```java
-   public record CallHistoryLineDTO(
-       String        uniqueId,
-       LocalDateTime callDate,
-       String        callerNumber,
-       String        dst,
-       String        disposition,
-       CallType      callType,
-       CallDirection direction,
-       int           billSeconds,
-       Integer       durationSeconds
-   ) {}
-   ```
-
-2. **Criar** `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryResultDTO.java`
-   ```java
-   public record CallHistoryResultDTO(
-       String                circuitNumber,
-       int                   month,
-       int                   year,
-       int                   totalCalls,
-       BigDecimal            totalMinutes,
-       List<CallHistoryLineDTO> lines
-   ) {}
-   ```
-   Totalizadores: total de chamadas e tempo total (em minutos, arredondado como em `AuditSummaryDTO`, mas sem custo/quota).
-
-3. **Criar** `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryService.java`
-   ```java
-   @RequiredArgsConstructor
-   @Service
-   public class CallHistoryService {
-       private final CircuitRepository circuitRepository;
-       private final CallRepository    callRepository;
-
-       public CallHistoryResultDTO getHistory(String circuitNumber, int month, int year) {
-           Circuit circuit = circuitRepository.findByNumber(circuitNumber)
-               .orElseThrow(() -> new NotFoundException("Circuito não encontrado: " + circuitNumber));
-
-           List<Call> calls = callRepository.findByCircuitNumberAndPeriod(circuitNumber, month, year);
-
-           List<CallHistoryLineDTO> lines = calls.stream()
-               .map(c -> new CallHistoryLineDTO(...))
-               .toList();
-
-           int totalCalls = lines.size();
-           int totalBillSec = lines.stream().mapToInt(CallHistoryLineDTO::billSeconds).sum();
-           BigDecimal totalMinutes = BigDecimal.valueOf(Math.ceil(totalBillSec / 30.0))
-               .divide(BigDecimal.valueOf(2), 1, RoundingMode.UNNECESSARY);
-
-           return new CallHistoryResultDTO(circuitNumber, month, year, totalCalls, totalMinutes, lines);
-       }
-   }
-   ```
-
-4. **Criar** `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryController.java`
-   ```java
-   @Controller
-   @RequiredArgsConstructor
-   @RequestMapping("/reports/call-history")
-   public class CallHistoryController {
-       private final CallHistoryService service;
-
-       @GetMapping
-       public String index(Model model) {
-           LocalDate now = LocalDate.now();
-           model.addAttribute("currentMonth", now.getMonthValue());
-           model.addAttribute("currentYear",  now.getYear());
-           return "pages/reports/call-history";
-       }
-
-       @GetMapping("/table")
-       public String table(@RequestParam String circuitNumber, @RequestParam int month, @RequestParam int year, Model model) {
-           model.addAttribute("month", month);
-           model.addAttribute("year", year);
-           if (circuitNumber == null || circuitNumber.isBlank()) {
-               model.addAttribute("errorMsg", "Selecione um circuito.");
-           } else {
-               model.addAttribute("result", service.getHistory(circuitNumber, month, year));
-           }
-           return "pages/reports/call-history-table :: table";
-       }
-   }
-   ```
-
-5. **Criar** template `backend/src/main/resources/templates/pages/reports/call-history.html` e `call-history-table.html` seguindo o padrão visual de Audit (`audit.html` + `audit-table.html`), mas sem:
-   - Contexto de plano (Plano).
-   - Colunas de tarifa, franquia, acumulador, custo.
-   - Toggle de "relevantes".
-   - Botão PDF.
-
-   Colunas da tabela: Data/Hora | Origem | Destino | Tipo | Direção | Duração | Status (Disposition).
-   Badge de direção: recebida (INBOUND) e efetuada (OUTBOUND).
-
-6. **Adicionar** item no menu lateral (`layout/base.html`) na seção FINANCEIRO → "Histórico de Ligações" após "Auditoria". URL `/reports/call-history`. Destacar quando `currentPath` começar com `/reports/call-history`.
-
-7. **Criar teste** `backend/src/test/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryServiceTest.java`:
-   - Cenário: `getHistory_throwsNotFound_whenCircuitNotFound`.
-   - Cenário: `getHistory_returnsEmpty_whenNoCalls`.
-   - Cenário: `getHistory_returnsCorrectLinesForMixedDirections` — calls OUTBOUND e INBOUND na lista.
-   - Cenário: `getHistory_calculatesTotalMinutesCorrectly`.
-
-#### Testes a criar/atualizar
-- `CallHistoryServiceTest` — cenários acima.
-
-#### Critérios de aceitação
-- [ ] Endpoint `/reports/call-history` abre página com SearchSelect de circuito, mês e ano, e botão "Processar".
-- [ ] O resultado exibe todas as ligações (efetuadas e recebidas) do circuito no mês/ano, com as colunas: Data/Hora, Origem, Destino, Tipo, Direção, Duração, Status.
-- [ ] Badge "Efetuada" / "Recebida" corretamente colorido como no layout da Auditoria anterior à RF-097.
-- [ ] Resumo exibe apenas total de chamadas e minutos totais (sem custo, franquia ou excedente).
-- [ ] `./mvnw test` passa (testes novos + existentes sem regressão).
-- [ ] Commit no padrão `feat(us-080): adiciona relatorio historico de ligacoes por circuito`.
-- [ ] Entrada no `doc/changelog.md` e `doc/release_notes/unreleased.md`.
-- [ ] Remoção da task do `doc/backlog.md` após conclusão.
-
-#### Riscos e observações
-- O Codificador não deve alterar o `AuditService` além do que está especificado na RF-097. Não é para fatorar a query comum entre os dois relatórios — cada um usa seu próprio service.
-- O totalizador de minutos do histórico pode usar a mesma fórmula de arredondamento do histórico (ceil(billSeconds/30)/2) para consistência visual com a Auditoria.
-- A query `findByCircuitNumberAndPeriod` internamente consulta a tabela de DID via JOIN; como o histórico quer **todas** as ligações (inclusive inbound via dst→did), essa query já serve perfeitamente — nenhuma alteração no repository é necessária.
-
----
-
-### RF-100 · Vincular circuito no processamento via channel e dstChannel
-
-- **Tipo:** Refactor
-- **Prioridade:** ALTA
-- **US relacionada:** —
-- **Sprint:** —
-- **Arquivos:**
-  - `backend/src/main/java/com/dionialves/AsteraComm/call/CallProcessingService.java` (editar)
-  - `backend/src/test/java/com/dionialves/AsteraComm/call/CallProcessingServiceTest.java` (editar)
-- **Dependências:** —
-
-#### Contexto / Problema
-
-O `CallProcessingService.process()` hoje faz 2 tentativas para vincular o circuito a uma chamada:
-
-1. **Via `channel`** — extrai o código com `ChannelParser.parse(cdr.getChannel())` e busca em `circuitRepository`. Funciona para ligações **outbound** (o `channel` contém `PJSIP/4933401714-xxx`).
-2. **Via `dst → DID`** — quando a tentativa 1 falha, busca `didRepository.findByNumber(cdr.getDst())` e, se encontrar um DID com circuito, usa `did.getCircuit()`. Funciona apenas quando o `dst` está cadastrado como DID.
-
-**O problema:** A tentativa 2 depende da tabela de DID estar completa e atualizada. Se o `dst` não estiver cadastrado como DID, a ligação fica órfã — mesmo que o `dstChannel` do CDR contenha claramente o circuito que atendeu a chamada (ex.: `PJSIP/4933401714-xxx`).
-
-**Forma do CDR no Asterisk:**
-
-| Cenário | `channel` (quem originou) | `dstChannel` (quem atendeu) |
-|---|---|---|
-| **Outbound** | `PJSIP/4933401714-xxx` (circuito) | `PJSIP/operadora-xxx` (tronco) |
-| **Inbound** | `PJSIP/operadora-xxx` (tronco) | `PJSIP/4933401714-xxx` (circuito) |
-
-Com essa tabela, a estratégia correta e suficiente é:
-- **Tentativa 1 = `channel`** → resolve outbound.
-- **Tentativa 2 = `dstChannel`** → resolve inbound.
-
-O `dstChannel` é a **fonte de verdade do Asterisk** para "quem atendeu a ligação". Não depende de cadastro, é preenchido automaticamente pelo PBX. O `OrphanCallReportService` já usa exatamente essa lógica (channel → dstChannel) — a diferença é que o faz offline, somente no relatório.
-
-Ao corrigir o `CallProcessingService`, a vinculação acontecerá automaticamente no processamento e o volume de chamadas órfãs será drasticamente reduzido.
-
-#### Abordagem escolhida
-
-Substituir a tentativa 2 (via `dst → DID → circuit`) por tentativa via `dstChannel` (usando o mesmo `ChannelParser`). A direção será determinada pela tentativa que resolveu:
-- Se vinculou via `channel` → `OUTBOUND`.
-- Se vinculou via `dstChannel` → `INBOUND`.
-- Se nenhuma vinculou → `OUTBOUND` (default) e circuit permanece `null`.
-
-Remover a dependência de `DIDRepository` do `CallProcessingService`, pois não será mais necessária.
-
-**Alternativa descartada:** Manter as 3 tentativas (channel, dst→DID, dstChannel). Motivo: a tentativa via DID é redundante — se o `dstChannel` contém o circuito, ele será encontrado diretamente; se o `dstChannel` está vazio (ligação não atendida, disposition != ANSWERED), o circuito não poderia ser vinculado de qualquer forma. O DID adiciona uma query extra e uma dependência de cadastro sem ganho real.
-
-#### Passo-a-passo de implementação
-
-1. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/CallProcessingService.java` — Substituir a tentativa 2 e a lógica de direção:
-
-   Código atual (linhas 41-55) a ser substituído:
-   ```java
-   String circuitCode = channelParser.parse(cdr.getChannel());
-   if (!circuitCode.isEmpty()) {
-       circuitRepository.findByNumber(circuitCode).ifPresent(call::setCircuit);
-   }
-   // Tentativa 2: association via dst -> DID (inbound)
-   // Direction: se dst casou com DID → INBOUND; caso contrário → OUTBOUND
-   CallDirection direction = CallDirection.OUTBOUND;
-   if (call.getCircuit() == null && cdr.getDst() != null && !cdr.getDst().isBlank()) {
-       var didOpt = didRepository.findByNumber(cdr.getDst()).filter(did -> did.getCircuit() != null);
-       if (didOpt.isPresent()) {
-           call.setCircuit(didOpt.get().getCircuit());
-           direction = CallDirection.INBOUND;
-       }
-   }
-   call.setDirection(direction);
-   ```
-
-   Novo código:
-   ```java
-   // Tentativa 1: via channel → outbound (quem originou a ligação)
-   String channelCode = channelParser.parse(cdr.getChannel());
-   CallDirection direction = CallDirection.OUTBOUND;
-   if (!channelCode.isEmpty()) {
-       circuitRepository.findByNumber(channelCode).ifPresent(call::setCircuit);
-   }
-   // Tentativa 2: via dstChannel → inbound (quem atendeu a ligação)
-   if (call.getCircuit() == null && cdr.getDstchannel() != null && !cdr.getDstchannel().isBlank()) {
-       String dstChannelCode = channelParser.parse(cdr.getDstchannel());
-       if (!dstChannelCode.isEmpty()) {
-           circuitRepository.findByNumber(dstChannelCode).ifPresent(c -> {
-               call.setCircuit(c);
-               direction = CallDirection.INBOUND;
-           });
-       }
-   }
-   call.setDirection(direction);
-   ```
-
-2. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/CallProcessingService.java` — Remover import e campo de `DIDRepository`:
-
-   - Remover linha 6: `import com.dionialves.AsteraComm.did.DIDRepository;`
-   - Remover linha 25: `private final DIDRepository didRepository;`
-
-3. **Editar** `backend/src/test/java/com/dionialves/AsteraComm/call/CallProcessingServiceTest.java` — Atualizar testes:
-
-   a. **Remover** o mock de `DIDRepository` (linhas 48-49):
-   ```java
-   @Mock
-   private DIDRepository didRepository;
-   ```
-
-   b. **Remover** teste `process_shouldAssociateCircuitViaDstDid_whenInboundCall` (linhas 166-190) — cenário agora coberto pelo novo teste via dstChannel.
-
-   c. **Remover** teste `process_shouldLeaveCircuitNull_whenDidNotFound` (linhas 192-209) — cenário substituído pelo novo teste de fallback.
-
-   d. **Remover** teste `process_setsDirectionInbound_whenDstIsDid` (linhas 211-235) — substituído pelo novo teste de direção via dstChannel.
-
-   e. **Remover** teste `process_setsDirectionOutbound_whenDstIsNotDid` (linhas 237-254) — o teste existente `process_shouldLeaveCircuitNull_whenChannelCodeNotFound` já cobre o caso de circuit not found; adicionar assert de direção nesse teste existente.
-
-   f. **Adicionar** novo teste — vinculação via dstChannel:
-   ```java
-   @Test
-   void process_shouldAssociateCircuitViaDstChannel_whenInboundCall() {
-       Circuit circuit = new Circuit();
-       circuit.setNumber("4933401714");
-
-       CdrRecord cdr = buildCdr("1000.30", "ANSWERED", "PJSIP/operadora-0001");
-       cdr.setDstchannel("PJSIP/4933401714-0001");
-
-       when(cdrRepository.findUnprocessed()).thenReturn(List.of(cdr));
-       when(callerIdParser.parse(any())).thenReturn("11933334444");
-       when(callTypeClassifier.classify(any())).thenReturn(CallType.FIXED_LOCAL);
-       when(channelParser.parse("PJSIP/operadora-0001")).thenReturn("operadora");
-       when(circuitRepository.findByNumber("operadora")).thenReturn(Optional.empty());
-       when(channelParser.parse("PJSIP/4933401714-0001")).thenReturn("4933401714");
-       when(circuitRepository.findByNumber("4933401714")).thenReturn(Optional.of(circuit));
-
-       callProcessingService.process();
-
-       ArgumentCaptor<Call> captor = ArgumentCaptor.forClass(Call.class);
-       verify(callRepository, times(2)).save(captor.capture());
-       assertThat(captor.getAllValues().get(0).getCircuit()).isEqualTo(circuit);
-       assertThat(captor.getAllValues().get(0).getDirection()).isEqualTo(CallDirection.INBOUND);
-   }
-   ```
-
-   g. **Adicionar** novo teste — dstChannel não resolve, circuit permanece null:
-   ```java
-   @Test
-   void process_shouldLeaveCircuitNull_whenBothChannelsFail() {
-       CdrRecord cdr = buildCdr("1000.31", "ANSWERED", "PJSIP/operadora-0001");
-       cdr.setDstchannel("PJSIP/unknown-0001");
-
-       when(cdrRepository.findUnprocessed()).thenReturn(List.of(cdr));
-       when(callerIdParser.parse(any())).thenReturn("11933334444");
-       when(callTypeClassifier.classify(any())).thenReturn(CallType.FIXED_LOCAL);
-       when(channelParser.parse("PJSIP/operadora-0001")).thenReturn("operadora");
-       when(circuitRepository.findByNumber("operadora")).thenReturn(Optional.empty());
-       when(channelParser.parse("PJSIP/unknown-0001")).thenReturn("unknown");
-       when(circuitRepository.findByNumber("unknown")).thenReturn(Optional.empty());
-
-       callProcessingService.process();
-
-       ArgumentCaptor<Call> captor = ArgumentCaptor.forClass(Call.class);
-       verify(callRepository, times(2)).save(captor.capture());
-       assertThat(captor.getAllValues().get(0).getCircuit()).isNull();
-       assertThat(captor.getAllValues().get(0).getDirection()).isEqualTo(CallDirection.OUTBOUND);
-   }
-   ```
-
-   h. **Adicionar** novo teste — dstChannel vazio/nulo:
-   ```java
-   @Test
-   void process_shouldLeaveCircuitNull_whenDstChannelIsEmpty() {
-       CdrRecord cdr = buildCdr("1000.32", "ANSWERED", "PJSIP/operadora-0001");
-       cdr.setDstchannel("");
-
-       when(cdrRepository.findUnprocessed()).thenReturn(List.of(cdr));
-       when(callerIdParser.parse(any())).thenReturn("11933334444");
-       when(callTypeClassifier.classify(any())).thenReturn(CallType.FIXED_LOCAL);
-       when(channelParser.parse("PJSIP/operadora-0001")).thenReturn("operadora");
-       when(circuitRepository.findByNumber("operadora")).thenReturn(Optional.empty());
-
-       callProcessingService.process();
-
-       ArgumentCaptor<Call> captor = ArgumentCaptor.forClass(Call.class);
-       verify(callRepository, times(2)).save(captor.capture());
-       assertThat(captor.getAllValues().get(0).getCircuit()).isNull();
-   }
-   ```
-
-   i. **Adicionar** assert de direção no teste existente `process_shouldAssociateCircuit_whenChannelMatchesExistingCircuit` (após o assert de circuit na linha 106):
-   ```java
-   assertThat(captor.getAllValues().get(0).getDirection()).isEqualTo(CallDirection.OUTBOUND);
-   ```
-
-   j. **Adicionar** assert de direção no teste existente `process_shouldLeaveCircuitNull_whenChannelCodeNotFound` (após o assert de circuit null na linha 122):
-   ```java
-   assertThat(captor.getAllValues().get(0).getDirection()).isEqualTo(CallDirection.OUTBOUND);
-   ```
-
-4. **Atualizar** o helper `buildCdr` no teste — adicionar `cdr.setDstchannel("");` como valor default após a linha 62, garantindo que todos os testes existentes que usam helper sem dstChannel não tenham o campo nulo.
-
-5. **Rodar `./mvnw test`** e garantir que a suíte passa (incluindo os novos testes).
-
-#### Testes a criar/atualizar
-- `CallProcessingServiceTest` — **remover** 4 testes: `process_shouldAssociateCircuitViaDstDid_whenInboundCall`, `process_shouldLeaveCircuitNull_whenDidNotFound`, `process_setsDirectionInbound_whenDstIsDid`, `process_setsDirectionOutbound_whenDstIsNotDid`.
-- `CallProcessingServiceTest` — **adicionar** 3 testes: `process_shouldAssociateCircuitViaDstChannel_whenInboundCall`, `process_shouldLeaveCircuitNull_whenBothChannelsFail`, `process_shouldLeaveCircuitNull_whenDstChannelIsEmpty`.
-- `CallProcessingServiceTest` — **adicionar** assert de direção em 2 testes existentes: `process_shouldAssociateCircuit_whenChannelMatchesExistingCircuit` (OUTBOUND) e `process_shouldLeaveCircuitNull_whenChannelCodeNotFound` (OUTBOUND).
-- `CallProcessingServiceTest` — **atualizar** helper `buildCdr` para setar `cdr.setDstchannel("")` como default.
-
-#### Critérios de aceitação
-- [ ] `CallProcessingService` não possui mais dependência de `DIDRepository` (import e campo removidos).
-- [ ] Tentativa 1 usa `channel` para vincular circuito (comportamento inalterado para outbound).
-- [ ] Tentativa 2 usa `dstChannel` para vincular circuito (novo comportamento para inbound).
-- [ ] Direção é `OUTBOUND` quando o circuito é vinculado via `channel`.
-- [ ] Direção é `INBOUND` quando o circuito é vinculado via `dstChannel`.
-- [ ] Direção é `OUTBOUND` (default) quando nenhuma tentativa vincula o circuito.
-- [ ] Chamadas inbound cujo `dstChannel` contém o código do circuito são automaticamente vinculadas — sem depender da tabela de DID.
-- [ ] O `CallCostingService.applyCosting()` não é alterado — a lógica de `OUT_OF_SCOPE` para inbound com circuito vinculado continua correta.
-- [ ] Todos os testes novos passam e nenhum teste existente regrediu.
-- [ ] `./mvnw test` passa sem warnings de compilação.
-- [ ] Commit no padrão `refactor(rf-100): vincula circuito via channel e dstchannel no processamento`.
-- [ ] Entrada no `doc/changelog.md` seção `[Unreleased]` e descrição detalhada em `doc/release_notes/unreleased.md`.
-- [ ] Remoção da task do `doc/backlog.md` após conclusão.
-
-#### Riscos e observações
-- **`dstChannel` vazio em CDRs não atendidos:** quando a ligação não é atendida (`NO ANSWER`, `BUSY`, `FAILED`), o Asterisk pode deixar o `dstChannel` vazio ou incompleto. Nesses casos, a tentativa 2 não resolve e a chamada fica órfã — igual ao comportamento atual. Não é regressão.
-- **`dstChannel` preenchido também em outbound:** no CDR de uma ligação outbound, o `dstChannel` contém o nome do tronco (ex.: `PJSIP/operadora-xxx`). O `ChannelParser` extrairá `operadora`, e `circuitRepository.findByNumber("operadora")` retornará `empty` (pois troncos não são circuitos). Logo, a tentativa 2 não interfere no custeio outbound.
-- **`OrphanCallReportService` NÃO deve ser alterado nesta task** — ele já usa a lógica correta (channel → dstChannel). Apenas o `CallProcessingService` precisa ser alinhado.
-- **O Codificador NÃO deve alterar o `CallCostingService`** — a distinção OUTBOUND vs INBOUND para custeio permanece via `dcontext` + `EndpointRepository`, que já funciona corretamente.
-- **O Codificador NÃO deve criar migration Flyway** — nenhuma alteração de schema é necessária.
-- **Impacto na RF-103:** com esta correção, o volume de chamadas órfãs será drasticamente menor. O botão "Vincular circuitos" (RF-103) continuará útil para chamadas históricas e cenários excepcionais.
-
----
-
-### RF-103 · Relatório de chamadas órfãs: paginação, loader funcional e vinculação
-
-- **Tipo:** Refactor
-- **Prioridade:** ALTA
-- **US relacionada:** —
-- **Sprint:** —
-- **Arquivos:**
-  - `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` (editar)
-  - `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportController.java` (editar)
-  - `backend/src/main/java/com/dionialves/AsteraComm/call/CallRepository.java` (editar)
-  - `backend/src/main/resources/templates/pages/reports/orphan-calls.html` (editar)
-  - `backend/src/main/resources/templates/pages/reports/orphan-calls-table.html` (editar)
-  - `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` (editar)
-  - `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportControllerTest.java` (editar)
-  - `doc/CHANGELOG.md` (editar — remover RF-099 do `[Unreleased]`)
-- **Dependências:** FIX-101 (NonUniqueResultException), RF-102 (N+1 queries)
-
-#### Contexto / Problema
-
-A RF-099 foi implementada fielmente ao plano original, mas o veredito do Revisor foi **BLOQUEADO** devido a três problemas críticos que impedem o uso do relatório em dados reais:
-
-1. **Bug A — NonUniqueResultException (coberto pela FIX-101).** O `findByUniqueId` falha com CDRs duplicados.
-2. **Bug B — N+1 massivo (coberto pela RF-102).** 23,5s para 12 chamadas; inutilizável com 10k+ registros.
-3. **Sem paginação (novo).** Meses com 10.000+ chamadas órfãs geram uma resposta HTML monolítica que o navegador demora para renderizar. O endpoint `findOrphanCallsByPeriod` devolve `List<Call>` sem limitação — todos os registros do mês são carregados na memória e enviados ao cliente em uma única resposta HTML.
-4. **Loader dos botões não funciona (novo).** Os scripts de `htmx:beforeRequest`/`htmx:afterRequest` estão dentro de blocos `<script>` que rodam apenas no `htmx:afterSwap`, mas os event listeners são registrados **depois** que o botão já existe no DOM. O problema: o listener de `beforeRequest` só é adicionado após o primeiro `afterSwap`, o que significa que **a primeira requisição nunca ativa o loader**. Para o botão "Vincular", o script está no fragmento da tabela que é re-renderizado a cada swap — os listeners se perdem porque o botão é destruído e recriado, mas os listeners só são reanexados no próximo `afterSwap`.
-
-Esta task é o **replanejamento da RF-099** — absorve as funcionalidades originais (card na index, loader, vinculação de circuitos) e corrige os problemas de paginação e loader.
-
-#### Abordagem escolhida
-
-1. **Paginação no backend:** `CallRepository.findOrphanCallsByPeriod` passa a aceitar `Pageable` e retornar `Page<Call>`. O controller recebe `page` e `size` como parâmetros, com default de 50 registros por página. O template usa o fragmento `fragments/pagination :: pagination` (já existente no projeto) para navegação entre páginas.
-
-2. **Loader via `htmx-indicator` (padrão nativo HTMX):** em vez de scripts `addEventListener` frágeis, usar a diretiva nativa `hx-indicator` do HTMX. Adicionar `hx-indicator="#spinner-process"` no botão "Processar" e `hx-indicator="#spinner-link"` no botão "Vincular". Os spinners recebem a classe `htmx-indicator` (que por padrão é `display:none` e fica visível durante a requisição). Isso elimina completamente os scripts `beforeRequest`/`afterRequest` e garante que o loader funcione na primeira requisição e após re-renderizações do fragmento.
-
-3. **Mantidos da RF-099:** card "Chamadas Órfãs" na `index.html`, botão "Vincular circuitos (N)" no fragmento, `linkOrphanCalls` no service, feedback de sucesso/sem-resolvíveis no template, CSRF no form POST.
-
-**Alternativa descartada para loader:** corrigir os `addEventListener` para usar `document.addEventListener('htmx:beforeRequest', ...)` com delegation. Motivo: mais complexo, propenso a leaks, e não resolve o caso da primeira requisição. O `hx-indicator` é a solução canônica do HTMX.
-
-#### Passo-a-passo de implementação
-
-1. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/CallRepository.java` — alterar `findOrphanCallsByPeriod` para aceitar `Pageable`:
-   ```java
-   @Query(value = """
-       SELECT * FROM asteracomm_calls
-       WHERE circuit_number IS NULL
-       AND EXTRACT(MONTH FROM call_date) = :month
-       AND EXTRACT(YEAR  FROM call_date) = :year
-       ORDER BY call_date DESC
-       """,
-       countQuery = """
-       SELECT COUNT(*) FROM asteracomm_calls
-       WHERE circuit_number IS NULL
-       AND EXTRACT(MONTH FROM call_date) = :month
-       AND EXTRACT(YEAR  FROM call_date) = :year
-       """,
-       nativeQuery = true)
-   Page<Call> findOrphanCallsByPeriod(@Param("month") int month, @Param("year") int year, Pageable pageable);
-   ```
-
-2. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` — atualizar `findOrphanCalls` para aceitar `Pageable`:
-
-   a. Alterar a assinatura:
-   ```java
-   public Page<OrphanCallReportDTO> findOrphanCalls(int month, int year, Pageable pageable) {
-   ```
-
-   b. Substituir `List<Call> orphans = callRepository.findOrphanCallsByPeriod(month, year);` por:
-   ```java
-   Page<Call> orphansPage = callRepository.findOrphanCallsByPeriod(month, year, pageable);
-   List<Call> orphans = orphansPage.getContent();
-   ```
-
-   c. No final, envelopar o resultado em `Page`:
-   ```java
-   return new PageImpl<>(result, pageable, orphansPage.getTotalElements());
-   ```
-
-   Adicionar imports:
-   ```java
-   import org.springframework.data.domain.Page;
-   import org.springframework.data.domain.PageImpl;
-   import org.springframework.data.domain.Pageable;
-   ```
-
-   d. O método `countResolvable` deve ser ajustado para não chamar `findOrphanCalls` (que agora é paginado). Criar um novo método `countResolvable(int month, int year)` que busca todos os orphans do período (sem paginação) para contagem. Usar a query `countOrphanCallsByPeriod` existente e uma busca não paginada interna:
-   ```java
-   public long countResolvable(int month, int year) {
-       // Busca todos os orphans (sem paginação) para contagem de resolvíveis
-       List<Call> allOrphans = callRepository.findOrphanCallsByPeriod(month, year, Pageable.unpaged()).getContent();
-       // ... mesmo processamento batch dos CDRs e circuits ...
-   }
-   ```
-
-   **Alternativa mais simples:** não buscar todos os orphans para contagem. Em vez disso, calcular `resolvableCount` a partir da página atual. A contagem total de resolvíveis é aproximada (só reflete a página corrente). Na prática, isso é suficiente: o botão "Vincular" vincula TODAS as chamadas resolvíveis do período (não apenas as da página), e o número no botão reflete a página atual. Se necessário, o controller pode fazer uma query `count` separada. **Decisão:** optar pela abordagem simples — `resolvableCount` reflete a página corrente. O `linkOrphanCalls` já opera sobre todos os resolvíveis, independente da página.
-
-   Na verdade, repensando: o `linkOrphanCalls` atualmente chama `findOrphanCalls(month, year)` para obter a lista completa de resolvíveis. Se `findOrphanCalls` agora retorna `Page`, o `linkOrphanCalls` precisa de uma variante não paginada ou usar `Pageable.unpaged()`. Decisão: criar um método privado `findAllOrphanCallDTOs` que faz o processamento batch sem paginação (para `linkOrphanCalls` e `countResolvable`), e manter `findOrphanCalls(month, year, pageable)` como o método público paginado.
-
-   Refatorar o `OrphanCallReportService` para ter:
-   ```java
-   // Método público paginado
-   public Page<OrphanCallReportDTO> findOrphanCalls(int month, int year, Pageable pageable) {
-       Page<Call> orphansPage = callRepository.findOrphanCallsByPeriod(month, year, pageable);
-       List<OrphanCallReportDTO> dtos = buildReportDTOs(orphansPage.getContent(), month, year);
-       return new PageImpl<>(dtos, pageable, orphansPage.getTotalElements());
-   }
-
-   // Método público para contagem
-   public long countResolvable(int month, int year) {
-       List<OrphanCallReportDTO> allDtos = findAllOrphanCallDTOs(month, year);
-       return allDtos.stream().filter(OrphanCallReportDTO::resolvable).count();
-   }
-
-   // Método público para vinculação (usa lista completa)
-   @Transactional
-   public int linkOrphanCalls(int month, int year) {
-       List<OrphanCallReportDTO> allDtos = findAllOrphanCallDTOs(month, year);
-       int linked = 0;
-       for (OrphanCallReportDTO dto : allDtos) {
-           if (dto.resolvable() && dto.circuitCode() != null && !dto.circuitCode().isBlank()) {
-               callRepository.linkCircuitByUniqueId(dto.uniqueId(), dto.circuitCode());
-               linked++;
-           }
-       }
-       return linked;
-   }
-
-   // Método privado: busca todos os orphans do período (sem página) e monta DTOs
-   private List<OrphanCallReportDTO> findAllOrphanCallDTOs(int month, int year) {
-       List<Call> orphans = callRepository.findOrphanCallsByPeriod(month, year, Pageable.unpaged()).getContent();
-       return buildReportDTOs(orphans, month, year);
-   }
-
-   // Método privado: lógica de montagem dos DTOs (reutilizada)
-   private List<OrphanCallReportDTO> buildReportDTOs(List<Call> orphans, int month, int year) {
-       // ... lógica batch da RF-102 (cdrByUniqueId, circuitByNumber, etc.)
-   }
-   ```
-
-3. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportController.java` — atualizar endpoints:
-
-   a. `table` — aceitar parâmetros de paginação:
-   ```java
-   @GetMapping("/table")
-   public String table(@RequestParam int month, @RequestParam int year,
-                       @RequestParam(defaultValue = "0") int page,
-                       @RequestParam(defaultValue = "50") int size,
-                       Model model) {
-       Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "callDate"));
-       Page<OrphanCallReportDTO> orphansPage = reportService.findOrphanCalls(month, year, pageable);
-       model.addAttribute("month", month);
-       model.addAttribute("year", year);
-       model.addAttribute("orphans", orphansPage);
-       model.addAttribute("resolvableCount", reportService.countResolvable(month, year));
-       return "pages/reports/orphan-calls-table :: table";
-   }
-   ```
-
-   Adicionar imports:
-   ```java
-   import org.springframework.data.domain.Page;
-   import org.springframework.data.domain.PageRequest;
-   import org.springframework.data.domain.Pageable;
-   import org.springframework.data.domain.Sort;
-   ```
-
-   b. `linkOrphanCalls` — após vincular, recarregar a primeira página:
-   ```java
-   @PostMapping("/link")
-   public String linkOrphanCalls(@RequestParam int month, @RequestParam int year, Model model) {
-       int linked = reportService.linkOrphanCalls(month, year);
-       model.addAttribute("month", month);
-       model.addAttribute("year", year);
-       Pageable pageable = PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "callDate"));
-       model.addAttribute("orphans", reportService.findOrphanCalls(month, year, pageable));
-       model.addAttribute("resolvableCount", reportService.countResolvable(month, year));
-       model.addAttribute("linkResult", linked);
-       return "pages/reports/orphan-calls-table :: table";
-   }
-   ```
-
-4. **Editar** `backend/src/main/resources/templates/pages/reports/orphan-calls-table.html` — reescrever para suportar paginação e loader via `hx-indicator`:
-
-   a. Substituir o `<div th:fragment="table">` inteiro. Estrutura resultante:
-
-   ```html
-   <div th:fragment="table">
-
-     <!-- Vazio -->
-     <div th:if="${orphans == null or orphans.empty}"
-          class="py-10 text-center text-[13px] text-[#aaa]">
-       Selecione o período e clique em Processar.
-     </div>
-
-     <th:block th:if="${orphans != null}">
-
-       <!-- Card de contexto + botão Vincular -->
-       <div class="flex items-center justify-between mb-4">
-         <div class="bg-white rounded-xl p-4 border border-[#e0e0e0]">
-           <p class="text-[13px] text-[#1a1a1a]">
-             Período: <strong th:text="${month + '/' + year}">—</strong>
-             — <strong th:text="${orphans.totalElements}">0</strong> chamada(s) órfã(s) encontrada(s)
-           </p>
-         </div>
-         <th:block th:if="${resolvableCount != null and resolvableCount > 0}">
-           <form th:attr="hx-post=@{/reports/orphan-calls/link}" hx-target="#orphan-calls-table" hx-swap="innerHTML"
-                 hx-include="#orphan-form" style="display:inline">
-             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-             <input type="hidden" name="month" th:value="${month}"/>
-             <input type="hidden" name="year" th:value="${year}"/>
-             <button type="submit" id="btn-link-orphans"
-                     class="htmx-indicator-class-btn flex items-center gap-1.5 bg-[#E5A000] text-white text-[13px] font-medium px-4 py-[9px] rounded-md hover:opacity-90 transition-opacity">
-               <svg class="htmx-indicator animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-               </svg>
-               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="htmx-indicator-hide">
-                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-               </svg>
-               Vincular circuitos (<span th:text="${resolvableCount}">0</span>)
-             </button>
-           </form>
-         </th:block>
-       </div>
-
-       <!-- Feedback de vinculação -->
-       <div th:if="${linkResult != null and linkResult > 0}" class="bg-[#E1F5EE] border border-[#085041] text-[#085041] text-[13px] font-medium rounded-lg px-4 py-3 mb-4">
-         <strong th:text="${linkResult}">0</strong> circuito(s) vinculado(s) com sucesso.
-       </div>
-
-       <!-- Feedback sem resolvable -->
-       <div th:if="${resolvableCount != null and resolvableCount == 0 and not #lists.isEmpty(orphans.content)}" class="bg-[#f5f5f5] border border-[#e0e0e0] text-[#888] text-[13px] rounded-lg px-4 py-3 mb-4">
-         Nenhuma chamada órfã resolvível para vincular neste período.
-       </div>
-
-       <!-- Tabela de chamadas -->
-       <div class="rounded-xl border border-[#e0e0e0] overflow-x-auto mb-4">
-         <!-- Header -->
-         <div class="orphan-row bg-white border-b border-[#e0e0e0]">
-           <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[80px] shrink-0">Unique ID</span>
-           <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[110px] shrink-0">Data</span>
-           <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[100px] shrink-0">Destino</span>
-           <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide shrink-0">Canal</span>
-           <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide shrink-0">Canal Destino</span>
-           <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[100px] shrink-0">Código Canal</span>
-           <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide text-center w-[110px] shrink-0">Status</span>
-         </div>
-
-         <!-- Vazio -->
-         <div th:if="${orphans.content.isEmpty()}" class="py-10 text-center text-[13px] text-[#aaa]">
-           Nenhuma chamada órfã encontrada para este período.
-         </div>
-
-         <!-- Linhas -->
-         <div th:each="orphan : ${orphans.content}"
-               class="orphan-row bg-white border-b border-[#f0f0f0]">
-           <span class="text-[13px] font-mono text-[#1a1a1a] w-[80px] shrink-0 overflow-hidden text-ellipsis"
-                 th:text="${orphan.uniqueId}"></span>
-           <span class="text-[13px] font-mono text-[#1a1a1a] w-[110px] shrink-0"
-                 th:text="${#temporals.format(orphan.callDate, 'dd/MM/yy HH:mm')}"></span>
-           <span class="text-[13px] font-mono text-[#1a1a1a] w-[100px] shrink-0 overflow-hidden text-ellipsis"
-                 th:text="${orphan.dst != null ? orphan.dst : '—'}"></span>
-           <span class="text-[13px] font-mono text-[#555] shrink-0 overflow-hidden text-ellipsis"
-                 th:text="${orphan.channel != null ? orphan.channel : '—'}"></span>
-           <span class="text-[13px] font-mono text-[#555] shrink-0 overflow-hidden text-ellipsis"
-                 th:text="${orphan.dstChannel != null ? orphan.dstChannel : '—'}"></span>
-           <span class="text-[13px] font-mono text-[#1a1a1a] w-[100px] shrink-0"
-                 th:text="${orphan.circuitCode != null ? orphan.circuitCode : '—'}"></span>
-           <span class="flex justify-center w-[110px] shrink-0">
-             <span th:class="|rounded-[99px] text-[11px] px-[8px] py-[2px] font-medium whitespace-nowrap
-                              ${orphan.resolvable ? 'bg-[#E1F5EE] text-[#085041]' : 'bg-[#FEE2E2] text-[#dc2626]'}|"
-                   th:text="${orphan.resolvable ? 'Resolvível' : 'Não resolvível'}">
-             </span>
-           </span>
-         </div>
-       </div>
-
-       <!-- Paginação -->
-       <div id="pagination-toolbar-orphan" class="flex items-center gap-2">
-         <div th:replace="~{fragments/pagination :: pagination(
-             page=${orphans},
-             hxGet=${'/reports/orphan-calls/table?month=' + month + '&year=' + year},
-             hxTarget='#orphan-calls-table',
-             hxInclude='#orphan-form')}"></div>
-       </div>
-
-     </th:block>
-
-   </div>
-   ```
-
-   **Nota sobre `hx-indicator`**: O HTMX nativamente torna visível elementos com a classe `.htmx-indicator` durante a requisição. Para os botões "Processar" e "Vincular", a estratégia é usar CSS customizado para controlar a visibilidade dos spinners e ícones. Adicionar o seguinte bloco `<style>` no template `orphan-calls.html` (não no fragmento, para evitar duplicação):
-
-   b. Remover o bloco `<script>` inteiro (linhas 109-129) do `orphan-calls-table.html`.
-
-5. **Editar** `backend/src/main/resources/templates/pages/reports/orphan-calls.html` — refazer o loader do botão "Processar":
-
-   a. Adicionar bloco `<style>` dentro do `<head>`:
-   ```html
-   <style>
-     /* Loader HTMX para botão Processar */
-     #btn-process-orphan .htmx-indicator { display: none; }
-     #btn-process-orphan.htmx-request .htmx-indicator { display: inline-block; }
-     #btn-process-orphan.htmx-request .htmx-indicator-hide { display: none; }
-     #btn-process-orphan.htmx-request { opacity: 0.7; cursor: not-allowed; }
-
-     /* Loader HTMX para botão Vincular */
-     #btn-link-orphans .htmx-indicator { display: none; }
-     #btn-link-orphans.htmx-request .htmx-indicator { display: inline-block; }
-     #btn-link-orphans.htmx-request .htmx-indicator-hide { display: none; }
-     #btn-link-orphans.htmx-request { opacity: 0.7; cursor: not-allowed; }
-   </style>
-   ```
-
-   b. Refazer o botão "Processar" para usar classes HTMX em vez de JS:
-   ```html
-   <button type="button" id="btn-process-orphan"
-       class="flex items-center gap-1.5 bg-[#1D9E75] text-white text-[13px] font-medium px-4 py-[9px] rounded-md hover:opacity-90 transition-opacity"
-       th:attr="hx-get=@{/reports/orphan-calls/table}" hx-target="#orphan-calls-table" hx-swap="innerHTML"
-       hx-include="#orphan-form">
-       <svg class="htmx-indicator animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-       </svg>
-       <span class="htmx-indicator-hide">Processar</span>
-       <span class="htmx-indicator">Processando...</span>
-   </button>
-   ```
-
-   c. Remover o bloco `<script>` inteiro (linhas 81-99) do `orphan-calls.html`.
-
-6. **Editar** `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` — atualizar testes para usar `Pageable`:
-
-   a. Em todos os testes que chamam `service.findOrphanCalls(month, year)`, atualizar para `service.findOrphanCalls(month, year, PageRequest.of(0, 50))`.
-
-   b. Atualizar mocks: `when(callRepository.findOrphanCallsByPeriod(3, 2026))` → `when(callRepository.findOrphanCallsByPeriod(eq(3), eq(2026), any(Pageable.class)))`, retornando `new PageImpl<>(list, PageRequest.of(0, 50), list.size())`.
-
-   c. Atualizar asserts para `result.getContent()` em vez de `result` direto.
-
-   Adicionar imports:
-   ```java
-   import org.springframework.data.domain.Page;
-   import org.springframework.data.domain.PageImpl;
-   import org.springframework.data.domain.PageRequest;
-   import org.springframework.data.domain.Pageable;
-   import static org.mockito.ArgumentMatchers.any;
-   import static org.mockito.ArgumentMatchers.eq;
-   ```
-
-7. **Editar** `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportControllerTest.java` — atualizar testes para refletir a assinatura paginada:
-
-   a. Teste `link_postSetsModelAttributes` — a chamada interna a `findOrphanCalls` agora recebe `Pageable`. Mockar adequadamente.
-
-   b. Teste `link_postReturnsTableFragment` — sem mudança no assert de view name.
-
-8. **Editar** `doc/CHANGELOG.md` — remover a linha `RF-099` do `[Unreleased]` (a RF-099 foi BLOQUEADA e será substituída por FIX-101 + RF-102 + RF-103).
-
-9. **Rodar `./mvnw test`** e garantir que a suíte passa (incluindo os novos testes).
-
-#### Testes a criar/atualizar
-- `OrphanCallReportServiceTest` — atualizar todos os testes para usar `Pageable` e `Page<>`.
-- `OrphanCallReportServiceTest` — adicionar teste `findOrphanCalls_returnsPaginatedResult` com 100 orphans, page size 10, verificando que `result.getContent().size() == 10` e `result.getTotalElements() == 100`.
-- `OrphanCallReportControllerTest` — atualizar mocks para `Pageable`.
-- `OrphanCallReportControllerTest` — adicionar teste `table_returnsPaginatedModel` verificando que `model.containsAttribute("orphans")` e que o tipo é `Page`.
-
-#### Critérios de aceitação
-- [ ] `GET /reports/orphan-calls/table?month=X&year=Y` retorna no máximo 50 registros por página (default), com toolbar de paginação.
-- [ ] Clicar em "Processar" exibe spinner e texto "Processando..." enquanto a requisição está em andamento (na primeira e nas subsequentes).
-- [ ] Clicar em "Vincular" exibe spinner enquanto a requisição está em andamento (na primeira e nas subsequentes).
-- [ ] Após "Vincular", a tabela recarrega a primeira página e exibe feedback verde com o número de circuitos vinculados.
-- [ ] Meses com 10.000+ chamadas órfãs carregam sem erro 500 e sem timeout (paginação + batch queries).
-- [ ] A navegação entre páginas (anterior/próximo) funciona sem reprocessar todo o relatório.
-- [ ] Card "Chamadas Órfãs" permanece na `index.html` (funcionalidade da RF-099 mantida).
-- [ ] Botão "Vincular circuitos (N)" aparece quando há resolvíveis (funcionalidade da RF-099 mantida).
-- [ ] Todos os testes novos passam e nenhum teste existente regrediu.
-- [ ] `./mvnw test` passa.
-- [ ] Commit no padrão `refactor(rf-103): adiciona paginacao e loader-funcional ao relatorio de chamadas-orfas`.
-- [ ] Entrada no `doc/changelog.md` seção `[Unreleased]` e descrição detalhada em `doc/release_notes/unreleased.md`.
-- [ ] Remoção da task do `doc/backlog.md` após conclusão.
-- [ ] RF-099 removida do `[Unreleased]` no `doc/changelog.md`.
-
-#### Riscos e observações
-- **`Pageable.unpaged()` em `findAllOrphanCallDTOs`:** usar esta abordagem para `linkOrphanCalls` e `countResolvable` significa que, para a vinculação, todos os orphans ainda são carregados em memória. Isso é aceitável porque a vinculação é uma ação manual esporádica. Para o futuro, pode-se implementar batch UPDATE (ver recomendação do Revisor).
-- **Estilo `htmx-indicator`:** o CSS precisa ser definido no template pai (`orphan-calls.html`), não no fragmento, pois os estilos dos spinners precisam existir desde o carregamento inicial da página (antes do primeiro HTMX swap).
-- **O Codificador NÃO deve criar migration Flyway** — nenhuma alteração de esquema.
-- **O Codificador NÃO deve alterar `SecurityConfigurations`** — o endpoint já está protegido.
-- **Linha duplicada no release notes:** se existir entrada duplicada de `findOrphanCalls_returnsNotResolvable_whenCdrMissing` em `doc/release-notes/unreleased.md`, corrigir removendo a duplicata.
-- **Ordem de execução:** esta task depende de FIX-101 e RF-102. O Codificador deve executar FIX-101 primeiro, depois RF-102, e finalmente RF-103.
 
 ---
 

@@ -182,6 +182,14 @@
   align-items: center;
 }
 .orphan-row:last-child { border-bottom: none; }
+.call-history-row {
+  display: grid;
+  grid-template-columns: 110px 120px minmax(0,1fr) 90px 90px 80px 100px;
+  gap: 4px;
+  padding: 10px 16px;
+  align-items: center;
+}
+.call-history-row:last-child { border-bottom: none; }
 
 /* ── SearchSelect ─────────────────────────────────────────────────────────── */
 .ss-hidden { display: none !important; }
