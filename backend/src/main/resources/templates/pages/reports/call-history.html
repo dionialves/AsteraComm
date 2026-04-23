@@ -72,7 +72,8 @@
                 <!-- Botão Processar -->
                 <button type="button"
                     class="flex items-center gap-1.5 bg-[#1D9E75] text-white text-[13px] font-medium px-4 py-[9px] rounded-md hover:opacity-90 transition-opacity"
-                    hx-get="/reports/call-history/table" hx-target="#table-container" hx-swap="innerHTML">
+                    hx-get="/reports/call-history/table" hx-target="#table-container" hx-swap="innerHTML"
+                    hx-include="#call-history-form">
                     Processar
                 </button>
 
