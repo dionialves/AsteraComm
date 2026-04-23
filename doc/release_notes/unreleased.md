@@ -305,3 +305,31 @@
 **Testes atualizados:**
 - `OrphanCallReportServiceTest` — todos os mocks de `findOrphanCallsByPeriod` atualizados de `List<>` para `Page<>`
 - `OrphanCallReportControllerTest` — `link_postSetsModelAttributes` e `link_postReturnsTableFragment` atualizados para `Page<>`
+
+---
+
+### RF-105: PDF e tradução de status no Histórico de Ligações
+
+**Problema:** O relatório de Histórico de Ligações exibia status em inglês (`ANSWERED`, `NO ANSWER`, `BUSY`, `FAILED`) diretamente do campo `Call.disposition`, e não oferecia download em PDF como os demais relatórios.
+
+**Solução:**
+- `CallHistoryLineDTO` substituído campo `disposition` por `dispositionLabel` (traduzido) e adicionado `directionLabel` ("Efetuada"/"Recebida").
+- `CallHistoryService.toLineDTO` agora chama `translateDisposition()` para traduzir valores do Asterisk.
+- `translateDisposition()` cobre os 4 status principais e retorna `—` para `null` e o valor original para status desconhecidos.
+- `generatePdf()` adicionado ao `CallHistoryService`, seguindo o padrão visual de `CostPerCircuitService` (OpenPDF, A4 landscape, header escuro, linhas alternadas).
+- `CallHistoryController` expõe novo endpoint `GET /reports/call-history/pdf` com `ResponseEntity<byte[]>` e `ContentDisposition.attachment`.
+- Template `call-history-table.html` substituído card de contexto simples por `flex justify-between` com botão "Baixar PDF" no canto superior direito.
+- Célula de status agora usa `dispositionLabel`; badge de direção usa `directionLabel`.
+
+**Arquivos alterados:**
+- `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryLineDTO.java` — `disposition` → `dispositionLabel` + `directionLabel`
+- `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryService.java` — tradução, `generatePdf()`, `addPdfCell()`
+- `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryController.java` — endpoint `/pdf`
+- `backend/src/main/resources/templates/pages/reports/call-history-table.html` — card com botão PDF, labels traduzidos
+- `backend/src/test/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryServiceTest.java` — 4 novos testes de tradução + PDF
+
+**Testes novos:**
+- `translateDisposition_returnsPortugueseLabels` — ANSWERED→Atendida, NO ANSWER→Não Atendida, BUSY→Ocupado, FAILED→Falhou
+- `translateDisposition_returnsOriginalForUnknownValue` — valor desconhecido retorna como-recebido
+- `translateDisposition_returnsDashForNull` — `null` retorna `—`
+- `generatePdf_returnsNonEmptyBytes` — PDF gerado com `%PDF` signature

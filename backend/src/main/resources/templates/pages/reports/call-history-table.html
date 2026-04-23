@@ -12,17 +12,30 @@
 
   <th:block th:if="${result != null}">
 
-    <!-- Card de contexto -->
+    <!-- Card de contexto + botão PDF -->
     <div class="bg-white rounded-xl p-4 mb-4 border border-[#e0e0e0]">
-      <div class="flex gap-8">
-        <div>
-          <p class="text-[11px] font-medium uppercase tracking-wide text-[#888] mb-1">Circuito</p>
-          <p class="text-[15px] font-medium text-[#1a1a1a] font-mono" th:text="${result.circuitNumber}">—</p>
+      <div class="flex items-center justify-between">
+        <div class="flex gap-8">
+          <div>
+            <p class="text-[11px] font-medium uppercase tracking-wide text-[#888] mb-1">Circuito</p>
+            <p class="text-[15px] font-medium text-[#1a1a1a] font-mono" th:text="${result.circuitNumber}">—</p>
+          </div>
+          <div>
+            <p class="text-[11px] font-medium uppercase tracking-wide text-[#888] mb-1">Período</p>
+            <p class="text-[15px] font-medium text-[#1a1a1a]"
+               th:text="${#temporals.monthName(result.month)} + ' / ' + ${result.year}">—</p>
+          </div>
         </div>
-        <div>
-          <p class="text-[11px] font-medium uppercase tracking-wide text-[#888] mb-1">Período</p>
-          <p class="text-[15px] font-medium text-[#1a1a1a]" th:text="${result.month + '/' + result.year}">—</p>
-        </div>
+        <a id="btn-pdf-call-history" th:href="${'/reports/call-history/pdf?circuitNumber=' + result.circuitNumber + '&month=' + result.month + '&year=' + result.year}"
+           class="flex items-center gap-1.5 bg-white border border-[#e0e0e0] text-[#1a1a1a] text-[13px] font-medium px-3 py-[9px] rounded-md hover:bg-[#f5f5f5] transition-colors no-underline">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Baixar PDF
+        </a>
       </div>
     </div>
 
@@ -80,16 +93,16 @@
         </span>
 
         <!-- Badge de direção -->
-        <span th:class="|rounded-[99px] text-[11px] px-[8px] py-[2px] font-medium whitespace-nowrap
-                         ${line.direction?.name() == 'OUTBOUND' ? 'bg-[#E1F5EE] text-[#085041]' : 'bg-[#FAEEDA] text-[#854F0B]'}|"
-              th:text="${line.direction?.name() == 'OUTBOUND' ? 'Efetuada' : 'Recebida'}">
+        <span class="rounded-[99px] text-[11px] px-[8px] py-[2px] font-medium whitespace-nowrap
+                 ${line.direction?.name() == 'OUTBOUND' ? 'bg-[#E1F5EE] text-[#085041]' : 'bg-[#FAEEDA] text-[#854F0B]'}"
+              th:text="${line.directionLabel}">
         </span>
 
         <span class="text-[13px] font-mono text-[#1a1a1a]"
               th:with="sec=${line.billSeconds ?: 0}, h=${sec / 3600}, m=${(sec % 3600) / 60}, s=${sec % 60}"
               th:text="${(h > 0 ? h + ':' : '') + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s}"></span>
 
-        <span class="text-[13px] font-mono text-[#1a1a1a]" th:text="${line.disposition ?: '—'}"></span>
+        <span class="text-[13px] font-mono text-[#1a1a1a]" th:text="${line.dispositionLabel}"></span>
 
       </div>
     </div>

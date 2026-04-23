@@ -156,4 +156,75 @@ class CallHistoryServiceTest {
         // 195 bill seconds total → ceil(195/30) = 7 → 7/2 = 3.5
         assertThat(result.totalMinutes()).isEqualByComparingTo(new BigDecimal("3.5"));
     }
+
+    // -------------------------------------------------------------------------
+    // translateDisposition_returnsPortugueseLabels
+    // -------------------------------------------------------------------------
+
+    @Test
+    void translateDisposition_returnsPortugueseLabels() {
+        when(circuitRepository.findByNumber(CIRCUIT_NUMBER)).thenReturn(Optional.of(circuit));
+
+        List<Call> calls = List.of(
+                buildCall("call-answered",  LocalDateTime.of(2026, 3, 1, 10, 0), 60, CallType.FIXED_LOCAL, CallDirection.OUTBOUND),
+                buildCall("call-noanswer", LocalDateTime.of(2026, 3, 2, 11, 0), 60, CallType.FIXED_LOCAL, CallDirection.OUTBOUND),
+                buildCall("call-busy",     LocalDateTime.of(2026, 3, 3, 12, 0), 60, CallType.FIXED_LOCAL, CallDirection.OUTBOUND),
+                buildCall("call-failed",   LocalDateTime.of(2026, 3, 4, 13, 0), 60, CallType.FIXED_LOCAL, CallDirection.OUTBOUND)
+        );
+        calls.get(0).setDisposition("ANSWERED");
+        calls.get(1).setDisposition("NO ANSWER");
+        calls.get(2).setDisposition("BUSY");
+        calls.get(3).setDisposition("FAILED");
+        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR)).thenReturn(calls);
+
+        CallHistoryResultDTO result = callHistoryService.getHistory(CIRCUIT_NUMBER, MONTH, YEAR);
+
+        assertThat(result.lines().get(0).dispositionLabel()).isEqualTo("Atendida");
+        assertThat(result.lines().get(1).dispositionLabel()).isEqualTo("Não Atendeu");
+        assertThat(result.lines().get(2).dispositionLabel()).isEqualTo("Ocupado");
+        assertThat(result.lines().get(3).dispositionLabel()).isEqualTo("Falhou");
+    }
+
+    @Test
+    void translateDisposition_returnsOriginalForUnknownValue() {
+        when(circuitRepository.findByNumber(CIRCUIT_NUMBER)).thenReturn(Optional.of(circuit));
+
+        Call call = buildCall("call-unknown", LocalDateTime.of(2026, 3, 1, 10, 0), 60, CallType.FIXED_LOCAL, CallDirection.OUTBOUND);
+        call.setDisposition("CANCELLED");
+        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR)).thenReturn(List.of(call));
+
+        CallHistoryResultDTO result = callHistoryService.getHistory(CIRCUIT_NUMBER, MONTH, YEAR);
+
+        assertThat(result.lines().get(0).dispositionLabel()).isEqualTo("CANCELLED");
+    }
+
+    @Test
+    void translateDisposition_returnsDashForNull() {
+        when(circuitRepository.findByNumber(CIRCUIT_NUMBER)).thenReturn(Optional.of(circuit));
+
+        Call call = buildCall("call-null", LocalDateTime.of(2026, 3, 1, 10, 0), 60, CallType.FIXED_LOCAL, CallDirection.OUTBOUND);
+        call.setDisposition(null);
+        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR)).thenReturn(List.of(call));
+
+        CallHistoryResultDTO result = callHistoryService.getHistory(CIRCUIT_NUMBER, MONTH, YEAR);
+
+        assertThat(result.lines().get(0).dispositionLabel()).isEqualTo("—");
+    }
+
+    // -------------------------------------------------------------------------
+    // generatePdf_returnsNonEmptyBytes
+    // -------------------------------------------------------------------------
+
+    @Test
+    void generatePdf_returnsNonEmptyBytes() {
+        when(circuitRepository.findByNumber(CIRCUIT_NUMBER)).thenReturn(Optional.of(circuit));
+
+        Call call = buildCall("call-1", LocalDateTime.of(2026, 3, 1, 10, 0), 60, CallType.FIXED_LOCAL, CallDirection.OUTBOUND);
+        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR)).thenReturn(List.of(call));
+
+        byte[] pdf = callHistoryService.generatePdf(CIRCUIT_NUMBER, MONTH, YEAR);
+
+        assertThat(pdf).isNotEmpty();
+        assertThat((int) pdf[0]).isEqualTo(0x25); // %PDF signature
+    }
 }

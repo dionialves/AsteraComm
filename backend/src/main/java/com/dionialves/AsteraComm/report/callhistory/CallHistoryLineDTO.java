@@ -10,9 +10,10 @@ public record CallHistoryLineDTO(
         LocalDateTime callDate,
         String        callerNumber,
         String        dst,
-        String        disposition,
+        String        dispositionLabel,
         CallType      callType,
         CallDirection direction,
+        String        directionLabel,
         int           billSeconds,
         Integer       durationSeconds
 ) {}
