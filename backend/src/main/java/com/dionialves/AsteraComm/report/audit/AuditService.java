@@ -44,7 +44,7 @@ public class AuditService {
             throw new NotFoundException("Circuito " + circuitNumber + " não possui plano vinculado");
         }
 
-        List<Call> calls = callRepository.findByCircuitNumberAndPeriod(circuitNumber, month, year);
+        List<Call> calls = callRepository.findByCircuitNumberAndPeriod(circuitNumber, month, year, "OUTBOUND");
 
         return buildResult(circuit, plan, month, year, calls);
     }

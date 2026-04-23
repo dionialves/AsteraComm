@@ -86,7 +86,7 @@ class CallHistoryServiceTest {
     @Test
     void getHistory_returnsEmpty_whenNoCalls() {
         when(circuitRepository.findByNumber(CIRCUIT_NUMBER)).thenReturn(Optional.of(circuit));
-        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR))
+        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR, null))
                 .thenReturn(Collections.emptyList());
 
         CallHistoryResultDTO result = callHistoryService.getHistory(CIRCUIT_NUMBER, MONTH, YEAR);
@@ -115,7 +115,7 @@ class CallHistoryServiceTest {
                 buildCall("call-3", LocalDateTime.of(2026, 3, 3, 12, 0), 45,
                         CallType.FIXED_LONG_DISTANCE, CallDirection.OUTBOUND)
         );
-        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR))
+        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR, null))
                 .thenReturn(calls);
 
         CallHistoryResultDTO result = callHistoryService.getHistory(CIRCUIT_NUMBER, MONTH, YEAR);
@@ -147,7 +147,7 @@ class CallHistoryServiceTest {
                 buildCall("call-3", LocalDateTime.of(2026, 3, 3, 12, 0), 65,
                         CallType.FIXED_LOCAL, CallDirection.OUTBOUND)
         );
-        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR))
+        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR, null))
                 .thenReturn(calls);
 
         CallHistoryResultDTO result = callHistoryService.getHistory(CIRCUIT_NUMBER, MONTH, YEAR);
@@ -175,7 +175,7 @@ class CallHistoryServiceTest {
         calls.get(1).setDisposition("NO ANSWER");
         calls.get(2).setDisposition("BUSY");
         calls.get(3).setDisposition("FAILED");
-        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR)).thenReturn(calls);
+        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR, null)).thenReturn(calls);
 
         CallHistoryResultDTO result = callHistoryService.getHistory(CIRCUIT_NUMBER, MONTH, YEAR);
 
@@ -191,7 +191,7 @@ class CallHistoryServiceTest {
 
         Call call = buildCall("call-unknown", LocalDateTime.of(2026, 3, 1, 10, 0), 60, CallType.FIXED_LOCAL, CallDirection.OUTBOUND);
         call.setDisposition("CANCELLED");
-        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR)).thenReturn(List.of(call));
+        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR, null)).thenReturn(List.of(call));
 
         CallHistoryResultDTO result = callHistoryService.getHistory(CIRCUIT_NUMBER, MONTH, YEAR);
 
@@ -204,7 +204,7 @@ class CallHistoryServiceTest {
 
         Call call = buildCall("call-null", LocalDateTime.of(2026, 3, 1, 10, 0), 60, CallType.FIXED_LOCAL, CallDirection.OUTBOUND);
         call.setDisposition(null);
-        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR)).thenReturn(List.of(call));
+        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR, null)).thenReturn(List.of(call));
 
         CallHistoryResultDTO result = callHistoryService.getHistory(CIRCUIT_NUMBER, MONTH, YEAR);
 
@@ -220,11 +220,36 @@ class CallHistoryServiceTest {
         when(circuitRepository.findByNumber(CIRCUIT_NUMBER)).thenReturn(Optional.of(circuit));
 
         Call call = buildCall("call-1", LocalDateTime.of(2026, 3, 1, 10, 0), 60, CallType.FIXED_LOCAL, CallDirection.OUTBOUND);
-        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR)).thenReturn(List.of(call));
+        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR, null)).thenReturn(List.of(call));
 
         byte[] pdf = callHistoryService.generatePdf(CIRCUIT_NUMBER, MONTH, YEAR);
 
         assertThat(pdf).isNotEmpty();
         assertThat((int) pdf[0]).isEqualTo(0x25); // %PDF signature
+    }
+
+    // -------------------------------------------------------------------------
+    // getHistory_returnsInboundAndOutboundCalls
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getHistory_returnsInboundAndOutboundCalls() {
+        when(circuitRepository.findByNumber(CIRCUIT_NUMBER)).thenReturn(Optional.of(circuit));
+
+        Call inbound = buildCall("call-in", LocalDateTime.of(2026, 3, 1, 10, 0), 60,
+                CallType.FIXED_LOCAL, CallDirection.INBOUND);
+        Call outbound = buildCall("call-out", LocalDateTime.of(2026, 3, 2, 11, 0), 90,
+                CallType.MOBILE_LOCAL, CallDirection.OUTBOUND);
+
+        when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR, null))
+                .thenReturn(List.of(inbound, outbound));
+
+        CallHistoryResultDTO result = callHistoryService.getHistory(CIRCUIT_NUMBER, MONTH, YEAR);
+
+        assertThat(result.lines()).hasSize(2);
+        assertThat(result.lines().get(0).direction()).isEqualTo(CallDirection.INBOUND);
+        assertThat(result.lines().get(0).directionLabel()).isEqualTo("Recebida");
+        assertThat(result.lines().get(1).direction()).isEqualTo(CallDirection.OUTBOUND);
+        assertThat(result.lines().get(1).directionLabel()).isEqualTo("Efetuada");
     }
 }

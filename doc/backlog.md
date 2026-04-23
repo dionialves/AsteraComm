@@ -33,8 +33,6 @@
 22. [RF-104 — Remover dependência Tailwind CSS e migrar para CSS puro](#rf-104)
 
 ### Bug Fixes (FIX)
-
-
 ---
 
 ### RF-075
@@ -1425,3 +1423,179 @@ Além disso, o relatório de Custo por Circuito já oferece download em PDF via 
   - Adicionar dependências novas ao `pom.xml` (OpenPDF já é transitiva).
   - Traduzir os labels no template Thymeleaf em vez do DTO — isso quebraria o PDF.
 - **Dependência RF-093:** Caso `RF-093` (decomposição de serviços com PDF) já tenha sido executada, o PDF pode estar extraído para uma classe `CallHistoryPdfGenerator`. Se esse for o caso, o Codificador deve seguir o padrão de RF-093 e criar `CallHistoryPdfGenerator` separado em vez de deixar o método no `CallHistoryService`.
+
+### FIX-106 · Query de histórico de ligações não retorna ligações recebidas (INBOUND)
+- **Tipo:** Bug Fix
+- **Prioridade:** ALTA
+- **US relacionada:** US-080
+- **Sprint:** —
+- **Arquivos:**
+  - `backend/src/main/java/com/dionialves/AsteraComm/call/CallRepository.java` (editar)
+  - `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryService.java` (editar)
+  - `backend/src/main/java/com/dionialves/AsteraComm/report/audit/AuditService.java` (editar)
+  - `backend/src/test/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryServiceTest.java` (editar)
+  - `backend/src/test/java/com/dionialves/AsteraComm/report/audit/AuditServiceTest.java` (editar)
+- **Dependências:** —
+
+#### Contexto / Problema
+
+A query `CallRepository.findByCircuitNumberAndPeriod(circuitNumber, month, year)` é compartilhada entre `CallHistoryService` e `AuditService`. Ela usa um `LEFT JOIN` com `asteracomm_dids` para trazer ligações recebidas (INBOUND) onde o número discado (`dst`) é um DID do circuito. Porém, a cláusula final `AND (ca.circuit_number = :circuitNumber OR c.number = :circuitNumber)` **só retorna ligações INBOUND quando o número do DID casa exatamente com `ca.dst`** — o que frequentemente falha porque o campo `dst` no CDR pode conter extensões internas, prefixos ou formatação diferente do número cadastrado no DID.
+
+O resultado é que o **histórico de ligações** (que deveria mostrar efetuadas e recebidas) e a **auditoria de custeio** (que deveria mostrar apenas efetuadas) estão usando a mesma query, mas sem o filtro de direção. A auditoria de custeio avalia apenas ligações efetuadas (OUTBOUND) por natureza — ligações recebidas não geram custo e não consomem franquia. Já o histórico de ligações deve mostrar todas (INBOUND + OUTBOUND).
+
+Hoje o `AuditService` simplesmente consome todas as ligações retornadas pela query sem filtrar por `direction`, confiando que os dados de custo são relevantes apenas para OUTBOUND. Mas se a query passar a retornar INBOUND, o cálculo de custo ficará errado (ligações recebidas teriam custo computado indevidamente).
+
+**Comportamento observado:** Histórico de ligações mostra apenas ligações efetuadas (OUTBOUND). Ligações recebidas (INBOUND) raramente aparecem (apenas quando `dst` casa exatamente com um DID).
+
+**Comportamento esperado:**
+- Histórico de ligações mostra **todas** as ligações do circuito (OUTBOUND + INBOUND).
+- Auditoria de custeio mostra apenas ligações **efetuadas** (OUTBOUND).
+
+#### Abordagem escolhida
+
+Adicionar um parâmetro `direction` (nullable) à query `findByCircuitNumberAndPeriod`. Quando `direction = null`, todas as ligações do circuito são retornadas (histórico). Quando `direction = 'OUTBOUND'`, apenas ligações efetuadas são retornadas (auditoria). Isso evita duplicar a query, mantém o JOIN com DIDs funcional para INBOUND, e permite que cada serviço consuma exatamente o que precisa.
+
+**Alternativa descartada:** Criar duas queries separadas — duplicaria toda a lógica de JOIN com DIDs e filtros de período, e qualquer mudança futura precisaria ser replicada em dois lugares. Com o parâmetro `direction`, a query base é única e DRY.
+
+**Alternativa descartada:** Filtrar INBOUND em Java após a consulta (`calls.stream().filter(...)`) — traria ligações INBOUND do banco para depois descartá-las no AuditService, desperdiçando I/O e memória conforme o volume cresce.
+
+#### Passo-a-passo de implementação
+
+1. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/CallRepository.java` — alterar o método `findByCircuitNumberAndPeriod` para aceitar um parâmetro `direction` (nullable) e adicionar o filtro na query.
+
+   ```java
+   @Query(value = "SELECT ca.* FROM asteracomm_calls ca " +
+           "LEFT JOIN asteracomm_dids d ON d.number = ca.dst " +
+           "LEFT JOIN asteracomm_circuits c ON c.id = d.circuit_id AND c.number = :circuitNumber " +
+           "WHERE ca.call_status = 'PROCESSED' " +
+           "AND EXTRACT(MONTH FROM ca.call_date) = :month " +
+           "AND EXTRACT(YEAR  FROM ca.call_date) = :year " +
+           "AND (ca.circuit_number = :circuitNumber OR c.number = :circuitNumber) " +
+           "AND (:direction IS NULL OR ca.direction = :direction) " +
+           "ORDER BY ca.call_date ASC", nativeQuery = true)
+   List<Call> findByCircuitNumberAndPeriod(@Param("circuitNumber") String circuitNumber,
+           @Param("month") int month,
+           @Param("year") int year,
+           @Param("direction") String direction);
+   ```
+
+2. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryService.java` — alterar a chamada em `getHistory()` (linha 40) para passar `null` como `direction` (traz todas as ligações).
+
+   Substituir:
+   ```java
+   List<Call> calls = callRepository.findByCircuitNumberAndPeriod(circuitNumber, month, year);
+   ```
+   Por:
+   ```java
+   List<Call> calls = callRepository.findByCircuitNumberAndPeriod(circuitNumber, month, year, null);
+   ```
+
+   Observação: Isso vale também para a chamada dentro de `generatePdf()` (linha 83), que delega para `getHistory()`, logo é coberta automaticamente.
+
+3. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/report/audit/AuditService.java` — alterar a chamada em `simulate()` (linha 47) para passar `"OUTBOUND"` como `direction`.
+
+   Substituir:
+   ```java
+   List<Call> calls = callRepository.findByCircuitNumberAndPeriod(circuitNumber, month, year);
+   ```
+   Por:
+   ```java
+   List<Call> calls = callRepository.findByCircuitNumberAndPeriod(circuitNumber, month, year, "OUTBOUND");
+   ```
+
+4. **Editar** `backend/src/test/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryServiceTest.java` — atualizar todos os mocks de `callRepository.findByCircuitNumberAndPeriod` para incluir o 4º parâmetro `null`.
+
+   Alterar todas as ocorrências de:
+   ```java
+   when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR))
+   ```
+   Para:
+   ```java
+   when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR, null))
+   ```
+
+   Isso se aplica a todas as 7 ocorrências (linhas 89, 118, 150, 178, 194, 207, 223).
+
+5. **Editar** `backend/src/test/java/com/dionialves/AsteraComm/report/audit/AuditServiceTest.java` — atualizar todos os mocks de `callRepository.findByCircuitNumberAndPeriod` para incluir o 4º parâmetro `"OUTBOUND"`.
+
+   Alterar todas as ocorrências de:
+   ```java
+   when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR))
+   ```
+   Para:
+   ```java
+   when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR, "OUTBOUND"))
+   ```
+
+   Isso se aplica a todas as 9 ocorrências (linhas 114, 139, 167, 208, 231, 256, 276, 297, 322, 341 — verificar todas no arquivo).
+
+6. **Adicionar** teste em `CallHistoryServiceTest.java` que verifica que ligações INBOUND e OUTBOUND são retornadas quando `direction = null`.
+
+   Adicionar o seguinte teste após os testes existentes:
+   ```java
+   @Test
+   void getHistory_returnsInboundAndOutboundCalls() {
+       when(circuitRepository.findByNumber(CIRCUIT_NUMBER)).thenReturn(Optional.of(circuit));
+
+       Call inbound = buildCall("call-in", LocalDateTime.of(2026, 3, 1, 10, 0), 60,
+               CallType.FIXED_LOCAL, CallDirection.INBOUND);
+       Call outbound = buildCall("call-out", LocalDateTime.of(2026, 3, 2, 11, 0), 90,
+               CallType.MOBILE_LOCAL, CallDirection.OUTBOUND);
+
+       when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR, null))
+               .thenReturn(List.of(inbound, outbound));
+
+       CallHistoryResultDTO result = callHistoryService.getHistory(CIRCUIT_NUMBER, MONTH, YEAR);
+
+       assertThat(result.lines()).hasSize(2);
+       assertThat(result.lines().get(0).direction()).isEqualTo(CallDirection.INBOUND);
+       assertThat(result.lines().get(0).directionLabel()).isEqualTo("Recebida");
+       assertThat(result.lines().get(1).direction()).isEqualTo(CallDirection.OUTBOUND);
+       assertThat(result.lines().get(1).directionLabel()).isEqualTo("Efetuada");
+   }
+   ```
+
+7. **Adicionar** teste em `AuditServiceTest.java` que verifica que o `AuditService` solicita apenas OUTBOUND.
+
+   Adicionar o seguinte teste após os testes existentes:
+   ```java
+   @Test
+   void simulate_requestsOnlyOutboundCalls() {
+       plan.setPackageType(PackageType.NONE);
+
+       Call c1 = buildCall("uid1", LocalDateTime.of(2026, 3, 1, 9, 0, 0), 60, CallType.FIXED_LOCAL);
+
+       when(circuitRepository.findByNumber(CIRCUIT_NUMBER)).thenReturn(Optional.of(circuit));
+       when(callRepository.findByCircuitNumberAndPeriod(CIRCUIT_NUMBER, MONTH, YEAR, "OUTBOUND"))
+               .thenReturn(List.of(c1));
+
+       AuditResultDTO result = auditService.simulate(CIRCUIT_NUMBER, MONTH, YEAR);
+
+       assertThat(result.lines()).hasSize(1);
+       assertThat(result.lines().get(0).uniqueId()).isEqualTo("uid1");
+   }
+   ```
+
+8. **Rodar `./mvnw test`** e garantir que a suíte passa (incluindo os novos testes).
+
+#### Testes a criar/atualizar
+- `CallHistoryServiceTest.java` — cenário: ligações INBOUND e OUTBOUND são retornadas juntas (`direction = null`)
+- `CallHistoryServiceTest.java` — cenário: todos os mocks existentes atualizados com 4º parâmetro `null`
+- `AuditServiceTest.java` — cenário: `AuditService` solicita apenas OUTBOUND via parâmetro `"OUTBOUND"`
+- `AuditServiceTest.java` — cenário: todos os mocks existentes atualizados com 4º parâmetro `"OUTBOUND"`
+
+#### Critérios de aceitação
+- [ ] `CallRepository.findByCircuitNumberAndPeriod` aceita parâmetro `direction` (nullable); com `null`, retorna todas as ligações; com `"OUTBOUND"`, retorna apenas efetuadas; com `"INBOUND"`, retorna apenas recebidas.
+- [ ] `CallHistoryService.getHistory()` e `generatePdf()` retornam ligações de ambas as direções (INBOUND + OUTBOUND).
+- [ ] `AuditService.simulate()` e `generatePdf()` retornam apenas ligações OUTBOUND.
+- [ ] Ligações INBOUND associadas ao circuito via DID aparecem no histórico (quando `d.number = ca.dst` na query).
+- [ ] Todos os testes novos passam e nenhum teste existente regrediu.
+- [ ] `./mvnw test` passa sem warnings de compilação.
+- [ ] Commit no padrão `fix(fix-106): corrige query de historico para trazer inbound`.
+- [ ] Entrada no `doc/CHANGELOG.md` seção `[Unreleased]` e descrição detalhada em `doc/release_notes/unreleased.md`.
+
+#### Riscos e observações
+- **Hibernate e parâmetro `null` em query nativa:** o Hibernate pode gerar `WHERE direction = null` em vez de `WHERE direction IS NULL` com parâmetros nativos. É necessário verificar que a cláusula `AND (:direction IS NULL OR ca.direction = :direction)` funciona corretamente com Spring Data JPA e PostgreSQL. Se não funcionar, a alternativa é criar dois métodos: `findByCircuitNumberAndPeriodAllDirections` e `findByCircuitNumberAndPeriodByDirection` — mas preferir a solução com parâmetro único por ser DRY. O Codificador deve rodar os testes e, se falhar, implementar a alternativa com dois métodos.
+- **Não alterar a lógica de classificação de direção em `CallProcessingService`:** esta task é estritamente sobre a query e seus consumidores. A melhoria da classificação INBOUND/OUTBOUND (que depende do Asterisk e do CDR) é um problema separado e **não** faz parte do escopo desta FIX.
+- **Não criar migration:** esta task não altera o schema do banco. A coluna `direction` já existe (migration `V11__add_direction_to_calls.sql`).
+- **O Codificador NÃO deve alterar** `CallProcessingService`, `OrphanCallReportService`, `CallHistoryLineDTO`, `CallHistoryResultDTO`, `AuditCallLineDTO`, ou templates Thymeleaf. Apenas o repositório e os dois serviços de relatório (e seus testes).

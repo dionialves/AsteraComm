@@ -37,7 +37,7 @@ public class CallHistoryService {
         Circuit circuit = circuitRepository.findByNumber(circuitNumber)
                 .orElseThrow(() -> new NotFoundException("Circuito não encontrado: " + circuitNumber));
 
-        List<Call> calls = callRepository.findByCircuitNumberAndPeriod(circuitNumber, month, year);
+        List<Call> calls = callRepository.findByCircuitNumberAndPeriod(circuitNumber, month, year, null);
 
         List<CallHistoryLineDTO> lines = calls.stream()
                 .map(this::toLineDTO)
