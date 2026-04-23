@@ -176,7 +176,7 @@
 .audit-row:last-child { border-bottom: none; }
 .orphan-row {
   display: grid;
-  grid-template-columns: minmax(0,1.5fr) 130px minmax(0,1fr) minmax(0,1.5fr) minmax(0,1fr) 100px;
+  grid-template-columns: 100px 130px 100px minmax(0,1.5fr) minmax(0,1fr) 100px 110px;
   gap: 4px;
   padding: 10px 16px;
   align-items: center;

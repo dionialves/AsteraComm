@@ -27,7 +27,7 @@ public class OrphanCallReportService {
         List<OrphanCallReportDTO> result = new ArrayList<>();
 
         for (Call call : orphans) {
-            Optional<CdrRecord> cdrOpt = cdrRepository.findByUniqueId(call.getUniqueId());
+            Optional<CdrRecord> cdrOpt = cdrRepository.findFirstByUniqueId(call.getUniqueId());
             String channel = cdrOpt.map(CdrRecord::getChannel).orElse(null);
             String dstChannel = cdrOpt.map(CdrRecord::getDstchannel).orElse(null);
             String circuitCode = null;

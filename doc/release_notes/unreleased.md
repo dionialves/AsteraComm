@@ -32,6 +32,23 @@
 **Arquivos alterados:**
 - `backend/src/test/java/com/dionialves/AsteraComm/circuit/CircuitServiceTest.java` — 2 testes corrigidos
 
+### FIX-101: Corrige NonUniqueResultException em CdrRepository.findByUniqueId
+
+**Problema:** `CdrRepository.findByUniqueId(String uniqueId)` retornava `Optional<CdrRecord>`, fazendo o Spring Data JPA usar internamente `getSingleResultOrNull()`. Na tabela `cdr` do Asterisk, o campo `uniqueid` **não é único** — cenários de retry, forwarding e retorno de ligação produzem múltiplos registros com o mesmo `uniqueid`. Quando há 2+ registros, o JPA lança `IncorrectResultSizeDataAccessException: Query did not return a unique result: 2 results were returned`, causando erro 500 no relatório de chamadas órfãs.
+
+**Solução:**
+- Criado novo método `findFirstByUniqueId(String uniqueId)` em `CdrRepository` que retorna `Optional<CdrRecord>`. O Spring Data JPA aplica `LIMIT 1` automaticamente via `findFirst...`, eliminando a exceção mesmo quando há múltiplos registros.
+- `OrphanCallReportService` usa `findFirstByUniqueId` — mesmo comportamento seguro do ponto de vista do relatório (qualquer CDR com o mesmo `uniqueid` serve).
+- Semanticamente correto: não fingimos que há um único quando pode haver vários; o método `findFirst` deixa isso explícito.
+
+**Arquivos alterados:**
+- `backend/src/main/java/com/dionialves/AsteraComm/cdr/CdrRepository.java` — novo método `findFirstByUniqueId`
+- `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` — chama `findFirstByUniqueId` em vez de `findByUniqueId`
+- `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` — 8 mocks atualizados para `findFirstByUniqueId`, 1 novo teste de duplicatas
+
+**Testes novos:**
+- `findOrphanCalls_handlesDuplicateCdrRecords_withoutError` — verifica que duplicatas não causam exceção
+
 ---
 
 ## Refactoring
@@ -136,29 +153,25 @@
 - `findOrphanCalls_returnsResolvable_whenChannelMatchesExistingCircuit`
 - `findOrphanCalls_returnsNotResolvable_whenCircuitMissing`
 - `findOrphanCalls_returnsNotResolvable_whenCdrMissing`
-- `findOrphanCalls_returnsNotResolvable_whenCdrMissing`
 - `countOrphanCallsCurrentMonth_returnsCountForCurrentMonth`
 
 ---
 
-### RF-099: Refatorar relatório de chamadas órfãs — card na index, loader e vinculação de circuitos
+### RF-100: Vincular circuito no processamento via channel e dstChannel
 
-**Problema:** O relatório de chamadas órfãs (1) não aparecia na página de índice de relatórios, (2) não dava feedback visual ao processar, e (3) permitia identificar chamadas resolvíveis mas não oferecia ação para vincular os circuitos.
+**Problema:** O `CallProcessingService` fazia a 2ª tentativa de vinculação via `dst → DID` (tabela de cadastro), que falhava quando o DID não estava cadastrado, gerando chamadas órfãs mesmo quando o `dstChannel` do CDR continha o código do circuito que atendeu a ligação.
 
 **Solução:**
-- Adicionado card "Chamadas Órfãs" na página `/reports/index` com ícone amarelo de atenção.
-- Botão "Processar" com estado de loading (disabled + spinner + texto "Processando...").
-- Botão "Vincular circuitos (N)" no canto superior direito do resultado, visível apenas quando há chamadas resolvíveis. Faz POST para `/reports/orphan-calls/link` com CSRF, estado de loading (disabled + spinner + texto "Vinculando...") e recarrega a tabela via HTMX após conclusão.
-- `OrphanCallReportService.linkOrphanCalls(month, year)` atualiza a FK `circuit_number` apenas das chamadas resolvíveis via `CallRepository.linkCircuitByUniqueId`.
-- Mensagem de sucesso verde com contagem de vínculos após a operação e mensagem informativa quando não há resolvíveis.
-- `OrphanCallReportController` com novo endpoint `POST /link` e atributo `resolvableCount` no model do `GET /table`.
+- Substituída a tentativa 2 (via `dst → DID → circuit`) por tentativa via `dstChannel` (campo do CDR preenchido pelo Asterisk com o endpoint que atendeu a ligação).
+- Direção determinada pela tentativa que resolveu: `channel` → OUTBOUND, `dstChannel` → INBOUND.
+- Removida a dependência de `DIDRepository` do `CallProcessingService`.
+- A lógica fica idêntica ao `OrphanCallReportService` (que já usava channel → dstChannel).
 
 **Arquivos alterados:**
-- `backend/src/main/resources/templates/pages/reports/index.html` — card Chamadas Órfãs
-- `backend/src/main/resources/templates/pages/reports/orphan-calls.html` — loader no Processar
-- `backend/src/main/resources/templates/pages/reports/orphan-calls-table.html` — botão Vincular + loader + mensagens
-- `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportController.java` — POST /link + resolvableCount
-- `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` — linkOrphanCalls + countResolvable
-- `backend/src/main/java/com/dionialves/AsteraComm/call/CallRepository.java` — linkCircuitByUniqueId
-- `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` — 3 novos cenários
-- `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportControllerTest.java` — novo arquivo com 2 cenários
+- `backend/src/main/java/com/dionialves/AsteraComm/call/CallProcessingService.java` — tentativa 2 via dstChannel, remoção de DIDRepository
+- `backend/src/test/java/com/dionialves/AsteraComm/call/CallProcessingServiceTest.java` — 4 testes removidos, 3 novos, 2 asserts adicionados
+
+**Testes novos:**
+- `process_shouldAssociateCircuitViaDstChannel_whenInboundCall` — vincula via dstChannel com direção INBOUND
+- `process_shouldLeaveCircuitNull_whenBothChannelsFail` — nenhuma tentativa resolve
+- `process_shouldLeaveCircuitNull_whenDstChannelIsEmpty` — dstChannel vazio não interfere

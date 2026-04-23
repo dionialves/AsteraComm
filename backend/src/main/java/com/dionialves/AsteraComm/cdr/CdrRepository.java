@@ -10,7 +10,7 @@ import java.util.Optional;
 public interface CdrRepository extends JpaRepository<CdrRecord, Long>,
         JpaSpecificationExecutor<CdrRecord> {
 
-    Optional<CdrRecord> findByUniqueId(String uniqueId);
+    Optional<CdrRecord> findFirstByUniqueId(String uniqueId);
 
     @Query("SELECT c FROM CdrRecord c WHERE c.uniqueId NOT IN (SELECT ca.uniqueId FROM Call ca)")
     List<CdrRecord> findUnprocessed();

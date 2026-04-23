@@ -33,6 +33,12 @@
 17. [RF-093 — Decompor serviços com múltiplas responsabilidades (`AuditService`, `CostPerCircuitService`)](#rf-093)
 18. [RF-096 — Normalizar número de DID no lookup inbound do processamento de ligações](#rf-096)
 19. [RF-097 — Reverter elementos desconexos da Auditoria (direção, filtro, totalizadores)](#rf-097)
+20. [RF-102 — Eliminar N+1 queries no OrphanCallReportService](#rf-102)
+21. [RF-103 — Relatório de chamadas órfãs: paginação, loader funcional e vinculação](#rf-103)
+22. [RF-100 — Vincular circuito no processamento via channel e dstChannel](#rf-100)
+
+### Bug Fixes (FIX)
+1. [FIX-101 — Corrigir NonUniqueResultException em CdrRepository.findByUniqueId](#fix-101)
 
 ---
 
@@ -920,5 +926,964 @@ Criar um novo endpoint `/reports/call-history` com serviço, controller e templa
 
 ---
 
+### RF-100 · Vincular circuito no processamento via channel e dstChannel
 
+- **Tipo:** Refactor
+- **Prioridade:** ALTA
+- **US relacionada:** —
+- **Sprint:** —
+- **Arquivos:**
+  - `backend/src/main/java/com/dionialves/AsteraComm/call/CallProcessingService.java` (editar)
+  - `backend/src/test/java/com/dionialves/AsteraComm/call/CallProcessingServiceTest.java` (editar)
+- **Dependências:** —
+
+#### Contexto / Problema
+
+O `CallProcessingService.process()` hoje faz 2 tentativas para vincular o circuito a uma chamada:
+
+1. **Via `channel`** — extrai o código com `ChannelParser.parse(cdr.getChannel())` e busca em `circuitRepository`. Funciona para ligações **outbound** (o `channel` contém `PJSIP/4933401714-xxx`).
+2. **Via `dst → DID`** — quando a tentativa 1 falha, busca `didRepository.findByNumber(cdr.getDst())` e, se encontrar um DID com circuito, usa `did.getCircuit()`. Funciona apenas quando o `dst` está cadastrado como DID.
+
+**O problema:** A tentativa 2 depende da tabela de DID estar completa e atualizada. Se o `dst` não estiver cadastrado como DID, a ligação fica órfã — mesmo que o `dstChannel` do CDR contenha claramente o circuito que atendeu a chamada (ex.: `PJSIP/4933401714-xxx`).
+
+**Forma do CDR no Asterisk:**
+
+| Cenário | `channel` (quem originou) | `dstChannel` (quem atendeu) |
+|---|---|---|
+| **Outbound** | `PJSIP/4933401714-xxx` (circuito) | `PJSIP/operadora-xxx` (tronco) |
+| **Inbound** | `PJSIP/operadora-xxx` (tronco) | `PJSIP/4933401714-xxx` (circuito) |
+
+Com essa tabela, a estratégia correta e suficiente é:
+- **Tentativa 1 = `channel`** → resolve outbound.
+- **Tentativa 2 = `dstChannel`** → resolve inbound.
+
+O `dstChannel` é a **fonte de verdade do Asterisk** para "quem atendeu a ligação". Não depende de cadastro, é preenchido automaticamente pelo PBX. O `OrphanCallReportService` já usa exatamente essa lógica (channel → dstChannel) — a diferença é que o faz offline, somente no relatório.
+
+Ao corrigir o `CallProcessingService`, a vinculação acontecerá automaticamente no processamento e o volume de chamadas órfãs será drasticamente reduzido.
+
+#### Abordagem escolhida
+
+Substituir a tentativa 2 (via `dst → DID → circuit`) por tentativa via `dstChannel` (usando o mesmo `ChannelParser`). A direção será determinada pela tentativa que resolveu:
+- Se vinculou via `channel` → `OUTBOUND`.
+- Se vinculou via `dstChannel` → `INBOUND`.
+- Se nenhuma vinculou → `OUTBOUND` (default) e circuit permanece `null`.
+
+Remover a dependência de `DIDRepository` do `CallProcessingService`, pois não será mais necessária.
+
+**Alternativa descartada:** Manter as 3 tentativas (channel, dst→DID, dstChannel). Motivo: a tentativa via DID é redundante — se o `dstChannel` contém o circuito, ele será encontrado diretamente; se o `dstChannel` está vazio (ligação não atendida, disposition != ANSWERED), o circuito não poderia ser vinculado de qualquer forma. O DID adiciona uma query extra e uma dependência de cadastro sem ganho real.
+
+#### Passo-a-passo de implementação
+
+1. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/CallProcessingService.java` — Substituir a tentativa 2 e a lógica de direção:
+
+   Código atual (linhas 41-55) a ser substituído:
+   ```java
+   String circuitCode = channelParser.parse(cdr.getChannel());
+   if (!circuitCode.isEmpty()) {
+       circuitRepository.findByNumber(circuitCode).ifPresent(call::setCircuit);
+   }
+   // Tentativa 2: association via dst -> DID (inbound)
+   // Direction: se dst casou com DID → INBOUND; caso contrário → OUTBOUND
+   CallDirection direction = CallDirection.OUTBOUND;
+   if (call.getCircuit() == null && cdr.getDst() != null && !cdr.getDst().isBlank()) {
+       var didOpt = didRepository.findByNumber(cdr.getDst()).filter(did -> did.getCircuit() != null);
+       if (didOpt.isPresent()) {
+           call.setCircuit(didOpt.get().getCircuit());
+           direction = CallDirection.INBOUND;
+       }
+   }
+   call.setDirection(direction);
+   ```
+
+   Novo código:
+   ```java
+   // Tentativa 1: via channel → outbound (quem originou a ligação)
+   String channelCode = channelParser.parse(cdr.getChannel());
+   CallDirection direction = CallDirection.OUTBOUND;
+   if (!channelCode.isEmpty()) {
+       circuitRepository.findByNumber(channelCode).ifPresent(call::setCircuit);
+   }
+   // Tentativa 2: via dstChannel → inbound (quem atendeu a ligação)
+   if (call.getCircuit() == null && cdr.getDstchannel() != null && !cdr.getDstchannel().isBlank()) {
+       String dstChannelCode = channelParser.parse(cdr.getDstchannel());
+       if (!dstChannelCode.isEmpty()) {
+           circuitRepository.findByNumber(dstChannelCode).ifPresent(c -> {
+               call.setCircuit(c);
+               direction = CallDirection.INBOUND;
+           });
+       }
+   }
+   call.setDirection(direction);
+   ```
+
+2. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/CallProcessingService.java` — Remover import e campo de `DIDRepository`:
+
+   - Remover linha 6: `import com.dionialves.AsteraComm.did.DIDRepository;`
+   - Remover linha 25: `private final DIDRepository didRepository;`
+
+3. **Editar** `backend/src/test/java/com/dionialves/AsteraComm/call/CallProcessingServiceTest.java` — Atualizar testes:
+
+   a. **Remover** o mock de `DIDRepository` (linhas 48-49):
+   ```java
+   @Mock
+   private DIDRepository didRepository;
+   ```
+
+   b. **Remover** teste `process_shouldAssociateCircuitViaDstDid_whenInboundCall` (linhas 166-190) — cenário agora coberto pelo novo teste via dstChannel.
+
+   c. **Remover** teste `process_shouldLeaveCircuitNull_whenDidNotFound` (linhas 192-209) — cenário substituído pelo novo teste de fallback.
+
+   d. **Remover** teste `process_setsDirectionInbound_whenDstIsDid` (linhas 211-235) — substituído pelo novo teste de direção via dstChannel.
+
+   e. **Remover** teste `process_setsDirectionOutbound_whenDstIsNotDid` (linhas 237-254) — o teste existente `process_shouldLeaveCircuitNull_whenChannelCodeNotFound` já cobre o caso de circuit not found; adicionar assert de direção nesse teste existente.
+
+   f. **Adicionar** novo teste — vinculação via dstChannel:
+   ```java
+   @Test
+   void process_shouldAssociateCircuitViaDstChannel_whenInboundCall() {
+       Circuit circuit = new Circuit();
+       circuit.setNumber("4933401714");
+
+       CdrRecord cdr = buildCdr("1000.30", "ANSWERED", "PJSIP/operadora-0001");
+       cdr.setDstchannel("PJSIP/4933401714-0001");
+
+       when(cdrRepository.findUnprocessed()).thenReturn(List.of(cdr));
+       when(callerIdParser.parse(any())).thenReturn("11933334444");
+       when(callTypeClassifier.classify(any())).thenReturn(CallType.FIXED_LOCAL);
+       when(channelParser.parse("PJSIP/operadora-0001")).thenReturn("operadora");
+       when(circuitRepository.findByNumber("operadora")).thenReturn(Optional.empty());
+       when(channelParser.parse("PJSIP/4933401714-0001")).thenReturn("4933401714");
+       when(circuitRepository.findByNumber("4933401714")).thenReturn(Optional.of(circuit));
+
+       callProcessingService.process();
+
+       ArgumentCaptor<Call> captor = ArgumentCaptor.forClass(Call.class);
+       verify(callRepository, times(2)).save(captor.capture());
+       assertThat(captor.getAllValues().get(0).getCircuit()).isEqualTo(circuit);
+       assertThat(captor.getAllValues().get(0).getDirection()).isEqualTo(CallDirection.INBOUND);
+   }
+   ```
+
+   g. **Adicionar** novo teste — dstChannel não resolve, circuit permanece null:
+   ```java
+   @Test
+   void process_shouldLeaveCircuitNull_whenBothChannelsFail() {
+       CdrRecord cdr = buildCdr("1000.31", "ANSWERED", "PJSIP/operadora-0001");
+       cdr.setDstchannel("PJSIP/unknown-0001");
+
+       when(cdrRepository.findUnprocessed()).thenReturn(List.of(cdr));
+       when(callerIdParser.parse(any())).thenReturn("11933334444");
+       when(callTypeClassifier.classify(any())).thenReturn(CallType.FIXED_LOCAL);
+       when(channelParser.parse("PJSIP/operadora-0001")).thenReturn("operadora");
+       when(circuitRepository.findByNumber("operadora")).thenReturn(Optional.empty());
+       when(channelParser.parse("PJSIP/unknown-0001")).thenReturn("unknown");
+       when(circuitRepository.findByNumber("unknown")).thenReturn(Optional.empty());
+
+       callProcessingService.process();
+
+       ArgumentCaptor<Call> captor = ArgumentCaptor.forClass(Call.class);
+       verify(callRepository, times(2)).save(captor.capture());
+       assertThat(captor.getAllValues().get(0).getCircuit()).isNull();
+       assertThat(captor.getAllValues().get(0).getDirection()).isEqualTo(CallDirection.OUTBOUND);
+   }
+   ```
+
+   h. **Adicionar** novo teste — dstChannel vazio/nulo:
+   ```java
+   @Test
+   void process_shouldLeaveCircuitNull_whenDstChannelIsEmpty() {
+       CdrRecord cdr = buildCdr("1000.32", "ANSWERED", "PJSIP/operadora-0001");
+       cdr.setDstchannel("");
+
+       when(cdrRepository.findUnprocessed()).thenReturn(List.of(cdr));
+       when(callerIdParser.parse(any())).thenReturn("11933334444");
+       when(callTypeClassifier.classify(any())).thenReturn(CallType.FIXED_LOCAL);
+       when(channelParser.parse("PJSIP/operadora-0001")).thenReturn("operadora");
+       when(circuitRepository.findByNumber("operadora")).thenReturn(Optional.empty());
+
+       callProcessingService.process();
+
+       ArgumentCaptor<Call> captor = ArgumentCaptor.forClass(Call.class);
+       verify(callRepository, times(2)).save(captor.capture());
+       assertThat(captor.getAllValues().get(0).getCircuit()).isNull();
+   }
+   ```
+
+   i. **Adicionar** assert de direção no teste existente `process_shouldAssociateCircuit_whenChannelMatchesExistingCircuit` (após o assert de circuit na linha 106):
+   ```java
+   assertThat(captor.getAllValues().get(0).getDirection()).isEqualTo(CallDirection.OUTBOUND);
+   ```
+
+   j. **Adicionar** assert de direção no teste existente `process_shouldLeaveCircuitNull_whenChannelCodeNotFound` (após o assert de circuit null na linha 122):
+   ```java
+   assertThat(captor.getAllValues().get(0).getDirection()).isEqualTo(CallDirection.OUTBOUND);
+   ```
+
+4. **Atualizar** o helper `buildCdr` no teste — adicionar `cdr.setDstchannel("");` como valor default após a linha 62, garantindo que todos os testes existentes que usam helper sem dstChannel não tenham o campo nulo.
+
+5. **Rodar `./mvnw test`** e garantir que a suíte passa (incluindo os novos testes).
+
+#### Testes a criar/atualizar
+- `CallProcessingServiceTest` — **remover** 4 testes: `process_shouldAssociateCircuitViaDstDid_whenInboundCall`, `process_shouldLeaveCircuitNull_whenDidNotFound`, `process_setsDirectionInbound_whenDstIsDid`, `process_setsDirectionOutbound_whenDstIsNotDid`.
+- `CallProcessingServiceTest` — **adicionar** 3 testes: `process_shouldAssociateCircuitViaDstChannel_whenInboundCall`, `process_shouldLeaveCircuitNull_whenBothChannelsFail`, `process_shouldLeaveCircuitNull_whenDstChannelIsEmpty`.
+- `CallProcessingServiceTest` — **adicionar** assert de direção em 2 testes existentes: `process_shouldAssociateCircuit_whenChannelMatchesExistingCircuit` (OUTBOUND) e `process_shouldLeaveCircuitNull_whenChannelCodeNotFound` (OUTBOUND).
+- `CallProcessingServiceTest` — **atualizar** helper `buildCdr` para setar `cdr.setDstchannel("")` como default.
+
+#### Critérios de aceitação
+- [ ] `CallProcessingService` não possui mais dependência de `DIDRepository` (import e campo removidos).
+- [ ] Tentativa 1 usa `channel` para vincular circuito (comportamento inalterado para outbound).
+- [ ] Tentativa 2 usa `dstChannel` para vincular circuito (novo comportamento para inbound).
+- [ ] Direção é `OUTBOUND` quando o circuito é vinculado via `channel`.
+- [ ] Direção é `INBOUND` quando o circuito é vinculado via `dstChannel`.
+- [ ] Direção é `OUTBOUND` (default) quando nenhuma tentativa vincula o circuito.
+- [ ] Chamadas inbound cujo `dstChannel` contém o código do circuito são automaticamente vinculadas — sem depender da tabela de DID.
+- [ ] O `CallCostingService.applyCosting()` não é alterado — a lógica de `OUT_OF_SCOPE` para inbound com circuito vinculado continua correta.
+- [ ] Todos os testes novos passam e nenhum teste existente regrediu.
+- [ ] `./mvnw test` passa sem warnings de compilação.
+- [ ] Commit no padrão `refactor(rf-100): vincula circuito via channel e dstchannel no processamento`.
+- [ ] Entrada no `doc/changelog.md` seção `[Unreleased]` e descrição detalhada em `doc/release_notes/unreleased.md`.
+- [ ] Remoção da task do `doc/backlog.md` após conclusão.
+
+#### Riscos e observações
+- **`dstChannel` vazio em CDRs não atendidos:** quando a ligação não é atendida (`NO ANSWER`, `BUSY`, `FAILED`), o Asterisk pode deixar o `dstChannel` vazio ou incompleto. Nesses casos, a tentativa 2 não resolve e a chamada fica órfã — igual ao comportamento atual. Não é regressão.
+- **`dstChannel` preenchido também em outbound:** no CDR de uma ligação outbound, o `dstChannel` contém o nome do tronco (ex.: `PJSIP/operadora-xxx`). O `ChannelParser` extrairá `operadora`, e `circuitRepository.findByNumber("operadora")` retornará `empty` (pois troncos não são circuitos). Logo, a tentativa 2 não interfere no custeio outbound.
+- **`OrphanCallReportService` NÃO deve ser alterado nesta task** — ele já usa a lógica correta (channel → dstChannel). Apenas o `CallProcessingService` precisa ser alinhado.
+- **O Codificador NÃO deve alterar o `CallCostingService`** — a distinção OUTBOUND vs INBOUND para custeio permanece via `dcontext` + `EndpointRepository`, que já funciona corretamente.
+- **O Codificador NÃO deve criar migration Flyway** — nenhuma alteração de schema é necessária.
+- **Impacto na RF-103:** com esta correção, o volume de chamadas órfãs será drasticamente menor. O botão "Vincular circuitos" (RF-103) continuará útil para chamadas históricas e cenários excepcionais.
+
+---
+
+### FIX-101 · Corrigir NonUniqueResultException em CdrRepository.findByUniqueId
+
+- **Tipo:** Bug Fix
+- **Prioridade:** ALTA
+- **US relacionada:** —
+- **Sprint:** —
+- **Arquivos:**
+  - `backend/src/main/java/com/dionialves/AsteraComm/cdr/CdrRepository.java` (editar)
+  - `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` (editar)
+- **Dependências:** —
+
+#### Contexto / Problema
+
+O `CdrRepository.findByUniqueId(String uniqueId)` retorna `Optional<CdrRecord>`, o que faz o Spring Data JPA internamente usar `getSingleResultOrNull()`. Na tabela `cdr` do Asterisk, o campo `uniqueid` **não é único** — cenários de retry, forwarding e retorno de ligação produzem múltiplos registros com o mesmo `uniqueid`. Quando há 2+ registros, o JPA lança `IncorrectResultSizeDataAccessException: Query did not return a unique result: 2 results were returned`, causando erro 500 no relatório de chamadas órfãs e em qualquer outro fluxo que chame `findByUniqueId`.
+
+Comportamento observado × esperado:
+- **Observado:** `GET /reports/orphan-calls/table` retorna HTTP 500 quando encontra um `uniqueId` duplicado na tabela `cdr`.
+- **Esperado:** O relatório deve funcionar normalmente mesmo com CDRs duplicados, usando o primeiro registro encontrado.
+
+#### Abordagem escolhida
+
+Alterar `Optional<CdrRecord> findByUniqueId(String uniqueId)` para `List<CdrRecord> findByUniqueId(String uniqueId)`. No `OrphanCallReportService`, em vez de `cdrRepository.findByUniqueId(call.getUniqueId())` (que espera `Optional`), usar o primeiro elemento da lista (`findFirst()`), ou `Optional.empty()` se a lista for vazia. Isso é seguro porque, para o propósito do relatório, qualquer CDR com o mesmo `uniqueId` contém o `channel` e `dstchannel` relevantes.
+
+**Alternativa descartada:** `@Query("SELECT c FROM CdrRecord c WHERE c.uniqueId = :uid ORDER BY c.calldate DESC") Optional<CdrRecord> findFirstByUniqueId(...)`. Motivo: o Spring Data JPA não suporta `LIMIT` em JPQL sem `Pageable`. Adicionar `Pageable` para uma query de lookup simples é excesso. A abordagem `List + getFirst()` é idiomática e não requer mudança na entidade nem no esquema.
+
+#### Passo-a-passo de implementação
+
+1. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/cdr/CdrRepository.java` — alterar o retorno de `findByUniqueId` de `Optional<CdrRecord>` para `List<CdrRecord>`:
+   ```java
+   List<CdrRecord> findByUniqueId(String uniqueId);
+   ```
+
+2. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` — linha 30, substituir:
+   ```java
+   Optional<CdrRecord> cdrOpt = cdrRepository.findByUniqueId(call.getUniqueId());
+   ```
+   por:
+   ```java
+   List<CdrRecord> cdrList = cdrRepository.findByUniqueId(call.getUniqueId());
+   Optional<CdrRecord> cdrOpt = cdrList.isEmpty() ? Optional.empty() : Optional.of(cdrList.get(0));
+   ```
+
+   Adicionar `import java.util.List;` se ainda não presente (já existe no arquivo).
+
+3. **Editar** `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` — atualizar todos os mocks de `cdrRepository.findByUniqueId` para retornar `List` em vez de `Optional`:
+   - Linha 69: `when(cdrRepository.findByUniqueId("unique-001")).thenReturn(Optional.of(cdr));` → `when(cdrRepository.findByUniqueId("unique-001")).thenReturn(List.of(cdr));`
+   - Linha 92: `when(cdrRepository.findByUniqueId("unique-002")).thenReturn(Optional.of(cdr));` → `when(cdrRepository.findByUniqueId("unique-002")).thenReturn(List.of(cdr));`
+   - Linha 111: `when(cdrRepository.findByUniqueId("unique-003")).thenReturn(Optional.empty());` → `when(cdrRepository.findByUniqueId("unique-003")).thenReturn(List.of());`
+   - Linha 156: `when(cdrRepository.findByUniqueId("uid-001")).thenReturn(Optional.of(cdr1));` → `when(cdrRepository.findByUniqueId("uid-001")).thenReturn(List.of(cdr1));`
+   - Linha 157: `when(cdrRepository.findByUniqueId("uid-002")).thenReturn(Optional.of(cdr2));` → `when(cdrRepository.findByUniqueId("uid-002")).thenReturn(List.of(cdr2));`
+   - Linha 181: `when(cdrRepository.findByUniqueId("uid-001")).thenReturn(Optional.of(cdr));` → `when(cdrRepository.findByUniqueId("uid-001")).thenReturn(List.of(cdr));`
+   - Linha 215: `when(cdrRepository.findByUniqueId("uid-001")).thenReturn(Optional.of(cdr1));` → `when(cdrRepository.findByUniqueId("uid-001")).thenReturn(List.of(cdr1));`
+   - Linha 216: `when(cdrRepository.findByUniqueId("uid-002")).thenReturn(Optional.of(cdr2));` → `when(cdrRepository.findByUniqueId("uid-002")).thenReturn(List.of(cdr2));`
+
+4. **Adicionar** novo teste em `OrphanCallReportServiceTest` — cenário de CDR duplicado:
+   ```java
+   @Test
+   void findOrphanCalls_handlesDuplicateCdrRecords_withoutError() {
+       Call orphan = new Call();
+       orphan.setId(4L);
+       orphan.setUniqueId("unique-dup");
+       orphan.setCallDate(LocalDateTime.of(2026, 3, 13, 10, 0));
+       orphan.setDst("4934000000");
+
+       CdrRecord cdr1 = new CdrRecord();
+       cdr1.setUniqueId("unique-dup");
+       cdr1.setChannel("PJSIP/123456-000045f0");
+
+       CdrRecord cdr2 = new CdrRecord();
+       cdr2.setUniqueId("unique-dup");
+       cdr2.setChannel("PJSIP/123456-00004600");
+
+       Circuit circuit = new Circuit();
+       circuit.setNumber("123456");
+
+       when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(List.of(orphan));
+       when(cdrRepository.findByUniqueId("unique-dup")).thenReturn(List.of(cdr1, cdr2));
+       when(circuitRepository.findByNumber("123456")).thenReturn(Optional.of(circuit));
+
+       List<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026);
+
+       assertThat(result).hasSize(1);
+       assertThat(result.get(0).resolvable()).isTrue();
+       assertThat(result.get(0).channel()).isEqualTo("PJSIP/123456-000045f0");
+   }
+   ```
+
+5. **Rodar `./mvnw test`** e garantir que a suíte passa (incluindo os testes novos e atualizados).
+
+#### Testes a criar/atualizar
+- `OrphanCallReportServiceTest` — atualizar 8 mocks de `findByUniqueId` de `Optional` para `List`.
+- `OrphanCallReportServiceTest` — adicionar teste `findOrphanCalls_handlesDuplicateCdrRecords_withoutError`.
+
+#### Critérios de aceitação
+- [ ] `CdrRepository.findByUniqueId` retorna `List<CdrRecord>` em vez de `Optional<CdrRecord>`.
+- [ ] `OrphanCallReportService.findOrphanCalls` funciona sem exceção quando a tabela `cdr` contém múltiplos registros com o mesmo `uniqueid`.
+- [ ] Quando há CDRs duplicados, o service usa o primeiro registro da lista.
+- [ ] Quando não há CDR para o `uniqueId`, o service trata como `Optional.empty()` e a chamada aparece como "Não resolvível".
+- [ ] Todos os testes novos passam e nenhum teste existente regrediu.
+- [ ] `./mvnw test` passa.
+- [ ] Commit no padrão `fix(fix-101): corrige nonuniqueresultexception em cdrrepository`.
+- [ ] Entrada no `doc/changelog.md` seção `[Unreleased]` e descrição detalhada em `doc/release_notes/unreleased.md`.
+- [ ] Remoção da task do `doc/backlog.md` após conclusão.
+
+#### Riscos e observações
+- **Outros consumidores de `CdrRepository.findByUniqueId`:** atualmente, apenas `OrphanCallReportService` chama `cdrRepository.findByUniqueId`. A mudança de `Optional` para `List` afeta apenas este ponto. O `CallRepository.findByUniqueId` (da entidade `Call`) não é afetado — é outra interface, outro domínio.
+- **O Codificador NÃO deve criar migration Flyway** — não há alteração de esquema.
+- **O Codificador NÃO deve alterar a entidade `CdrRecord`** — a anotação `@Immutable` é mantida.
+
+---
+
+### RF-102 · Eliminar N+1 queries no OrphanCallReportService
+
+- **Tipo:** Refactor
+- **Prioridade:** ALTA
+- **US relacionada:** —
+- **Sprint:** —
+- **Arquivos:**
+  - `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` (editar)
+  - `backend/src/main/java/com/dionialves/AsteraComm/cdr/CdrRepository.java` (editar)
+  - `backend/src/main/java/com/dionialves/AsteraComm/circuit/CircuitRepository.java` (editar)
+  - `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` (editar)
+- **Dependências:** FIX-101 (precisa estar concluída para que `findByUniqueId` já retorne `List`)
+
+#### Contexto / Problema
+
+O `OrphanCallReportService.findOrphanCalls(int month, int year)` faz, para cada chamada órfã, **2 a 3 queries individuais**:
+
+1. `cdrRepository.findByUniqueId(call.getUniqueId())` — 1 query por chamada.
+2. `circuitRepository.findByNumber(circuitCode)` — 1 query por tentativa de canal (channel e dstChannel = até 2 queries).
+
+Com 12 chamadas órfãs, são ~24 queries de `Circuit` + ~12 queries de `CdrRecord`, totalizando **23,5 segundos**. Com 10.000 chamadas órfãs (cenário real em meses de alto volume), o relatório é completamente inutilizável — o tempo de resposta escala linearmente e ultrapassa qualquer timeout razoável.
+
+O padrão N+1 viola o princípio de que queries ao banco devem ser O(1) em relação ao tamanho do conjunto de dados.
+
+#### Abordagem escolhida
+
+Substituir as N queries individuais por **3 queries em lote (batch)**:
+
+1. Buscar todos os `uniqueId` das chamadas órfãs e consultar os CDRs em uma única query `IN`: `cdrRepository.findByUniqueIdIn(List<String>)`.
+2. Buscar todos os circuit codes (extraídos dos CDRs via `ChannelParser`) e consultar os circuitos em uma única query `IN`: `circuitRepository.findByNumberIn(List<String>)`.
+3. Montar `Map<String, CdrRecord>` e `Map<String, Circuit>` em memória, e iterar as chamadas órfãs usando os Maps para lookup O(1).
+
+Isso reduz o total de queries de **3N** para **3** (orphans + CDRs + circuits), independentemente do volume de dados.
+
+**Alternativa descartada:** `@EntityGraph` / `JOIN FETCH` na query `findOrphanCallsByPeriod`. Motivo: a entidade `Call` não tem relacionamento JPA com `CdrRecord`, e o `ChannelParser` precisa do valor bruto de `channel`/`dstchannel` para extrair o código — não é possível resolver com JOIN.
+
+#### Passo-a-passo de implementação
+
+1. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/cdr/CdrRepository.java` — adicionar método de busca em lote:
+   ```java
+   List<CdrRecord> findByUniqueIdIn(List<String> uniqueIds);
+   ```
+
+2. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/circuit/CircuitRepository.java` — adicionar método de busca em lote:
+   ```java
+   List<Circuit> findByNumberIn(List<String> numbers);
+   ```
+
+3. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` — reescrever `findOrphanCalls` para eliminar o N+1. O método inteiro (linhas 25-66) deve ser substituído por:
+   ```java
+   public List<OrphanCallReportDTO> findOrphanCalls(int month, int year) {
+       List<Call> orphans = callRepository.findOrphanCallsByPeriod(month, year);
+       if (orphans.isEmpty()) {
+           return List.of();
+       }
+
+       // Batch 1: buscar todos os CDRs dos uniqueIds em uma query
+       List<String> uniqueIds = orphans.stream().map(Call::getUniqueId).distinct().toList();
+       Map<String, CdrRecord> cdrByUniqueId = cdrRepository.findByUniqueIdIn(uniqueIds)
+               .stream()
+               .collect(Collectors.toMap(
+                       CdrRecord::getUniqueId,
+                       cdr -> cdr,
+                       (first, second) -> first  // em caso de duplicata, usar o primeiro
+               ));
+
+       // Batch 2: coletar todos os circuit codes possíveis e buscar circuitos em uma query
+       Set<String> allCircuitCodes = new HashSet<>();
+       for (Call call : orphans) {
+           CdrRecord cdr = cdrByUniqueId.get(call.getUniqueId());
+           if (cdr != null) {
+               String ch = cdr.getChannel();
+               String dstCh = cdr.getDstchannel();
+               if (ch != null && !ch.isBlank()) allCircuitCodes.add(channelParser.parse(ch));
+               if (dstCh != null && !dstCh.isBlank()) allCircuitCodes.add(channelParser.parse(dstCh));
+           }
+       }
+       allCircuitCodes.removeIf(String::isBlank);
+
+       Map<String, Circuit> circuitByNumber = circuitRepository.findByNumberIn(List.copyOf(allCircuitCodes))
+               .stream()
+               .collect(Collectors.toMap(Circuit::getNumber, c -> c, (first, second) -> first));
+
+       // Montar resultado usando os Maps (lookups O(1) por chamada)
+       List<OrphanCallReportDTO> result = new ArrayList<>();
+       for (Call call : orphans) {
+           CdrRecord cdr = cdrByUniqueId.get(call.getUniqueId());
+           String channel = (cdr != null) ? cdr.getChannel() : null;
+           String dstChannel = (cdr != null) ? cdr.getDstchannel() : null;
+           String circuitCode = null;
+           boolean resolvable = false;
+
+           if (channel != null && !channel.isBlank()) {
+               circuitCode = channelParser.parse(channel);
+               if (circuitCode != null && !circuitCode.isBlank() && circuitByNumber.containsKey(circuitCode)) {
+                   resolvable = true;
+               }
+           }
+
+           if (!resolvable && dstChannel != null && !dstChannel.isBlank()) {
+               circuitCode = channelParser.parse(dstChannel);
+               if (circuitCode != null && !circuitCode.isBlank() && circuitByNumber.containsKey(circuitCode)) {
+                   resolvable = true;
+               }
+           }
+
+           result.add(new OrphanCallReportDTO(
+                   call.getId(), call.getUniqueId(), call.getCallDate(), call.getDst(),
+                   channel, dstChannel, circuitCode, resolvable
+           ));
+       }
+       return result;
+   }
+   ```
+
+   Adicionar os imports necessários (se ainda não presentes):
+   ```java
+   import java.util.HashSet;
+   import java.util.Set;
+   import java.util.stream.Collectors;
+   ```
+
+4. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` — remover o campo `cdrRepository` da injeção de construtor, se a referencia direta a `findByUniqueId` não for mais usada em nenhum outro método. Verificar: o método `findOrphanCalls` era o único que usava `cdrRepository.findByUniqueId`. Os imports de `CdrRecord` e `CdrRepository` permanecem pois `findByUniqueIdIn` retorna `CdrRecord`.
+
+5. **Editar** `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` — atualizar todos os testes para usar mocks de `findByUniqueIdIn` (em vez de `findByUniqueId`) e `findByNumberIn` (em vez de `findByNumber`):
+
+   a. Teste `findOrphanCalls_returnsEmpty_whenNoOrphansForPeriod` — sem mudança nos mocks de CDR/Circuit (não há orphans).
+
+   b. Teste `findOrphanCalls_returnsResolvable_whenChannelMatchesExistingCircuit`:
+   ```java
+   when(cdrRepository.findByUniqueIdIn(List.of("unique-001"))).thenReturn(List.of(cdr));
+   when(circuitRepository.findByNumberIn(List.of("123456"))).thenReturn(List.of(circuit));
+   ```
+
+   c. Teste `findOrphanCalls_returnsNotResolvable_whenCircuitMissing`:
+   ```java
+   when(cdrRepository.findByUniqueIdIn(List.of("unique-002"))).thenReturn(List.of(cdr));
+   when(circuitRepository.findByNumberIn(List.of("999999"))).thenReturn(List.of());
+   ```
+
+   d. Teste `findOrphanCalls_returnsNotResolvable_whenCdrMissing`:
+   ```java
+   when(cdrRepository.findByUniqueIdIn(List.of("unique-003"))).thenReturn(List.of());
+   when(circuitRepository.findByNumberIn(List.of())).thenReturn(List.of());
+   ```
+
+   e. Teste `linkOrphanCalls_linksResolvableAndSkipsNonResolvable`:
+   ```java
+   when(cdrRepository.findByUniqueIdIn(List.of("uid-001", "uid-002"))).thenReturn(List.of(cdr1, cdr2));
+   when(circuitRepository.findByNumberIn(List.of("123456", "999999"))).thenReturn(List.of(circuit));
+   // Nota: "999999" não está presente no list retornado, simulando circuit not found
+   ```
+   Na verdade, para o retorno correto, `findByNumberIn` deve retornar apenas circuitos existentes. Para simular que "999999" não existe, o mock retorna apenas `List.of(circuit)` (onde `circuit.getNumber()` = "123456"):
+   ```java
+   when(cdrRepository.findByUniqueIdIn(List.of("uid-001", "uid-002"))).thenReturn(List.of(cdr1, cdr2));
+   when(circuitRepository.findByNumberIn(List.of("123456", "999999"))).thenReturn(List.of(circuit));
+   ```
+
+   f. Teste `linkOrphanCalls_returnsZero_whenNoResolvable`:
+   ```java
+   when(cdrRepository.findByUniqueIdIn(List.of("uid-001"))).thenReturn(List.of(cdr));
+   when(circuitRepository.findByNumberIn(List.of("999999"))).thenReturn(List.of());
+   ```
+
+   g. Teste `countResolvable_returnsCorrectCount`:
+   ```java
+   when(cdrRepository.findByUniqueIdIn(List.of("uid-001", "uid-002"))).thenReturn(List.of(cdr1, cdr2));
+   when(circuitRepository.findByNumberIn(List.of("123456", "999999"))).thenReturn(List.of(circuit));
+   ```
+
+   h. Teste `findOrphanCalls_handlesDuplicateCdrRecords_withoutError` (criado na FIX-101):
+   ```java
+   when(cdrRepository.findByUniqueIdIn(List.of("unique-dup"))).thenReturn(List.of(cdr1, cdr2));
+   when(circuitRepository.findByNumberIn(List.of("123456"))).thenReturn(List.of(circuit));
+   ```
+
+6. **Rodar `./mvnw test`** e garantir que a suíte passa.
+
+#### Testes a criar/atualizar
+- `OrphanCallReportServiceTest` — atualizar todos os testes existentes para usar `findByUniqueIdIn` e `findByNumberIn` em vez de `findByUniqueId` e `findByNumber`.
+- `OrphanCallReportServiceTest` — adicionar teste de volume: `findOrphanCalls_usesBatchQueries_evenWithLargeOrphanSet` que verifica que `cdrRepository.findByUniqueIdIn` é chamado exatamente 1 vez e `circuitRepository.findByNumberIn` é chamado exatamente 1 vez, independente do número de orphans:
+  ```java
+  @Test
+  void findOrphanCalls_usesBatchQueries_evenWithLargeOrphanSet() {
+      List<Call> orphans = new ArrayList<>();
+      for (int i = 1; i <= 100; i++) {
+          Call orphan = new Call();
+          orphan.setId((long) i);
+          orphan.setUniqueId("uid-" + i);
+          orphan.setCallDate(LocalDateTime.of(2026, 3, 1, i % 24, 0));
+          orphan.setDst("493400" + String.format("%04d", i));
+          orphans.add(orphan);
+      }
+      CdrRecord cdr = new CdrRecord();
+      cdr.setUniqueId("uid-1");
+      cdr.setChannel("PJSIP/123456-000045f0");
+      Circuit circuit = new Circuit();
+      circuit.setNumber("123456");
+
+      when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(orphans);
+      when(cdrRepository.findByUniqueIdIn(anyList())).thenReturn(List.of(cdr));
+      when(circuitRepository.findByNumberIn(anyList())).thenReturn(List.of(circuit));
+
+      List<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026);
+
+      verify(cdrRepository, times(1)).findByUniqueIdIn(anyList());
+      verify(circuitRepository, times(1)).findByNumberIn(anyList());
+      assertThat(result).hasSize(100);
+  }
+  ```
+
+#### Critérios de aceitação
+- [ ] `findOrphanCalls` executa exatamente 3 queries ao banco, independentemente do número de chamadas órfãs (1 × orphans + 1 × CDRs + 1 × circuits).
+- [ ] `cdrRepository.findByUniqueId` não é mais chamado individualmente em `OrphanCallReportService`.
+- [ ] `circuitRepository.findByNumber` não é mais chamado individualmente em `OrphanCallReportService`.
+- [ ] Novos métodos `findByUniqueIdIn` e `findByNumberIn` existem nos respectivos repositories.
+- [ ] Resultado do relatório é idêntico ao anterior para os mesmos dados (sem mudança de comportamento funcional).
+- [ ] Teste de volume confirma que queries batch são chamadas apenas 1 vez para 100 orphans.
+- [ ] Todos os testes novos passam e nenhum teste existente regrediu.
+- [ ] `./mvnw test` passa.
+- [ ] Commit no padrão `refactor(rf-102): elimina n1-queries no orphan-call-report-service`.
+- [ ] Entrada no `doc/changelog.md` seção `[Unreleased]` e descrição detalhada em `doc/release_notes/unreleased.md`.
+- [ ] Remoção da task do `doc/backlog.md` após conclusão.
+
+#### Riscos e observações
+- **Duplicata de `uniqueId` em CDRs:** o `Collectors.toMap` com merge function `(first, second) -> first` garante que CDRs duplicados não causam exceção — escolhe o primeiro (que coincide com o comportamento da FIX-101).
+- **Circuit codes extraídos incluem nomes de tronco:** o `ChannelParser` pode extrair `operadora` de `PJSIP/operadora-xxx` (canais de tronco). Esses códigos serão incluídos no `allCircuitCodes` e passados para `findByNumberIn`, mas não causarão match (pois `operadora` não é número de circuito) — apenas um código a mais no `IN`, sem impacto funcional.
+- **O Codificador NÃO deve criar migration Flyway** — nenhuma alteração de esquema.
+- **O Codificador NÃO deve alterar templates** — esta é uma refatoração de backend apenas.
+- **`countResolvable` e `linkOrphanCalls`** chamam `findOrphanCalls` internamente, portanto também se beneficiam da eliminação do N+1 automaticamente.
+
+---
+
+### RF-103 · Relatório de chamadas órfãs: paginação, loader funcional e vinculação
+
+- **Tipo:** Refactor
+- **Prioridade:** ALTA
+- **US relacionada:** —
+- **Sprint:** —
+- **Arquivos:**
+  - `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` (editar)
+  - `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportController.java` (editar)
+  - `backend/src/main/java/com/dionialves/AsteraComm/call/CallRepository.java` (editar)
+  - `backend/src/main/resources/templates/pages/reports/orphan-calls.html` (editar)
+  - `backend/src/main/resources/templates/pages/reports/orphan-calls-table.html` (editar)
+  - `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` (editar)
+  - `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportControllerTest.java` (editar)
+  - `doc/CHANGELOG.md` (editar — remover RF-099 do `[Unreleased]`)
+- **Dependências:** FIX-101 (NonUniqueResultException), RF-102 (N+1 queries)
+
+#### Contexto / Problema
+
+A RF-099 foi implementada fielmente ao plano original, mas o veredito do Revisor foi **BLOQUEADO** devido a três problemas críticos que impedem o uso do relatório em dados reais:
+
+1. **Bug A — NonUniqueResultException (coberto pela FIX-101).** O `findByUniqueId` falha com CDRs duplicados.
+2. **Bug B — N+1 massivo (coberto pela RF-102).** 23,5s para 12 chamadas; inutilizável com 10k+ registros.
+3. **Sem paginação (novo).** Meses com 10.000+ chamadas órfãs geram uma resposta HTML monolítica que o navegador demora para renderizar. O endpoint `findOrphanCallsByPeriod` devolve `List<Call>` sem limitação — todos os registros do mês são carregados na memória e enviados ao cliente em uma única resposta HTML.
+4. **Loader dos botões não funciona (novo).** Os scripts de `htmx:beforeRequest`/`htmx:afterRequest` estão dentro de blocos `<script>` que rodam apenas no `htmx:afterSwap`, mas os event listeners são registrados **depois** que o botão já existe no DOM. O problema: o listener de `beforeRequest` só é adicionado após o primeiro `afterSwap`, o que significa que **a primeira requisição nunca ativa o loader**. Para o botão "Vincular", o script está no fragmento da tabela que é re-renderizado a cada swap — os listeners se perdem porque o botão é destruído e recriado, mas os listeners só são reanexados no próximo `afterSwap`.
+
+Esta task é o **replanejamento da RF-099** — absorve as funcionalidades originais (card na index, loader, vinculação de circuitos) e corrige os problemas de paginação e loader.
+
+#### Abordagem escolhida
+
+1. **Paginação no backend:** `CallRepository.findOrphanCallsByPeriod` passa a aceitar `Pageable` e retornar `Page<Call>`. O controller recebe `page` e `size` como parâmetros, com default de 50 registros por página. O template usa o fragmento `fragments/pagination :: pagination` (já existente no projeto) para navegação entre páginas.
+
+2. **Loader via `htmx-indicator` (padrão nativo HTMX):** em vez de scripts `addEventListener` frágeis, usar a diretiva nativa `hx-indicator` do HTMX. Adicionar `hx-indicator="#spinner-process"` no botão "Processar" e `hx-indicator="#spinner-link"` no botão "Vincular". Os spinners recebem a classe `htmx-indicator` (que por padrão é `display:none` e fica visível durante a requisição). Isso elimina completamente os scripts `beforeRequest`/`afterRequest` e garante que o loader funcione na primeira requisição e após re-renderizações do fragmento.
+
+3. **Mantidos da RF-099:** card "Chamadas Órfãs" na `index.html`, botão "Vincular circuitos (N)" no fragmento, `linkOrphanCalls` no service, feedback de sucesso/sem-resolvíveis no template, CSRF no form POST.
+
+**Alternativa descartada para loader:** corrigir os `addEventListener` para usar `document.addEventListener('htmx:beforeRequest', ...)` com delegation. Motivo: mais complexo, propenso a leaks, e não resolve o caso da primeira requisição. O `hx-indicator` é a solução canônica do HTMX.
+
+#### Passo-a-passo de implementação
+
+1. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/CallRepository.java` — alterar `findOrphanCallsByPeriod` para aceitar `Pageable`:
+   ```java
+   @Query(value = """
+       SELECT * FROM asteracomm_calls
+       WHERE circuit_number IS NULL
+       AND EXTRACT(MONTH FROM call_date) = :month
+       AND EXTRACT(YEAR  FROM call_date) = :year
+       ORDER BY call_date DESC
+       """,
+       countQuery = """
+       SELECT COUNT(*) FROM asteracomm_calls
+       WHERE circuit_number IS NULL
+       AND EXTRACT(MONTH FROM call_date) = :month
+       AND EXTRACT(YEAR  FROM call_date) = :year
+       """,
+       nativeQuery = true)
+   Page<Call> findOrphanCallsByPeriod(@Param("month") int month, @Param("year") int year, Pageable pageable);
+   ```
+
+2. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` — atualizar `findOrphanCalls` para aceitar `Pageable`:
+
+   a. Alterar a assinatura:
+   ```java
+   public Page<OrphanCallReportDTO> findOrphanCalls(int month, int year, Pageable pageable) {
+   ```
+
+   b. Substituir `List<Call> orphans = callRepository.findOrphanCallsByPeriod(month, year);` por:
+   ```java
+   Page<Call> orphansPage = callRepository.findOrphanCallsByPeriod(month, year, pageable);
+   List<Call> orphans = orphansPage.getContent();
+   ```
+
+   c. No final, envelopar o resultado em `Page`:
+   ```java
+   return new PageImpl<>(result, pageable, orphansPage.getTotalElements());
+   ```
+
+   Adicionar imports:
+   ```java
+   import org.springframework.data.domain.Page;
+   import org.springframework.data.domain.PageImpl;
+   import org.springframework.data.domain.Pageable;
+   ```
+
+   d. O método `countResolvable` deve ser ajustado para não chamar `findOrphanCalls` (que agora é paginado). Criar um novo método `countResolvable(int month, int year)` que busca todos os orphans do período (sem paginação) para contagem. Usar a query `countOrphanCallsByPeriod` existente e uma busca não paginada interna:
+   ```java
+   public long countResolvable(int month, int year) {
+       // Busca todos os orphans (sem paginação) para contagem de resolvíveis
+       List<Call> allOrphans = callRepository.findOrphanCallsByPeriod(month, year, Pageable.unpaged()).getContent();
+       // ... mesmo processamento batch dos CDRs e circuits ...
+   }
+   ```
+
+   **Alternativa mais simples:** não buscar todos os orphans para contagem. Em vez disso, calcular `resolvableCount` a partir da página atual. A contagem total de resolvíveis é aproximada (só reflete a página corrente). Na prática, isso é suficiente: o botão "Vincular" vincula TODAS as chamadas resolvíveis do período (não apenas as da página), e o número no botão reflete a página atual. Se necessário, o controller pode fazer uma query `count` separada. **Decisão:** optar pela abordagem simples — `resolvableCount` reflete a página corrente. O `linkOrphanCalls` já opera sobre todos os resolvíveis, independente da página.
+
+   Na verdade, repensando: o `linkOrphanCalls` atualmente chama `findOrphanCalls(month, year)` para obter a lista completa de resolvíveis. Se `findOrphanCalls` agora retorna `Page`, o `linkOrphanCalls` precisa de uma variante não paginada ou usar `Pageable.unpaged()`. Decisão: criar um método privado `findAllOrphanCallDTOs` que faz o processamento batch sem paginação (para `linkOrphanCalls` e `countResolvable`), e manter `findOrphanCalls(month, year, pageable)` como o método público paginado.
+
+   Refatorar o `OrphanCallReportService` para ter:
+   ```java
+   // Método público paginado
+   public Page<OrphanCallReportDTO> findOrphanCalls(int month, int year, Pageable pageable) {
+       Page<Call> orphansPage = callRepository.findOrphanCallsByPeriod(month, year, pageable);
+       List<OrphanCallReportDTO> dtos = buildReportDTOs(orphansPage.getContent(), month, year);
+       return new PageImpl<>(dtos, pageable, orphansPage.getTotalElements());
+   }
+
+   // Método público para contagem
+   public long countResolvable(int month, int year) {
+       List<OrphanCallReportDTO> allDtos = findAllOrphanCallDTOs(month, year);
+       return allDtos.stream().filter(OrphanCallReportDTO::resolvable).count();
+   }
+
+   // Método público para vinculação (usa lista completa)
+   @Transactional
+   public int linkOrphanCalls(int month, int year) {
+       List<OrphanCallReportDTO> allDtos = findAllOrphanCallDTOs(month, year);
+       int linked = 0;
+       for (OrphanCallReportDTO dto : allDtos) {
+           if (dto.resolvable() && dto.circuitCode() != null && !dto.circuitCode().isBlank()) {
+               callRepository.linkCircuitByUniqueId(dto.uniqueId(), dto.circuitCode());
+               linked++;
+           }
+       }
+       return linked;
+   }
+
+   // Método privado: busca todos os orphans do período (sem página) e monta DTOs
+   private List<OrphanCallReportDTO> findAllOrphanCallDTOs(int month, int year) {
+       List<Call> orphans = callRepository.findOrphanCallsByPeriod(month, year, Pageable.unpaged()).getContent();
+       return buildReportDTOs(orphans, month, year);
+   }
+
+   // Método privado: lógica de montagem dos DTOs (reutilizada)
+   private List<OrphanCallReportDTO> buildReportDTOs(List<Call> orphans, int month, int year) {
+       // ... lógica batch da RF-102 (cdrByUniqueId, circuitByNumber, etc.)
+   }
+   ```
+
+3. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportController.java` — atualizar endpoints:
+
+   a. `table` — aceitar parâmetros de paginação:
+   ```java
+   @GetMapping("/table")
+   public String table(@RequestParam int month, @RequestParam int year,
+                       @RequestParam(defaultValue = "0") int page,
+                       @RequestParam(defaultValue = "50") int size,
+                       Model model) {
+       Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "callDate"));
+       Page<OrphanCallReportDTO> orphansPage = reportService.findOrphanCalls(month, year, pageable);
+       model.addAttribute("month", month);
+       model.addAttribute("year", year);
+       model.addAttribute("orphans", orphansPage);
+       model.addAttribute("resolvableCount", reportService.countResolvable(month, year));
+       return "pages/reports/orphan-calls-table :: table";
+   }
+   ```
+
+   Adicionar imports:
+   ```java
+   import org.springframework.data.domain.Page;
+   import org.springframework.data.domain.PageRequest;
+   import org.springframework.data.domain.Pageable;
+   import org.springframework.data.domain.Sort;
+   ```
+
+   b. `linkOrphanCalls` — após vincular, recarregar a primeira página:
+   ```java
+   @PostMapping("/link")
+   public String linkOrphanCalls(@RequestParam int month, @RequestParam int year, Model model) {
+       int linked = reportService.linkOrphanCalls(month, year);
+       model.addAttribute("month", month);
+       model.addAttribute("year", year);
+       Pageable pageable = PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "callDate"));
+       model.addAttribute("orphans", reportService.findOrphanCalls(month, year, pageable));
+       model.addAttribute("resolvableCount", reportService.countResolvable(month, year));
+       model.addAttribute("linkResult", linked);
+       return "pages/reports/orphan-calls-table :: table";
+   }
+   ```
+
+4. **Editar** `backend/src/main/resources/templates/pages/reports/orphan-calls-table.html` — reescrever para suportar paginação e loader via `hx-indicator`:
+
+   a. Substituir o `<div th:fragment="table">` inteiro. Estrutura resultante:
+
+   ```html
+   <div th:fragment="table">
+
+     <!-- Vazio -->
+     <div th:if="${orphans == null or orphans.empty}"
+          class="py-10 text-center text-[13px] text-[#aaa]">
+       Selecione o período e clique em Processar.
+     </div>
+
+     <th:block th:if="${orphans != null}">
+
+       <!-- Card de contexto + botão Vincular -->
+       <div class="flex items-center justify-between mb-4">
+         <div class="bg-white rounded-xl p-4 border border-[#e0e0e0]">
+           <p class="text-[13px] text-[#1a1a1a]">
+             Período: <strong th:text="${month + '/' + year}">—</strong>
+             — <strong th:text="${orphans.totalElements}">0</strong> chamada(s) órfã(s) encontrada(s)
+           </p>
+         </div>
+         <th:block th:if="${resolvableCount != null and resolvableCount > 0}">
+           <form th:attr="hx-post=@{/reports/orphan-calls/link}" hx-target="#orphan-calls-table" hx-swap="innerHTML"
+                 hx-include="#orphan-form" style="display:inline">
+             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+             <input type="hidden" name="month" th:value="${month}"/>
+             <input type="hidden" name="year" th:value="${year}"/>
+             <button type="submit" id="btn-link-orphans"
+                     class="htmx-indicator-class-btn flex items-center gap-1.5 bg-[#E5A000] text-white text-[13px] font-medium px-4 py-[9px] rounded-md hover:opacity-90 transition-opacity">
+               <svg class="htmx-indicator animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+               </svg>
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="htmx-indicator-hide">
+                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+               </svg>
+               Vincular circuitos (<span th:text="${resolvableCount}">0</span>)
+             </button>
+           </form>
+         </th:block>
+       </div>
+
+       <!-- Feedback de vinculação -->
+       <div th:if="${linkResult != null and linkResult > 0}" class="bg-[#E1F5EE] border border-[#085041] text-[#085041] text-[13px] font-medium rounded-lg px-4 py-3 mb-4">
+         <strong th:text="${linkResult}">0</strong> circuito(s) vinculado(s) com sucesso.
+       </div>
+
+       <!-- Feedback sem resolvable -->
+       <div th:if="${resolvableCount != null and resolvableCount == 0 and not #lists.isEmpty(orphans.content)}" class="bg-[#f5f5f5] border border-[#e0e0e0] text-[#888] text-[13px] rounded-lg px-4 py-3 mb-4">
+         Nenhuma chamada órfã resolvível para vincular neste período.
+       </div>
+
+       <!-- Tabela de chamadas -->
+       <div class="rounded-xl border border-[#e0e0e0] overflow-x-auto mb-4">
+         <!-- Header -->
+         <div class="orphan-row bg-white border-b border-[#e0e0e0]">
+           <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[80px] shrink-0">Unique ID</span>
+           <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[110px] shrink-0">Data</span>
+           <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[100px] shrink-0">Destino</span>
+           <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide shrink-0">Canal</span>
+           <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide shrink-0">Canal Destino</span>
+           <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[100px] shrink-0">Código Canal</span>
+           <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide text-center w-[110px] shrink-0">Status</span>
+         </div>
+
+         <!-- Vazio -->
+         <div th:if="${orphans.content.isEmpty()}" class="py-10 text-center text-[13px] text-[#aaa]">
+           Nenhuma chamada órfã encontrada para este período.
+         </div>
+
+         <!-- Linhas -->
+         <div th:each="orphan : ${orphans.content}"
+               class="orphan-row bg-white border-b border-[#f0f0f0]">
+           <span class="text-[13px] font-mono text-[#1a1a1a] w-[80px] shrink-0 overflow-hidden text-ellipsis"
+                 th:text="${orphan.uniqueId}"></span>
+           <span class="text-[13px] font-mono text-[#1a1a1a] w-[110px] shrink-0"
+                 th:text="${#temporals.format(orphan.callDate, 'dd/MM/yy HH:mm')}"></span>
+           <span class="text-[13px] font-mono text-[#1a1a1a] w-[100px] shrink-0 overflow-hidden text-ellipsis"
+                 th:text="${orphan.dst != null ? orphan.dst : '—'}"></span>
+           <span class="text-[13px] font-mono text-[#555] shrink-0 overflow-hidden text-ellipsis"
+                 th:text="${orphan.channel != null ? orphan.channel : '—'}"></span>
+           <span class="text-[13px] font-mono text-[#555] shrink-0 overflow-hidden text-ellipsis"
+                 th:text="${orphan.dstChannel != null ? orphan.dstChannel : '—'}"></span>
+           <span class="text-[13px] font-mono text-[#1a1a1a] w-[100px] shrink-0"
+                 th:text="${orphan.circuitCode != null ? orphan.circuitCode : '—'}"></span>
+           <span class="flex justify-center w-[110px] shrink-0">
+             <span th:class="|rounded-[99px] text-[11px] px-[8px] py-[2px] font-medium whitespace-nowrap
+                              ${orphan.resolvable ? 'bg-[#E1F5EE] text-[#085041]' : 'bg-[#FEE2E2] text-[#dc2626]'}|"
+                   th:text="${orphan.resolvable ? 'Resolvível' : 'Não resolvível'}">
+             </span>
+           </span>
+         </div>
+       </div>
+
+       <!-- Paginação -->
+       <div id="pagination-toolbar-orphan" class="flex items-center gap-2">
+         <div th:replace="~{fragments/pagination :: pagination(
+             page=${orphans},
+             hxGet=${'/reports/orphan-calls/table?month=' + month + '&year=' + year},
+             hxTarget='#orphan-calls-table',
+             hxInclude='#orphan-form')}"></div>
+       </div>
+
+     </th:block>
+
+   </div>
+   ```
+
+   **Nota sobre `hx-indicator`**: O HTMX nativamente torna visível elementos com a classe `.htmx-indicator` durante a requisição. Para os botões "Processar" e "Vincular", a estratégia é usar CSS customizado para controlar a visibilidade dos spinners e ícones. Adicionar o seguinte bloco `<style>` no template `orphan-calls.html` (não no fragmento, para evitar duplicação):
+
+   b. Remover o bloco `<script>` inteiro (linhas 109-129) do `orphan-calls-table.html`.
+
+5. **Editar** `backend/src/main/resources/templates/pages/reports/orphan-calls.html` — refazer o loader do botão "Processar":
+
+   a. Adicionar bloco `<style>` dentro do `<head>`:
+   ```html
+   <style>
+     /* Loader HTMX para botão Processar */
+     #btn-process-orphan .htmx-indicator { display: none; }
+     #btn-process-orphan.htmx-request .htmx-indicator { display: inline-block; }
+     #btn-process-orphan.htmx-request .htmx-indicator-hide { display: none; }
+     #btn-process-orphan.htmx-request { opacity: 0.7; cursor: not-allowed; }
+
+     /* Loader HTMX para botão Vincular */
+     #btn-link-orphans .htmx-indicator { display: none; }
+     #btn-link-orphans.htmx-request .htmx-indicator { display: inline-block; }
+     #btn-link-orphans.htmx-request .htmx-indicator-hide { display: none; }
+     #btn-link-orphans.htmx-request { opacity: 0.7; cursor: not-allowed; }
+   </style>
+   ```
+
+   b. Refazer o botão "Processar" para usar classes HTMX em vez de JS:
+   ```html
+   <button type="button" id="btn-process-orphan"
+       class="flex items-center gap-1.5 bg-[#1D9E75] text-white text-[13px] font-medium px-4 py-[9px] rounded-md hover:opacity-90 transition-opacity"
+       th:attr="hx-get=@{/reports/orphan-calls/table}" hx-target="#orphan-calls-table" hx-swap="innerHTML"
+       hx-include="#orphan-form">
+       <svg class="htmx-indicator animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+       </svg>
+       <span class="htmx-indicator-hide">Processar</span>
+       <span class="htmx-indicator">Processando...</span>
+   </button>
+   ```
+
+   c. Remover o bloco `<script>` inteiro (linhas 81-99) do `orphan-calls.html`.
+
+6. **Editar** `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` — atualizar testes para usar `Pageable`:
+
+   a. Em todos os testes que chamam `service.findOrphanCalls(month, year)`, atualizar para `service.findOrphanCalls(month, year, PageRequest.of(0, 50))`.
+
+   b. Atualizar mocks: `when(callRepository.findOrphanCallsByPeriod(3, 2026))` → `when(callRepository.findOrphanCallsByPeriod(eq(3), eq(2026), any(Pageable.class)))`, retornando `new PageImpl<>(list, PageRequest.of(0, 50), list.size())`.
+
+   c. Atualizar asserts para `result.getContent()` em vez de `result` direto.
+
+   Adicionar imports:
+   ```java
+   import org.springframework.data.domain.Page;
+   import org.springframework.data.domain.PageImpl;
+   import org.springframework.data.domain.PageRequest;
+   import org.springframework.data.domain.Pageable;
+   import static org.mockito.ArgumentMatchers.any;
+   import static org.mockito.ArgumentMatchers.eq;
+   ```
+
+7. **Editar** `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportControllerTest.java` — atualizar testes para refletir a assinatura paginada:
+
+   a. Teste `link_postSetsModelAttributes` — a chamada interna a `findOrphanCalls` agora recebe `Pageable`. Mockar adequadamente.
+
+   b. Teste `link_postReturnsTableFragment` — sem mudança no assert de view name.
+
+8. **Editar** `doc/CHANGELOG.md` — remover a linha `RF-099` do `[Unreleased]` (a RF-099 foi BLOQUEADA e será substituída por FIX-101 + RF-102 + RF-103).
+
+9. **Rodar `./mvnw test`** e garantir que a suíte passa (incluindo os novos testes).
+
+#### Testes a criar/atualizar
+- `OrphanCallReportServiceTest` — atualizar todos os testes para usar `Pageable` e `Page<>`.
+- `OrphanCallReportServiceTest` — adicionar teste `findOrphanCalls_returnsPaginatedResult` com 100 orphans, page size 10, verificando que `result.getContent().size() == 10` e `result.getTotalElements() == 100`.
+- `OrphanCallReportControllerTest` — atualizar mocks para `Pageable`.
+- `OrphanCallReportControllerTest` — adicionar teste `table_returnsPaginatedModel` verificando que `model.containsAttribute("orphans")` e que o tipo é `Page`.
+
+#### Critérios de aceitação
+- [ ] `GET /reports/orphan-calls/table?month=X&year=Y` retorna no máximo 50 registros por página (default), com toolbar de paginação.
+- [ ] Clicar em "Processar" exibe spinner e texto "Processando..." enquanto a requisição está em andamento (na primeira e nas subsequentes).
+- [ ] Clicar em "Vincular" exibe spinner enquanto a requisição está em andamento (na primeira e nas subsequentes).
+- [ ] Após "Vincular", a tabela recarrega a primeira página e exibe feedback verde com o número de circuitos vinculados.
+- [ ] Meses com 10.000+ chamadas órfãs carregam sem erro 500 e sem timeout (paginação + batch queries).
+- [ ] A navegação entre páginas (anterior/próximo) funciona sem reprocessar todo o relatório.
+- [ ] Card "Chamadas Órfãs" permanece na `index.html` (funcionalidade da RF-099 mantida).
+- [ ] Botão "Vincular circuitos (N)" aparece quando há resolvíveis (funcionalidade da RF-099 mantida).
+- [ ] Todos os testes novos passam e nenhum teste existente regrediu.
+- [ ] `./mvnw test` passa.
+- [ ] Commit no padrão `refactor(rf-103): adiciona paginacao e loader-funcional ao relatorio de chamadas-orfas`.
+- [ ] Entrada no `doc/changelog.md` seção `[Unreleased]` e descrição detalhada em `doc/release_notes/unreleased.md`.
+- [ ] Remoção da task do `doc/backlog.md` após conclusão.
+- [ ] RF-099 removida do `[Unreleased]` no `doc/changelog.md`.
+
+#### Riscos e observações
+- **`Pageable.unpaged()` em `findAllOrphanCallDTOs`:** usar esta abordagem para `linkOrphanCalls` e `countResolvable` significa que, para a vinculação, todos os orphans ainda são carregados em memória. Isso é aceitável porque a vinculação é uma ação manual esporádica. Para o futuro, pode-se implementar batch UPDATE (ver recomendação do Revisor).
+- **Estilo `htmx-indicator`:** o CSS precisa ser definido no template pai (`orphan-calls.html`), não no fragmento, pois os estilos dos spinners precisam existir desde o carregamento inicial da página (antes do primeiro HTMX swap).
+- **O Codificador NÃO deve criar migration Flyway** — nenhuma alteração de esquema.
+- **O Codificador NÃO deve alterar `SecurityConfigurations`** — o endpoint já está protegido.
+- **Linha duplicada no release notes:** se existir entrada duplicada de `findOrphanCalls_returnsNotResolvable_whenCdrMissing` em `doc/release-notes/unreleased.md`, corrigir removendo a duplicata.
+- **Ordem de execução:** esta task depende de FIX-101 e RF-102. O Codificador deve executar FIX-101 primeiro, depois RF-102, e finalmente RF-103.
 
