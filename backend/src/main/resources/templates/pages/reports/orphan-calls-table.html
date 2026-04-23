@@ -17,7 +17,7 @@
       <div class="bg-white rounded-xl p-4 border border-[#e0e0e0]">
         <p class="text-[13px] text-[#1a1a1a]">
           Período: <strong th:text="${month + '/' + year}">—</strong>
-          — <strong th:text="${#lists.size(orphans)}">0</strong> chamada(s) órfã(s) encontrada(s)
+          — <strong th:text="${orphans.totalElements}">0</strong> chamada(s) órfã(s) encontrada(s)
         </p>
       </div>
       <th:block th:if="${resolvableCount != null and resolvableCount > 0}">
@@ -27,16 +27,16 @@
           <input type="hidden" name="month" th:value="${month}"/>
           <input type="hidden" name="year" th:value="${year}"/>
           <button type="submit" id="btn-link-orphans"
-                  class="flex items-center gap-1.5 bg-[#E5A000] text-white text-[13px] font-medium px-4 py-[9px] rounded-md hover:opacity-90 transition-opacity">
-            <svg id="spinner-link" class="hidden animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  class="htmx-indicator-class-btn flex items-center gap-1.5 bg-[#E5A000] text-white text-[13px] font-medium px-4 py-[9px] rounded-md hover:opacity-90 transition-opacity">
+            <svg class="htmx-indicator animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <svg width="14" height="14" id="icon-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="htmx-indicator-hide">
               <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
             </svg>
-            <span id="label-link">Vincular circuitos (<span th:text="${resolvableCount}">0</span>)</span>
+            Vincular circuitos (<span th:text="${resolvableCount}">0</span>)
           </button>
         </form>
       </th:block>
@@ -48,85 +48,62 @@
     </div>
 
     <!-- Feedback sem resolvable -->
-    <div th:if="${resolvableCount != null and resolvableCount == 0}" class="bg-[#f5f5f5] border border-[#e0e0e0] text-[#888] text-[13px] rounded-lg px-4 py-3 mb-4">
+    <div th:if="${resolvableCount != null and resolvableCount == 0 and not #lists.isEmpty(orphans.content)}" class="bg-[#f5f5f5] border border-[#e0e0e0] text-[#888] text-[13px] rounded-lg px-4 py-3 mb-4">
       Nenhuma chamada órfã resolvível para vincular neste período.
     </div>
 
     <!-- Tabela de chamadas -->
     <div class="rounded-xl border border-[#e0e0e0] overflow-x-auto mb-4">
-
       <!-- Header -->
       <div class="orphan-row bg-white border-b border-[#e0e0e0]">
         <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[80px] shrink-0">Unique ID</span>
         <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[110px] shrink-0">Data</span>
         <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[100px] shrink-0">Destino</span>
-        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[200px] shrink-0 overflow-hidden text-ellipsis">Canal</span>
-        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[200px] shrink-0 overflow-hidden text-ellipsis">Canal Destino</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide shrink-0">Canal</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide shrink-0">Canal Destino</span>
         <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[100px] shrink-0">Código Canal</span>
         <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide text-center w-[110px] shrink-0">Status</span>
       </div>
 
       <!-- Vazio -->
-      <div th:if="${orphans.empty}" class="py-10 text-center text-[13px] text-[#aaa]">
+      <div th:if="${orphans.content.isEmpty()}" class="py-10 text-center text-[13px] text-[#aaa]">
         Nenhuma chamada órfã encontrada para este período.
       </div>
 
       <!-- Linhas -->
-      <div th:each="orphan : ${orphans}"
+      <div th:each="orphan : ${orphans.content}"
             class="orphan-row bg-white border-b border-[#f0f0f0]">
-
         <span class="text-[13px] font-mono text-[#1a1a1a] w-[80px] shrink-0 overflow-hidden text-ellipsis"
               th:text="${orphan.uniqueId}"></span>
-
         <span class="text-[13px] font-mono text-[#1a1a1a] w-[110px] shrink-0"
               th:text="${#temporals.format(orphan.callDate, 'dd/MM/yy HH:mm')}"></span>
-
         <span class="text-[13px] font-mono text-[#1a1a1a] w-[100px] shrink-0 overflow-hidden text-ellipsis"
               th:text="${orphan.dst != null ? orphan.dst : '—'}"></span>
-
         <span class="text-[13px] font-mono text-[#555] shrink-0 overflow-hidden text-ellipsis"
               th:text="${orphan.channel != null ? orphan.channel : '—'}"></span>
-
         <span class="text-[13px] font-mono text-[#555] shrink-0 overflow-hidden text-ellipsis"
               th:text="${orphan.dstChannel != null ? orphan.dstChannel : '—'}"></span>
-
         <span class="text-[13px] font-mono text-[#1a1a1a] w-[100px] shrink-0"
               th:text="${orphan.circuitCode != null ? orphan.circuitCode : '—'}"></span>
-
-        <!-- Badge Resolvível / Não resolvível -->
         <span class="flex justify-center w-[110px] shrink-0">
           <span th:class="|rounded-[99px] text-[11px] px-[8px] py-[2px] font-medium whitespace-nowrap
                            ${orphan.resolvable ? 'bg-[#E1F5EE] text-[#085041]' : 'bg-[#FEE2E2] text-[#dc2626]'}|"
                 th:text="${orphan.resolvable ? 'Resolvível' : 'Não resolvível'}">
           </span>
         </span>
-
       </div>
     </div>
 
-  </th:block>
+    <!-- Paginação -->
+    <div id="pagination-toolbar-orphan" class="flex items-center gap-2">
+      <div th:replace="~{fragments/pagination :: pagination(
+          page=${orphans},
+          hxGet=${'/reports/orphan-calls/table?month=' + month + '&year=' + year},
+          hxTarget='#orphan-calls-table',
+          hxInclude='#orphan-form')}"></div>
+    </div>
 
-  <script>
-    document.body.addEventListener('htmx:afterSwap', function() {
-      var btnLink = document.getElementById('btn-link-orphans');
-      if (btnLink) {
-        btnLink.addEventListener('htmx:beforeRequest', function() {
-          btnLink.disabled = true;
-          btnLink.classList.add('opacity-50', 'cursor-not-allowed');
-          document.getElementById('spinner-link').classList.remove('hidden');
-          document.getElementById('icon-link').classList.add('hidden');
-          document.getElementById('label-link').textContent = 'Vinculando...';
-        });
-        btnLink.addEventListener('htmx:afterRequest', function() {
-          btnLink.disabled = false;
-          btnLink.classList.remove('opacity-50', 'cursor-not-allowed');
-          document.getElementById('spinner-link').classList.add('hidden');
-          document.getElementById('icon-link').classList.remove('hidden');
-          document.getElementById('label-link').textContent = 'Vincular circuitos';
-        });
-      }
-    });
-  </script>
+  </th:block>
 
 </div>
 

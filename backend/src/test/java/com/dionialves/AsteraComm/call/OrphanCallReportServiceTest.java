@@ -9,15 +9,20 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -43,11 +48,46 @@ class OrphanCallReportServiceTest {
 
     @Test
     void findOrphanCalls_returnsEmpty_whenNoOrphansForPeriod() {
-        when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(List.of());
+        when(callRepository.findOrphanCallsByPeriod(eq(3), eq(2026), any(Pageable.class)))
+            .thenReturn(Page.empty());
 
-        List<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026);
+        Page<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026, PageRequest.of(0, 50));
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void findOrphanCalls_returnsPaginatedResult() {
+        List<Call> orphans = new ArrayList<>();
+        for (int i = 1; i <= 100; i++) {
+            Call orphan = new Call();
+            orphan.setId((long) i);
+            orphan.setUniqueId("uid-" + i);
+            orphan.setCallDate(LocalDateTime.of(2026, 3, 1, i % 24, 0));
+            orphan.setDst("493400" + String.format("%04d", i));
+            orphans.add(orphan);
+        }
+
+        Page<Call> orphanPage = new PageImpl<>(orphans.subList(0, 10), PageRequest.of(0, 10), 100);
+
+        CdrRecord cdr = new CdrRecord();
+        cdr.setUniqueId("uid-1");
+        cdr.setChannel("PJSIP/123456-000045f0");
+
+        Circuit circuit = new Circuit();
+        circuit.setNumber("123456");
+
+        when(callRepository.findOrphanCallsByPeriod(eq(3), eq(2026), any(Pageable.class)))
+            .thenReturn(orphanPage);
+        when(cdrRepository.findByUniqueIdIn(anyList())).thenReturn(List.of(cdr));
+        when(circuitRepository.findByNumberIn(anyList())).thenReturn(List.of(circuit));
+
+        Page<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026, PageRequest.of(0, 10));
+
+        assertThat(result.getContent()).hasSize(10);
+        assertThat(result.getTotalElements()).isEqualTo(100);
+        verify(cdrRepository, times(1)).findByUniqueIdIn(anyList());
+        verify(circuitRepository, times(1)).findByNumberIn(anyList());
     }
 
     @Test
@@ -65,15 +105,16 @@ class OrphanCallReportServiceTest {
         Circuit circuit = new Circuit();
         circuit.setNumber("123456");
 
-        when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(List.of(orphan));
+        Page<Call> orphanPage = new PageImpl<>(List.of(orphan));
+        when(callRepository.findOrphanCallsByPeriod(eq(3), eq(2026), any(Pageable.class))).thenReturn(orphanPage);
         when(cdrRepository.findByUniqueIdIn(List.of("unique-001"))).thenReturn(List.of(cdr));
         when(circuitRepository.findByNumberIn(List.of("123456"))).thenReturn(List.of(circuit));
 
-        List<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026);
+        Page<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026, PageRequest.of(0, 50));
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).resolvable()).isTrue();
-        assertThat(result.get(0).circuitCode()).isEqualTo("123456");
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).resolvable()).isTrue();
+        assertThat(result.getContent().get(0).circuitCode()).isEqualTo("123456");
     }
 
     @Test
@@ -88,15 +129,16 @@ class OrphanCallReportServiceTest {
         cdr.setUniqueId("unique-002");
         cdr.setChannel("PJSIP/999999-000045f0");
 
-        when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(List.of(orphan));
+        Page<Call> orphanPage = new PageImpl<>(List.of(orphan));
+        when(callRepository.findOrphanCallsByPeriod(eq(3), eq(2026), any(Pageable.class))).thenReturn(orphanPage);
         when(cdrRepository.findByUniqueIdIn(List.of("unique-002"))).thenReturn(List.of(cdr));
         when(circuitRepository.findByNumberIn(List.of("999999"))).thenReturn(List.of());
 
-        List<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026);
+        Page<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026, PageRequest.of(0, 50));
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).resolvable()).isFalse();
-        assertThat(result.get(0).circuitCode()).isEqualTo("999999");
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).resolvable()).isFalse();
+        assertThat(result.getContent().get(0).circuitCode()).isEqualTo("999999");
     }
 
     @Test
@@ -107,15 +149,16 @@ class OrphanCallReportServiceTest {
         orphan.setCallDate(LocalDateTime.of(2026, 3, 12, 16, 0));
         orphan.setDst("1133333333");
 
-        when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(List.of(orphan));
+        Page<Call> orphanPage = new PageImpl<>(List.of(orphan));
+        when(callRepository.findOrphanCallsByPeriod(eq(3), eq(2026), any(Pageable.class))).thenReturn(orphanPage);
         when(cdrRepository.findByUniqueIdIn(List.of("unique-003"))).thenReturn(List.of());
         when(circuitRepository.findByNumberIn(List.of())).thenReturn(List.of());
 
-        List<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026);
+        Page<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026, PageRequest.of(0, 50));
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).resolvable()).isFalse();
-        assertThat(result.get(0).channel()).isNull();
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).resolvable()).isFalse();
+        assertThat(result.getContent().get(0).channel()).isNull();
     }
 
     @Test
@@ -153,7 +196,10 @@ class OrphanCallReportServiceTest {
         Circuit circuit = new Circuit();
         circuit.setNumber("123456");
 
-        when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(List.of(orphan1, orphan2));
+        List<Call> allOrphans = List.of(orphan1, orphan2);
+        Page<Call> orphanPage = new PageImpl<>(allOrphans);
+
+        when(callRepository.findOrphanCallsByPeriod(eq(3), eq(2026), any(Pageable.class))).thenReturn(orphanPage);
         when(cdrRepository.findByUniqueIdIn(List.of("uid-001", "uid-002"))).thenReturn(List.of(cdr1, cdr2));
         when(circuitRepository.findByNumberIn(anyList())).thenReturn(List.of(circuit));
         when(callRepository.linkCircuitByUniqueId("uid-001", "123456")).thenReturn(1);
@@ -176,7 +222,8 @@ class OrphanCallReportServiceTest {
         cdr.setUniqueId("uid-001");
         cdr.setChannel("PJSIP/999999-000045f0");
 
-        when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(List.of(orphan));
+        Page<Call> orphanPage = new PageImpl<>(List.of(orphan));
+        when(callRepository.findOrphanCallsByPeriod(eq(3), eq(2026), any(Pageable.class))).thenReturn(orphanPage);
         when(cdrRepository.findByUniqueIdIn(List.of("uid-001"))).thenReturn(List.of(cdr));
         when(circuitRepository.findByNumberIn(List.of("999999"))).thenReturn(List.of());
 
@@ -210,7 +257,10 @@ class OrphanCallReportServiceTest {
         Circuit circuit = new Circuit();
         circuit.setNumber("123456");
 
-        when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(List.of(orphan1, orphan2));
+        List<Call> allOrphans = List.of(orphan1, orphan2);
+        Page<Call> orphanPage = new PageImpl<>(allOrphans);
+
+        when(callRepository.findOrphanCallsByPeriod(eq(3), eq(2026), any(Pageable.class))).thenReturn(orphanPage);
         when(cdrRepository.findByUniqueIdIn(List.of("uid-001", "uid-002"))).thenReturn(List.of(cdr1, cdr2));
         when(circuitRepository.findByNumberIn(anyList())).thenReturn(List.of(circuit));
 
@@ -238,15 +288,16 @@ class OrphanCallReportServiceTest {
         Circuit circuit = new Circuit();
         circuit.setNumber("123456");
 
-        when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(List.of(orphan));
+        Page<Call> orphanPage = new PageImpl<>(List.of(orphan));
+        when(callRepository.findOrphanCallsByPeriod(eq(3), eq(2026), any(Pageable.class))).thenReturn(orphanPage);
         when(cdrRepository.findByUniqueIdIn(List.of("unique-dup"))).thenReturn(List.of(cdr1, cdr2));
         when(circuitRepository.findByNumberIn(List.of("123456"))).thenReturn(List.of(circuit));
 
-        List<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026);
+        Page<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026, PageRequest.of(0, 50));
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).resolvable()).isTrue();
-        assertThat(result.get(0).channel()).isEqualTo("PJSIP/123456-000045f0");
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).resolvable()).isTrue();
+        assertThat(result.getContent().get(0).channel()).isEqualTo("PJSIP/123456-000045f0");
     }
 
     @Test
@@ -268,14 +319,15 @@ class OrphanCallReportServiceTest {
         Circuit circuit = new Circuit();
         circuit.setNumber("123456");
 
-        when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(orphans);
+        Page<Call> orphanPage = new PageImpl<>(orphans);
+        when(callRepository.findOrphanCallsByPeriod(eq(3), eq(2026), any(Pageable.class))).thenReturn(orphanPage);
         when(cdrRepository.findByUniqueIdIn(anyList())).thenReturn(List.of(cdr));
         when(circuitRepository.findByNumberIn(anyList())).thenReturn(List.of(circuit));
 
-        List<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026);
+        Page<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026, PageRequest.of(0, 100));
 
         verify(cdrRepository, times(1)).findByUniqueIdIn(anyList());
         verify(circuitRepository, times(1)).findByNumberIn(anyList());
-        assertThat(result).hasSize(100);
+        assertThat(result.getContent()).hasSize(100);
     }
 }

@@ -1,6 +1,9 @@
 package com.dionialves.AsteraComm.call;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -10,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.time.LocalDate;
-import java.util.List;
 
 @Controller
 @RequiredArgsConstructor
@@ -28,12 +30,16 @@ public class OrphanCallReportController {
     }
 
     @GetMapping("/table")
-    public String table(@RequestParam int month, @RequestParam int year, Model model) {
+    public String table(@RequestParam int month, @RequestParam int year,
+                        @RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "50") int size,
+                        Model model) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<OrphanCallReportDTO> orphansPage = reportService.findOrphanCalls(month, year, pageable);
         model.addAttribute("month", month);
         model.addAttribute("year", year);
-        List<OrphanCallReportDTO> orphans = reportService.findOrphanCalls(month, year);
-        model.addAttribute("orphans", orphans);
-        model.addAttribute("resolvableCount", orphans.stream().filter(OrphanCallReportDTO::resolvable).count());
+        model.addAttribute("orphans", orphansPage);
+        model.addAttribute("resolvableCount", reportService.countResolvable(month, year));
         return "pages/reports/orphan-calls-table :: table";
     }
 
@@ -42,7 +48,8 @@ public class OrphanCallReportController {
         int linked = reportService.linkOrphanCalls(month, year);
         model.addAttribute("month", month);
         model.addAttribute("year", year);
-        model.addAttribute("orphans", reportService.findOrphanCalls(month, year));
+        Pageable pageable = PageRequest.of(0, 50);
+        model.addAttribute("orphans", reportService.findOrphanCalls(month, year, pageable));
         model.addAttribute("resolvableCount", reportService.countResolvable(month, year));
         model.addAttribute("linkResult", linked);
         return "pages/reports/orphan-calls-table :: table";

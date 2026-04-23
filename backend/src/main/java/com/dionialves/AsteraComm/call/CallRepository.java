@@ -1,5 +1,7 @@
 package com.dionialves.AsteraComm.call;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -114,8 +116,15 @@ public interface CallRepository extends JpaRepository<Call, Long>,
         AND EXTRACT(MONTH FROM call_date) = :month
         AND EXTRACT(YEAR  FROM call_date) = :year
         ORDER BY call_date DESC
-        """, nativeQuery = true)
-    List<Call> findOrphanCallsByPeriod(@Param("month") int month, @Param("year") int year);
+        """,
+        countQuery = """
+        SELECT COUNT(*) FROM asteracomm_calls
+        WHERE circuit_number IS NULL
+        AND EXTRACT(MONTH FROM call_date) = :month
+        AND EXTRACT(YEAR  FROM call_date) = :year
+        """,
+        nativeQuery = true)
+    Page<Call> findOrphanCallsByPeriod(@Param("month") int month, @Param("year") int year, Pageable pageable);
 
     @Query(value = """
         SELECT COUNT(*) FROM asteracomm_calls

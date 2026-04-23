@@ -5,6 +5,9 @@ import com.dionialves.AsteraComm.cdr.CdrRepository;
 import com.dionialves.AsteraComm.circuit.Circuit;
 import com.dionialves.AsteraComm.circuit.CircuitRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -26,13 +29,40 @@ public class OrphanCallReportService {
     private final CircuitRepository circuitRepository;
     private final ChannelParser channelParser;
 
-    public List<OrphanCallReportDTO> findOrphanCalls(int month, int year) {
-        List<Call> orphans = callRepository.findOrphanCallsByPeriod(month, year);
+    public Page<OrphanCallReportDTO> findOrphanCalls(int month, int year, Pageable pageable) {
+        Page<Call> orphansPage = callRepository.findOrphanCallsByPeriod(month, year, pageable);
+        List<OrphanCallReportDTO> dtos = buildReportDTOs(orphansPage.getContent(), month, year);
+        return new PageImpl<>(dtos, pageable, orphansPage.getTotalElements());
+    }
+
+    public long countResolvable(int month, int year) {
+        List<OrphanCallReportDTO> allDtos = findAllOrphanCallDTOs(month, year);
+        return allDtos.stream().filter(OrphanCallReportDTO::resolvable).count();
+    }
+
+    @Transactional
+    public int linkOrphanCalls(int month, int year) {
+        List<OrphanCallReportDTO> allDtos = findAllOrphanCallDTOs(month, year);
+        int linked = 0;
+        for (OrphanCallReportDTO dto : allDtos) {
+            if (dto.resolvable() && dto.circuitCode() != null && !dto.circuitCode().isBlank()) {
+                callRepository.linkCircuitByUniqueId(dto.uniqueId(), dto.circuitCode());
+                linked++;
+            }
+        }
+        return linked;
+    }
+
+    private List<OrphanCallReportDTO> findAllOrphanCallDTOs(int month, int year) {
+        List<Call> orphans = callRepository.findOrphanCallsByPeriod(month, year, Pageable.unpaged()).getContent();
+        return buildReportDTOs(orphans, month, year);
+    }
+
+    private List<OrphanCallReportDTO> buildReportDTOs(List<Call> orphans, int month, int year) {
         if (orphans.isEmpty()) {
             return List.of();
         }
 
-        // Batch 1: buscar todos os CDRs dos uniqueIds em uma query
         List<String> uniqueIds = orphans.stream().map(Call::getUniqueId).distinct().toList();
         Map<String, CdrRecord> cdrByUniqueId = cdrRepository.findByUniqueIdIn(uniqueIds)
                 .stream()
@@ -42,7 +72,6 @@ public class OrphanCallReportService {
                         (first, second) -> first
                 ));
 
-        // Batch 2: coletar todos os circuit codes possíveis e buscar circuitos em uma query
         Set<String> allCircuitCodes = new HashSet<>();
         for (Call call : orphans) {
             CdrRecord cdr = cdrByUniqueId.get(call.getUniqueId());
@@ -59,7 +88,6 @@ public class OrphanCallReportService {
                 .stream()
                 .collect(Collectors.toMap(Circuit::getNumber, c -> c, (first, second) -> first));
 
-        // Montar resultado usando os Maps (lookups O(1) por chamada)
         List<OrphanCallReportDTO> result = new ArrayList<>();
         for (Call call : orphans) {
             CdrRecord cdr = cdrByUniqueId.get(call.getUniqueId());
@@ -99,22 +127,5 @@ public class OrphanCallReportService {
     public long countOrphanCallsCurrentMonth() {
         LocalDate now = LocalDate.now();
         return callRepository.countOrphanCallsByPeriod(now.getMonthValue(), now.getYear());
-    }
-
-    public long countResolvable(int month, int year) {
-        return findOrphanCalls(month, year).stream().filter(OrphanCallReportDTO::resolvable).count();
-    }
-
-    @Transactional
-    public int linkOrphanCalls(int month, int year) {
-        List<OrphanCallReportDTO> orphans = findOrphanCalls(month, year);
-        int linked = 0;
-        for (OrphanCallReportDTO dto : orphans) {
-            if (dto.resolvable() && dto.circuitCode() != null && !dto.circuitCode().isBlank()) {
-                callRepository.linkCircuitByUniqueId(dto.uniqueId(), dto.circuitCode());
-                linked++;
-            }
-        }
-        return linked;
     }
 }

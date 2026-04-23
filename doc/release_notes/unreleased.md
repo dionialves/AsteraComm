@@ -198,3 +198,33 @@
 
 **Testes novos:**
 - `findOrphanCalls_usesBatchQueries_evenWithLargeOrphanSet` — verifica que `findByUniqueIdIn` e `findByNumberIn` são chamados exatamente 1 vez para 100 orphans
+
+---
+
+### RF-103: Relatório de chamadas órfãs: paginação, loader funcional e vinculação
+
+**Problema:** O relatório de chamadas órfãs apresentava três problemas críticos que impediam seu uso em dados reais:
+1. **Sem paginação:** meses com 10.000+ chamadas geravam resposta HTML monolítica, sobrecarregando navegador e causando timeout.
+2. **Loader quebrado:** os event listeners de `htmx:beforeRequest`/`afterRequest` eram registrados apenas após o primeiro `afterSwap`, fazendo a primeira requisição nunca ativar o loader.
+3. **Loaders via JS frágeis:** os scripts `addEventListener` se perdiam quando o fragmento era re-renderizado, pois os listeners não eram reanexados.
+
+**Solução:**
+- **Paginação no backend:** `CallRepository.findOrphanCallsByPeriod` agora aceita `Pageable` e retorna `Page<Call>`. O controller recebe `page` e `size` com default de 50 registros. Templates usam o fragmento `fragments/pagination` para navegação.
+- **Loader via `hx-indicator` (HTMX nativo):** spinners recebem classe `.htmx-indicator` que é mostrada/ocultada automaticamente pelo HTMX durante requisições. Eliminados todos os scripts `addEventListener` frágeis. CSS de controle de visibilidade adicionado no `<style>` do template pai.
+- **Método privado `findAllOrphanCallDTOs`:** para operações de vinculação (`linkOrphanCalls`) e contagem (`countResolvable`), o service busca todos os orphans sem paginação via `Pageable.unpaged()`.
+
+**Arquivos alterados:**
+- `backend/src/main/java/com/dionialves/AsteraComm/call/CallRepository.java` — `findOrphanCallsByPeriod` agora aceita `Pageable` e retorna `Page<Call>`
+- `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` — refatorado com `findOrphanCalls(month, year, pageable)`, `findAllOrphanCallDTOs(month, year)` privado, `buildReportDTOs` privado
+- `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportController.java` — endpoints atualizados com `Pageable` e `PageRequest`
+- `backend/src/main/resources/templates/pages/reports/orphan-calls.html` — loader via `hx-indicator` e CSS, script removido
+- `backend/src/main/resources/templates/pages/reports/orphan-calls-table.html` — paginação via fragment `pagination`, loader via `hx-indicator`, script removido, `orphans.totalElements` para contador
+- `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` — todos os testes atualizados para `Page<>` e `Pageable`
+- `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportControllerTest.java` — testes atualizados com `Page<>` e mocks para `Pageable`
+
+**Testes novos:**
+- `findOrphanCalls_returnsPaginatedResult` — verifica paginação com 100 orphans totais e page size 10 (totalElements = 100, content.size() = 10)
+
+**Testes atualizados:**
+- `OrphanCallReportServiceTest` — todos os mocks de `findOrphanCallsByPeriod` atualizados de `List<>` para `Page<>`
+- `OrphanCallReportControllerTest` — `link_postSetsModelAttributes` e `link_postReturnsTableFragment` atualizados para `Page<>`
