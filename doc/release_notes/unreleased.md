@@ -176,10 +176,6 @@
 - `process_shouldLeaveCircuitNull_whenBothChannelsFail` — nenhuma tentativa resolve
 - `process_shouldLeaveCircuitNull_whenDstChannelIsEmpty` — dstChannel vazio não interfere
 
----
-
-### RF-102: Eliminar N+1 queries no OrphanCallReportService
-
 **Problema:** O método `findOrphanCalls` executava 1 query por chamada órfã para buscar o CDR (`findFirstByUniqueId`) e até 2 queries para buscar o circuito (`findByNumber` via channel e dstChannel), resultando em 3N+1 queries para N chamadas órfãs. Com 12 chamadas órfãs, o relatório demorava 23,5 segundos. Com 10.000 chamadas (cenário real), era completamente inutilizável.
 
 **Solução:**

@@ -3,7 +3,6 @@ package com.dionialves.AsteraComm.call;
 import com.dionialves.AsteraComm.cdr.CdrRecord;
 import com.dionialves.AsteraComm.cdr.CdrRepository;
 import com.dionialves.AsteraComm.circuit.CircuitRepository;
-import com.dionialves.AsteraComm.did.DIDRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -22,7 +21,6 @@ public class CallProcessingService {
     private final CircuitRepository circuitRepository;
     private final ChannelParser channelParser;
     private final CallCostingService callCostingService;
-    private final DIDRepository didRepository;
 
     @Scheduled(fixedRateString = "${call.processing.interval.ms}")
     public void process() {
@@ -38,18 +36,22 @@ public class CallProcessingService {
             call.setDisposition(cdr.getDisposition());
             call.setCallType(callTypeClassifier.classify(cdr.getDst()));
             call.setProcessedAt(LocalDateTime.now());
-            String circuitCode = channelParser.parse(cdr.getChannel());
-            if (!circuitCode.isEmpty()) {
-                circuitRepository.findByNumber(circuitCode).ifPresent(call::setCircuit);
-            }
-            // Tentativa 2: association via dst -> DID (inbound)
-            // Direction: se dst casou com DID → INBOUND; caso contrário → OUTBOUND
+            // Tentativa 1: via channel → outbound (quem originou a ligação)
+            String channelCode = channelParser.parse(cdr.getChannel());
             CallDirection direction = CallDirection.OUTBOUND;
-            if (call.getCircuit() == null && cdr.getDst() != null && !cdr.getDst().isBlank()) {
-                var didOpt = didRepository.findByNumber(cdr.getDst()).filter(did -> did.getCircuit() != null);
-                if (didOpt.isPresent()) {
-                    call.setCircuit(didOpt.get().getCircuit());
-                    direction = CallDirection.INBOUND;
+            if (!channelCode.isEmpty()) {
+                circuitRepository.findByNumber(channelCode).ifPresent(call::setCircuit);
+            }
+            // Tentativa 2: via dstChannel → inbound (quem atendeu a ligação)
+            if (call.getCircuit() == null && cdr.getDstchannel() != null && !cdr.getDstchannel().isBlank()) {
+                String dstChannelCode = channelParser.parse(cdr.getDstchannel());
+                if (!dstChannelCode.isEmpty()) {
+                    circuitRepository.findByNumber(dstChannelCode).ifPresent(c -> {
+                        call.setCircuit(c);
+                    });
+                    if (call.getCircuit() != null) {
+                        direction = CallDirection.INBOUND;
+                    }
                 }
             }
             call.setDirection(direction);
