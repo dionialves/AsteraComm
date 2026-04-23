@@ -23,7 +23,7 @@
           <div>
             <p class="text-[11px] font-medium uppercase tracking-wide text-[#888] mb-1">Período</p>
             <p class="text-[15px] font-medium text-[#1a1a1a]"
-               th:text="${#temporals.monthName(result.month)} + ' / ' + ${result.year}">—</p>
+               th:text="${#temporals.monthName(T(java.time.LocalDate).of(result.year, result.month, 1))} + ' / ' + ${result.year}">—</p>
           </div>
         </div>
         <a id="btn-pdf-call-history" th:href="${'/reports/call-history/pdf?circuitNumber=' + result.circuitNumber + '&month=' + result.month + '&year=' + result.year}"
