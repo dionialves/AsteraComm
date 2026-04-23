@@ -107,23 +107,25 @@
   </th:block>
 
   <script>
-    var btnLink = document.getElementById('btn-link-orphans');
-    if (btnLink) {
-      btnLink.addEventListener('htmx:beforeRequest', function() {
-        btnLink.disabled = true;
-        btnLink.classList.add('opacity-50', 'cursor-not-allowed');
-        document.getElementById('spinner-link').classList.remove('hidden');
-        document.getElementById('icon-link').classList.add('hidden');
-        document.getElementById('label-link').textContent = 'Vinculando...';
-      });
-      btnLink.addEventListener('htmx:afterRequest', function() {
-        btnLink.disabled = false;
-        btnLink.classList.remove('opacity-50', 'cursor-not-allowed');
-        document.getElementById('spinner-link').classList.add('hidden');
-        document.getElementById('icon-link').classList.remove('hidden');
-        document.getElementById('label-link').textContent = 'Vincular circuitos';
-      });
-    }
+    document.body.addEventListener('htmx:afterSwap', function() {
+      var btnLink = document.getElementById('btn-link-orphans');
+      if (btnLink) {
+        btnLink.addEventListener('htmx:beforeRequest', function() {
+          btnLink.disabled = true;
+          btnLink.classList.add('opacity-50', 'cursor-not-allowed');
+          document.getElementById('spinner-link').classList.remove('hidden');
+          document.getElementById('icon-link').classList.add('hidden');
+          document.getElementById('label-link').textContent = 'Vinculando...';
+        });
+        btnLink.addEventListener('htmx:afterRequest', function() {
+          btnLink.disabled = false;
+          btnLink.classList.remove('opacity-50', 'cursor-not-allowed');
+          document.getElementById('spinner-link').classList.add('hidden');
+          document.getElementById('icon-link').classList.remove('hidden');
+          document.getElementById('label-link').textContent = 'Vincular circuitos';
+        });
+      }
+    });
   </script>
 
 </div>

@@ -79,21 +79,23 @@
     </div>
 
     <script>
-      var btnProcess = document.getElementById('btn-process-orphan');
-      if (btnProcess) {
-        btnProcess.addEventListener('htmx:beforeRequest', function() {
-          btnProcess.disabled = true;
-          btnProcess.classList.add('opacity-50', 'cursor-not-allowed');
-          document.getElementById('spinner-process').classList.remove('hidden');
-          document.getElementById('label-process').textContent = 'Processando...';
-        });
-        btnProcess.addEventListener('htmx:afterRequest', function() {
-          btnProcess.disabled = false;
-          btnProcess.classList.remove('opacity-50', 'cursor-not-allowed');
-          document.getElementById('spinner-process').classList.add('hidden');
-          document.getElementById('label-process').textContent = 'Processar';
-        });
-      }
+      document.body.addEventListener('htmx:afterSwap', function() {
+        var btnProcess = document.getElementById('btn-process-orphan');
+        if (btnProcess) {
+          btnProcess.addEventListener('htmx:beforeRequest', function() {
+            btnProcess.disabled = true;
+            btnProcess.classList.add('opacity-50', 'cursor-not-allowed');
+            document.getElementById('spinner-process').classList.remove('hidden');
+            document.getElementById('label-process').textContent = 'Processando...';
+          });
+          btnProcess.addEventListener('htmx:afterRequest', function() {
+            btnProcess.disabled = false;
+            btnProcess.classList.remove('opacity-50', 'cursor-not-allowed');
+            document.getElementById('spinner-process').classList.add('hidden');
+            document.getElementById('label-process').textContent = 'Processar';
+          });
+        }
+      });
     </script>
 </body>
 </html>
