@@ -33,12 +33,11 @@
 17. [RF-093 — Decompor serviços com múltiplas responsabilidades (`AuditService`, `CostPerCircuitService`)](#rf-093)
 18. [RF-096 — Normalizar número de DID no lookup inbound do processamento de ligações](#rf-096)
 19. [RF-097 — Reverter elementos desconexos da Auditoria (direção, filtro, totalizadores)](#rf-097)
-20. [RF-102 — Eliminar N+1 queries no OrphanCallReportService](#rf-102)
-21. [RF-103 — Relatório de chamadas órfãs: paginação, loader funcional e vinculação](#rf-103)
-22. [RF-100 — Vincular circuito no processamento via channel e dstChannel](#rf-100)
+20. [RF-103 — Relatório de chamadas órfãs: paginação, loader funcional e vinculação](#rf-103)
+21. [RF-100 — Vincular circuito no processamento via channel e dstChannel](#rf-100)
+22. [RF-104 — Remover dependência Tailwind CSS e migrar para CSS puro](#rf-104)
 
 ### Bug Fixes (FIX)
-1. [FIX-101 — Corrigir NonUniqueResultException em CdrRepository.findByUniqueId](#fix-101)
 
 ---
 
@@ -1154,350 +1153,6 @@ Remover a dependência de `DIDRepository` do `CallProcessingService`, pois não 
 
 ---
 
-### FIX-101 · Corrigir NonUniqueResultException em CdrRepository.findByUniqueId
-
-- **Tipo:** Bug Fix
-- **Prioridade:** ALTA
-- **US relacionada:** —
-- **Sprint:** —
-- **Arquivos:**
-  - `backend/src/main/java/com/dionialves/AsteraComm/cdr/CdrRepository.java` (editar)
-  - `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` (editar)
-- **Dependências:** —
-
-#### Contexto / Problema
-
-O `CdrRepository.findByUniqueId(String uniqueId)` retorna `Optional<CdrRecord>`, o que faz o Spring Data JPA internamente usar `getSingleResultOrNull()`. Na tabela `cdr` do Asterisk, o campo `uniqueid` **não é único** — cenários de retry, forwarding e retorno de ligação produzem múltiplos registros com o mesmo `uniqueid`. Quando há 2+ registros, o JPA lança `IncorrectResultSizeDataAccessException: Query did not return a unique result: 2 results were returned`, causando erro 500 no relatório de chamadas órfãs e em qualquer outro fluxo que chame `findByUniqueId`.
-
-Comportamento observado × esperado:
-- **Observado:** `GET /reports/orphan-calls/table` retorna HTTP 500 quando encontra um `uniqueId` duplicado na tabela `cdr`.
-- **Esperado:** O relatório deve funcionar normalmente mesmo com CDRs duplicados, usando o primeiro registro encontrado.
-
-#### Abordagem escolhida
-
-Alterar `Optional<CdrRecord> findByUniqueId(String uniqueId)` para `List<CdrRecord> findByUniqueId(String uniqueId)`. No `OrphanCallReportService`, em vez de `cdrRepository.findByUniqueId(call.getUniqueId())` (que espera `Optional`), usar o primeiro elemento da lista (`findFirst()`), ou `Optional.empty()` se a lista for vazia. Isso é seguro porque, para o propósito do relatório, qualquer CDR com o mesmo `uniqueId` contém o `channel` e `dstchannel` relevantes.
-
-**Alternativa descartada:** `@Query("SELECT c FROM CdrRecord c WHERE c.uniqueId = :uid ORDER BY c.calldate DESC") Optional<CdrRecord> findFirstByUniqueId(...)`. Motivo: o Spring Data JPA não suporta `LIMIT` em JPQL sem `Pageable`. Adicionar `Pageable` para uma query de lookup simples é excesso. A abordagem `List + getFirst()` é idiomática e não requer mudança na entidade nem no esquema.
-
-#### Passo-a-passo de implementação
-
-1. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/cdr/CdrRepository.java` — alterar o retorno de `findByUniqueId` de `Optional<CdrRecord>` para `List<CdrRecord>`:
-   ```java
-   List<CdrRecord> findByUniqueId(String uniqueId);
-   ```
-
-2. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` — linha 30, substituir:
-   ```java
-   Optional<CdrRecord> cdrOpt = cdrRepository.findByUniqueId(call.getUniqueId());
-   ```
-   por:
-   ```java
-   List<CdrRecord> cdrList = cdrRepository.findByUniqueId(call.getUniqueId());
-   Optional<CdrRecord> cdrOpt = cdrList.isEmpty() ? Optional.empty() : Optional.of(cdrList.get(0));
-   ```
-
-   Adicionar `import java.util.List;` se ainda não presente (já existe no arquivo).
-
-3. **Editar** `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` — atualizar todos os mocks de `cdrRepository.findByUniqueId` para retornar `List` em vez de `Optional`:
-   - Linha 69: `when(cdrRepository.findByUniqueId("unique-001")).thenReturn(Optional.of(cdr));` → `when(cdrRepository.findByUniqueId("unique-001")).thenReturn(List.of(cdr));`
-   - Linha 92: `when(cdrRepository.findByUniqueId("unique-002")).thenReturn(Optional.of(cdr));` → `when(cdrRepository.findByUniqueId("unique-002")).thenReturn(List.of(cdr));`
-   - Linha 111: `when(cdrRepository.findByUniqueId("unique-003")).thenReturn(Optional.empty());` → `when(cdrRepository.findByUniqueId("unique-003")).thenReturn(List.of());`
-   - Linha 156: `when(cdrRepository.findByUniqueId("uid-001")).thenReturn(Optional.of(cdr1));` → `when(cdrRepository.findByUniqueId("uid-001")).thenReturn(List.of(cdr1));`
-   - Linha 157: `when(cdrRepository.findByUniqueId("uid-002")).thenReturn(Optional.of(cdr2));` → `when(cdrRepository.findByUniqueId("uid-002")).thenReturn(List.of(cdr2));`
-   - Linha 181: `when(cdrRepository.findByUniqueId("uid-001")).thenReturn(Optional.of(cdr));` → `when(cdrRepository.findByUniqueId("uid-001")).thenReturn(List.of(cdr));`
-   - Linha 215: `when(cdrRepository.findByUniqueId("uid-001")).thenReturn(Optional.of(cdr1));` → `when(cdrRepository.findByUniqueId("uid-001")).thenReturn(List.of(cdr1));`
-   - Linha 216: `when(cdrRepository.findByUniqueId("uid-002")).thenReturn(Optional.of(cdr2));` → `when(cdrRepository.findByUniqueId("uid-002")).thenReturn(List.of(cdr2));`
-
-4. **Adicionar** novo teste em `OrphanCallReportServiceTest` — cenário de CDR duplicado:
-   ```java
-   @Test
-   void findOrphanCalls_handlesDuplicateCdrRecords_withoutError() {
-       Call orphan = new Call();
-       orphan.setId(4L);
-       orphan.setUniqueId("unique-dup");
-       orphan.setCallDate(LocalDateTime.of(2026, 3, 13, 10, 0));
-       orphan.setDst("4934000000");
-
-       CdrRecord cdr1 = new CdrRecord();
-       cdr1.setUniqueId("unique-dup");
-       cdr1.setChannel("PJSIP/123456-000045f0");
-
-       CdrRecord cdr2 = new CdrRecord();
-       cdr2.setUniqueId("unique-dup");
-       cdr2.setChannel("PJSIP/123456-00004600");
-
-       Circuit circuit = new Circuit();
-       circuit.setNumber("123456");
-
-       when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(List.of(orphan));
-       when(cdrRepository.findByUniqueId("unique-dup")).thenReturn(List.of(cdr1, cdr2));
-       when(circuitRepository.findByNumber("123456")).thenReturn(Optional.of(circuit));
-
-       List<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026);
-
-       assertThat(result).hasSize(1);
-       assertThat(result.get(0).resolvable()).isTrue();
-       assertThat(result.get(0).channel()).isEqualTo("PJSIP/123456-000045f0");
-   }
-   ```
-
-5. **Rodar `./mvnw test`** e garantir que a suíte passa (incluindo os testes novos e atualizados).
-
-#### Testes a criar/atualizar
-- `OrphanCallReportServiceTest` — atualizar 8 mocks de `findByUniqueId` de `Optional` para `List`.
-- `OrphanCallReportServiceTest` — adicionar teste `findOrphanCalls_handlesDuplicateCdrRecords_withoutError`.
-
-#### Critérios de aceitação
-- [ ] `CdrRepository.findByUniqueId` retorna `List<CdrRecord>` em vez de `Optional<CdrRecord>`.
-- [ ] `OrphanCallReportService.findOrphanCalls` funciona sem exceção quando a tabela `cdr` contém múltiplos registros com o mesmo `uniqueid`.
-- [ ] Quando há CDRs duplicados, o service usa o primeiro registro da lista.
-- [ ] Quando não há CDR para o `uniqueId`, o service trata como `Optional.empty()` e a chamada aparece como "Não resolvível".
-- [ ] Todos os testes novos passam e nenhum teste existente regrediu.
-- [ ] `./mvnw test` passa.
-- [ ] Commit no padrão `fix(fix-101): corrige nonuniqueresultexception em cdrrepository`.
-- [ ] Entrada no `doc/changelog.md` seção `[Unreleased]` e descrição detalhada em `doc/release_notes/unreleased.md`.
-- [ ] Remoção da task do `doc/backlog.md` após conclusão.
-
-#### Riscos e observações
-- **Outros consumidores de `CdrRepository.findByUniqueId`:** atualmente, apenas `OrphanCallReportService` chama `cdrRepository.findByUniqueId`. A mudança de `Optional` para `List` afeta apenas este ponto. O `CallRepository.findByUniqueId` (da entidade `Call`) não é afetado — é outra interface, outro domínio.
-- **O Codificador NÃO deve criar migration Flyway** — não há alteração de esquema.
-- **O Codificador NÃO deve alterar a entidade `CdrRecord`** — a anotação `@Immutable` é mantida.
-
----
-
-### RF-102 · Eliminar N+1 queries no OrphanCallReportService
-
-- **Tipo:** Refactor
-- **Prioridade:** ALTA
-- **US relacionada:** —
-- **Sprint:** —
-- **Arquivos:**
-  - `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` (editar)
-  - `backend/src/main/java/com/dionialves/AsteraComm/cdr/CdrRepository.java` (editar)
-  - `backend/src/main/java/com/dionialves/AsteraComm/circuit/CircuitRepository.java` (editar)
-  - `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` (editar)
-- **Dependências:** FIX-101 (precisa estar concluída para que `findByUniqueId` já retorne `List`)
-
-#### Contexto / Problema
-
-O `OrphanCallReportService.findOrphanCalls(int month, int year)` faz, para cada chamada órfã, **2 a 3 queries individuais**:
-
-1. `cdrRepository.findByUniqueId(call.getUniqueId())` — 1 query por chamada.
-2. `circuitRepository.findByNumber(circuitCode)` — 1 query por tentativa de canal (channel e dstChannel = até 2 queries).
-
-Com 12 chamadas órfãs, são ~24 queries de `Circuit` + ~12 queries de `CdrRecord`, totalizando **23,5 segundos**. Com 10.000 chamadas órfãs (cenário real em meses de alto volume), o relatório é completamente inutilizável — o tempo de resposta escala linearmente e ultrapassa qualquer timeout razoável.
-
-O padrão N+1 viola o princípio de que queries ao banco devem ser O(1) em relação ao tamanho do conjunto de dados.
-
-#### Abordagem escolhida
-
-Substituir as N queries individuais por **3 queries em lote (batch)**:
-
-1. Buscar todos os `uniqueId` das chamadas órfãs e consultar os CDRs em uma única query `IN`: `cdrRepository.findByUniqueIdIn(List<String>)`.
-2. Buscar todos os circuit codes (extraídos dos CDRs via `ChannelParser`) e consultar os circuitos em uma única query `IN`: `circuitRepository.findByNumberIn(List<String>)`.
-3. Montar `Map<String, CdrRecord>` e `Map<String, Circuit>` em memória, e iterar as chamadas órfãs usando os Maps para lookup O(1).
-
-Isso reduz o total de queries de **3N** para **3** (orphans + CDRs + circuits), independentemente do volume de dados.
-
-**Alternativa descartada:** `@EntityGraph` / `JOIN FETCH` na query `findOrphanCallsByPeriod`. Motivo: a entidade `Call` não tem relacionamento JPA com `CdrRecord`, e o `ChannelParser` precisa do valor bruto de `channel`/`dstchannel` para extrair o código — não é possível resolver com JOIN.
-
-#### Passo-a-passo de implementação
-
-1. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/cdr/CdrRepository.java` — adicionar método de busca em lote:
-   ```java
-   List<CdrRecord> findByUniqueIdIn(List<String> uniqueIds);
-   ```
-
-2. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/circuit/CircuitRepository.java` — adicionar método de busca em lote:
-   ```java
-   List<Circuit> findByNumberIn(List<String> numbers);
-   ```
-
-3. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` — reescrever `findOrphanCalls` para eliminar o N+1. O método inteiro (linhas 25-66) deve ser substituído por:
-   ```java
-   public List<OrphanCallReportDTO> findOrphanCalls(int month, int year) {
-       List<Call> orphans = callRepository.findOrphanCallsByPeriod(month, year);
-       if (orphans.isEmpty()) {
-           return List.of();
-       }
-
-       // Batch 1: buscar todos os CDRs dos uniqueIds em uma query
-       List<String> uniqueIds = orphans.stream().map(Call::getUniqueId).distinct().toList();
-       Map<String, CdrRecord> cdrByUniqueId = cdrRepository.findByUniqueIdIn(uniqueIds)
-               .stream()
-               .collect(Collectors.toMap(
-                       CdrRecord::getUniqueId,
-                       cdr -> cdr,
-                       (first, second) -> first  // em caso de duplicata, usar o primeiro
-               ));
-
-       // Batch 2: coletar todos os circuit codes possíveis e buscar circuitos em uma query
-       Set<String> allCircuitCodes = new HashSet<>();
-       for (Call call : orphans) {
-           CdrRecord cdr = cdrByUniqueId.get(call.getUniqueId());
-           if (cdr != null) {
-               String ch = cdr.getChannel();
-               String dstCh = cdr.getDstchannel();
-               if (ch != null && !ch.isBlank()) allCircuitCodes.add(channelParser.parse(ch));
-               if (dstCh != null && !dstCh.isBlank()) allCircuitCodes.add(channelParser.parse(dstCh));
-           }
-       }
-       allCircuitCodes.removeIf(String::isBlank);
-
-       Map<String, Circuit> circuitByNumber = circuitRepository.findByNumberIn(List.copyOf(allCircuitCodes))
-               .stream()
-               .collect(Collectors.toMap(Circuit::getNumber, c -> c, (first, second) -> first));
-
-       // Montar resultado usando os Maps (lookups O(1) por chamada)
-       List<OrphanCallReportDTO> result = new ArrayList<>();
-       for (Call call : orphans) {
-           CdrRecord cdr = cdrByUniqueId.get(call.getUniqueId());
-           String channel = (cdr != null) ? cdr.getChannel() : null;
-           String dstChannel = (cdr != null) ? cdr.getDstchannel() : null;
-           String circuitCode = null;
-           boolean resolvable = false;
-
-           if (channel != null && !channel.isBlank()) {
-               circuitCode = channelParser.parse(channel);
-               if (circuitCode != null && !circuitCode.isBlank() && circuitByNumber.containsKey(circuitCode)) {
-                   resolvable = true;
-               }
-           }
-
-           if (!resolvable && dstChannel != null && !dstChannel.isBlank()) {
-               circuitCode = channelParser.parse(dstChannel);
-               if (circuitCode != null && !circuitCode.isBlank() && circuitByNumber.containsKey(circuitCode)) {
-                   resolvable = true;
-               }
-           }
-
-           result.add(new OrphanCallReportDTO(
-                   call.getId(), call.getUniqueId(), call.getCallDate(), call.getDst(),
-                   channel, dstChannel, circuitCode, resolvable
-           ));
-       }
-       return result;
-   }
-   ```
-
-   Adicionar os imports necessários (se ainda não presentes):
-   ```java
-   import java.util.HashSet;
-   import java.util.Set;
-   import java.util.stream.Collectors;
-   ```
-
-4. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` — remover o campo `cdrRepository` da injeção de construtor, se a referencia direta a `findByUniqueId` não for mais usada em nenhum outro método. Verificar: o método `findOrphanCalls` era o único que usava `cdrRepository.findByUniqueId`. Os imports de `CdrRecord` e `CdrRepository` permanecem pois `findByUniqueIdIn` retorna `CdrRecord`.
-
-5. **Editar** `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` — atualizar todos os testes para usar mocks de `findByUniqueIdIn` (em vez de `findByUniqueId`) e `findByNumberIn` (em vez de `findByNumber`):
-
-   a. Teste `findOrphanCalls_returnsEmpty_whenNoOrphansForPeriod` — sem mudança nos mocks de CDR/Circuit (não há orphans).
-
-   b. Teste `findOrphanCalls_returnsResolvable_whenChannelMatchesExistingCircuit`:
-   ```java
-   when(cdrRepository.findByUniqueIdIn(List.of("unique-001"))).thenReturn(List.of(cdr));
-   when(circuitRepository.findByNumberIn(List.of("123456"))).thenReturn(List.of(circuit));
-   ```
-
-   c. Teste `findOrphanCalls_returnsNotResolvable_whenCircuitMissing`:
-   ```java
-   when(cdrRepository.findByUniqueIdIn(List.of("unique-002"))).thenReturn(List.of(cdr));
-   when(circuitRepository.findByNumberIn(List.of("999999"))).thenReturn(List.of());
-   ```
-
-   d. Teste `findOrphanCalls_returnsNotResolvable_whenCdrMissing`:
-   ```java
-   when(cdrRepository.findByUniqueIdIn(List.of("unique-003"))).thenReturn(List.of());
-   when(circuitRepository.findByNumberIn(List.of())).thenReturn(List.of());
-   ```
-
-   e. Teste `linkOrphanCalls_linksResolvableAndSkipsNonResolvable`:
-   ```java
-   when(cdrRepository.findByUniqueIdIn(List.of("uid-001", "uid-002"))).thenReturn(List.of(cdr1, cdr2));
-   when(circuitRepository.findByNumberIn(List.of("123456", "999999"))).thenReturn(List.of(circuit));
-   // Nota: "999999" não está presente no list retornado, simulando circuit not found
-   ```
-   Na verdade, para o retorno correto, `findByNumberIn` deve retornar apenas circuitos existentes. Para simular que "999999" não existe, o mock retorna apenas `List.of(circuit)` (onde `circuit.getNumber()` = "123456"):
-   ```java
-   when(cdrRepository.findByUniqueIdIn(List.of("uid-001", "uid-002"))).thenReturn(List.of(cdr1, cdr2));
-   when(circuitRepository.findByNumberIn(List.of("123456", "999999"))).thenReturn(List.of(circuit));
-   ```
-
-   f. Teste `linkOrphanCalls_returnsZero_whenNoResolvable`:
-   ```java
-   when(cdrRepository.findByUniqueIdIn(List.of("uid-001"))).thenReturn(List.of(cdr));
-   when(circuitRepository.findByNumberIn(List.of("999999"))).thenReturn(List.of());
-   ```
-
-   g. Teste `countResolvable_returnsCorrectCount`:
-   ```java
-   when(cdrRepository.findByUniqueIdIn(List.of("uid-001", "uid-002"))).thenReturn(List.of(cdr1, cdr2));
-   when(circuitRepository.findByNumberIn(List.of("123456", "999999"))).thenReturn(List.of(circuit));
-   ```
-
-   h. Teste `findOrphanCalls_handlesDuplicateCdrRecords_withoutError` (criado na FIX-101):
-   ```java
-   when(cdrRepository.findByUniqueIdIn(List.of("unique-dup"))).thenReturn(List.of(cdr1, cdr2));
-   when(circuitRepository.findByNumberIn(List.of("123456"))).thenReturn(List.of(circuit));
-   ```
-
-6. **Rodar `./mvnw test`** e garantir que a suíte passa.
-
-#### Testes a criar/atualizar
-- `OrphanCallReportServiceTest` — atualizar todos os testes existentes para usar `findByUniqueIdIn` e `findByNumberIn` em vez de `findByUniqueId` e `findByNumber`.
-- `OrphanCallReportServiceTest` — adicionar teste de volume: `findOrphanCalls_usesBatchQueries_evenWithLargeOrphanSet` que verifica que `cdrRepository.findByUniqueIdIn` é chamado exatamente 1 vez e `circuitRepository.findByNumberIn` é chamado exatamente 1 vez, independente do número de orphans:
-  ```java
-  @Test
-  void findOrphanCalls_usesBatchQueries_evenWithLargeOrphanSet() {
-      List<Call> orphans = new ArrayList<>();
-      for (int i = 1; i <= 100; i++) {
-          Call orphan = new Call();
-          orphan.setId((long) i);
-          orphan.setUniqueId("uid-" + i);
-          orphan.setCallDate(LocalDateTime.of(2026, 3, 1, i % 24, 0));
-          orphan.setDst("493400" + String.format("%04d", i));
-          orphans.add(orphan);
-      }
-      CdrRecord cdr = new CdrRecord();
-      cdr.setUniqueId("uid-1");
-      cdr.setChannel("PJSIP/123456-000045f0");
-      Circuit circuit = new Circuit();
-      circuit.setNumber("123456");
-
-      when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(orphans);
-      when(cdrRepository.findByUniqueIdIn(anyList())).thenReturn(List.of(cdr));
-      when(circuitRepository.findByNumberIn(anyList())).thenReturn(List.of(circuit));
-
-      List<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026);
-
-      verify(cdrRepository, times(1)).findByUniqueIdIn(anyList());
-      verify(circuitRepository, times(1)).findByNumberIn(anyList());
-      assertThat(result).hasSize(100);
-  }
-  ```
-
-#### Critérios de aceitação
-- [ ] `findOrphanCalls` executa exatamente 3 queries ao banco, independentemente do número de chamadas órfãs (1 × orphans + 1 × CDRs + 1 × circuits).
-- [ ] `cdrRepository.findByUniqueId` não é mais chamado individualmente em `OrphanCallReportService`.
-- [ ] `circuitRepository.findByNumber` não é mais chamado individualmente em `OrphanCallReportService`.
-- [ ] Novos métodos `findByUniqueIdIn` e `findByNumberIn` existem nos respectivos repositories.
-- [ ] Resultado do relatório é idêntico ao anterior para os mesmos dados (sem mudança de comportamento funcional).
-- [ ] Teste de volume confirma que queries batch são chamadas apenas 1 vez para 100 orphans.
-- [ ] Todos os testes novos passam e nenhum teste existente regrediu.
-- [ ] `./mvnw test` passa.
-- [ ] Commit no padrão `refactor(rf-102): elimina n1-queries no orphan-call-report-service`.
-- [ ] Entrada no `doc/changelog.md` seção `[Unreleased]` e descrição detalhada em `doc/release_notes/unreleased.md`.
-- [ ] Remoção da task do `doc/backlog.md` após conclusão.
-
-#### Riscos e observações
-- **Duplicata de `uniqueId` em CDRs:** o `Collectors.toMap` com merge function `(first, second) -> first` garante que CDRs duplicados não causam exceção — escolhe o primeiro (que coincide com o comportamento da FIX-101).
-- **Circuit codes extraídos incluem nomes de tronco:** o `ChannelParser` pode extrair `operadora` de `PJSIP/operadora-xxx` (canais de tronco). Esses códigos serão incluídos no `allCircuitCodes` e passados para `findByNumberIn`, mas não causarão match (pois `operadora` não é número de circuito) — apenas um código a mais no `IN`, sem impacto funcional.
-- **O Codificador NÃO deve criar migration Flyway** — nenhuma alteração de esquema.
-- **O Codificador NÃO deve alterar templates** — esta é uma refatoração de backend apenas.
-- **`countResolvable` e `linkOrphanCalls`** chamam `findOrphanCalls` internamente, portanto também se beneficiam da eliminação do N+1 automaticamente.
-
----
-
 ### RF-103 · Relatório de chamadas órfãs: paginação, loader funcional e vinculação
 
 - **Tipo:** Refactor
@@ -1886,4 +1541,466 @@ Esta task é o **replanejamento da RF-099** — absorve as funcionalidades origi
 - **O Codificador NÃO deve alterar `SecurityConfigurations`** — o endpoint já está protegido.
 - **Linha duplicada no release notes:** se existir entrada duplicada de `findOrphanCalls_returnsNotResolvable_whenCdrMissing` em `doc/release-notes/unreleased.md`, corrigir removendo a duplicata.
 - **Ordem de execução:** esta task depende de FIX-101 e RF-102. O Codificador deve executar FIX-101 primeiro, depois RF-102, e finalmente RF-103.
+
+---
+
+### RF-104 · Remover dependência Tailwind CSS e migrar para CSS puro
+
+- **Tipo:** Refactor
+- **Prioridade:** MÉDIA
+- **US relacionada:** —
+- **Sprint:** —
+- **Arquivos:**
+  - `backend/src/main/resources/static/css/input.css` (editar → renomear para `app.css`)
+  - `backend/src/main/resources/static/css/output.css` (remover)
+  - `backend/tools/tailwindcss` (remover)
+  - `backend/tailwind.config.js` (remover)
+  - `backend/tailwind-watch.sh` (remover)
+  - `backend/pom.xml` (editar — remover exec-maven-plugin do Tailwind)
+  - `backend/Dockerfile` (editar — remover step Tailwind)
+  - `backend/src/main/resources/templates/layout/base.html` (editar — trocar referência CSS)
+  - `backend/src/main/resources/templates/layout/base-login.html` (editar — trocar referência CSS)
+  - `dev.sh` (editar — remover dica do tailwind-watch.sh)
+  - `README.md` (editar — remover referência ao tailwind-watch.sh)
+  - `AGENTS.md` (editar — atualizar descrição da stack e build)
+  - Todos os 48 templates `.html` em `backend/src/main/resources/templates/` (editar — converter classes Tailwind para CSS puro)
+- **Dependências:** —
+
+#### Contexto / Problema
+
+O Tailwind CSS foi introduzido no projeto via US-052 para padronizar o styling. Porém, hoje ele opera como um **binário standalone de 41 MB** (`backend/tools/tailwindcss`) que precisa ser executado offline para compilar o CSS gerado (`output.css`). Isso traz complexidade desnecessária:
+
+1. **Build quebrado fora do Docker:** o passo de compilação Tailwind no `pom.xml` (phase `generate-resources` via `exec-maven-plugin`) invoca `./tools/tailwindcss`, que é um binário Linux x86_64. Em macOS (máquina do desenvolvedor), esse binário não roda — o Maven build falha localmente.
+2. **Recompilação manual em dev:** alterações visuais só surtem efeito após rodar `./backend/tailwind-watch.sh` manualmente, eliminando o benefício do hot reload do devtools.
+3. **Binário de 41 MB no repositório:** `backend/tools/tailwindcss` é um binário compilado committed no git, engordando o repositório e sem utilidade em plataformas não-Linux.
+4. **Tailwind é supérfluo aqui:** o projeto usa Tailwind quase exclusivamente como **utility-first CSS** — não usa componentes, plugins, @apply, design system, nem PurgeCSS avançado. As ~406 classes únicas nos templates são triviais de converter para CSS puro (flex, grid, gap, padding, margin, cores, tipografia). As classes custom já existem no `input.css`.
+
+#### Abordagem escolhida
+
+Substituir toda a pipeline Tailwind (binário → `input.css` com `@tailwind` → compilação → `output.css`) por um **único arquivo CSS puro** (`app.css`) servido estaticamente. As classes utilitárias Tailwind nos templates são convertidas para classes semânticas nomeadas no CSS, mantendo o mesmo visual.
+
+**Estratégia de conversão:**
+- Classes de layout/estrutura (flex, grid, gap, items-, justify-) → classes semânticas por componente (ex.: `.sidebar`, `.sidebar-logo`, `.sidebar-link`, `.btn-primary`, `.card`, `.table-header`, etc.)
+- Classes de espaçamento (p-*, m-*) → definições inline no CSS com os mesmos valores
+- Classes de tipografia (text-*, font-*) → classes semânticas (`.text-heading`, `.text-body`, `.text-caption`, etc.)
+- Classes de cor (bg-*, text-*, border-*) → CSS custom properties já existentes (`--color-primary`, `--color-text`, etc.) + novas variáveis conforme necessário
+- Classes de borda, radius, shadow → definições no componente
+- Classes de estado (hover:*, hidden, opacity-*) → CSS nativo (`:hover`, `display:none`, etc.)
+- Classes existentes custom (`.modal-header`, `.trunk-row`, `.ss-trigger`, etc.) → mantidas como estão
+
+**Alternativa descartada 1:** manter Tailwind via CDN (`<script src="https://cdn.tailwindcss.com">`). Motivo: troca um binário de build por uma dependência CDN em runtime — péssimo para performance e indisponibilidade offline.
+
+**Alternativa descartada 2:** converter para PostCSS + plugin cssnano. Motivo: adiciona outra dependência de build com Node.js, indo na direção oposta à simplificação.
+
+#### Passo-a-passo de implementação
+
+> **NOTA:** Esta task tem escopo grande (48 templates + infra). O Codificador deve executar os passos na ordem exata. Compilar (`mvn compile`) após cada 5–8 templates convertidos para detectar regressões cedo.
+
+1. **Criar** `backend/src/main/resources/static/css/app.css` — novo arquivo CSS puro contendo:
+   - As custom properties `:root` já existentes no `input.css` (mantidas idênticas)
+   - A animação `.toast-fadeout` (mantida idêntica)
+   - Os estilos custom existentes do `input.css` (modal-*, *-row, ss-*, toggle-*, etc.) mantidos idênticos
+   - **Novas classes semânticas** correspondentes a todas as classes Tailwind usadas nos templates, organizadas por seção:
+
+   ```css
+   /* ══════════════════════════════════════════════════════════════════════════
+      AsteraComm — CSS Puro
+      Substitui pipeline Tailwind (binário + input.css + output.css)
+      ══════════════════════════════════════════════════════════════════════════ */
+
+   /* ── Reset & Base ──────────────────────────────────────────────────────── */
+   *, *::before, *::after { box-sizing: border-box; }
+   body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; color: var(--color-text); }
+
+   /* ── Custom Properties ─────────────────────────────────────────────────── */
+   :root {
+     --color-primary: #1D9E75;
+     --color-primary-dark: #085041;
+     --color-danger: #791F1F;
+     --color-text: #1a1a1a;
+     --color-muted: #888;
+     --color-border: #e0e0e0;
+     --color-surface: #f5f5f5;
+     --color-selected-bg: #E6F1FB;
+     --color-selected-border: #378ADD;
+     --color-white: #ffffff;
+     --color-gray-50: #fafafa;
+     --color-gray-100: #f5f5f5;
+     --color-gray-200: #e5e7eb;
+     --color-gray-300: #d1d5db;
+     --color-gray-400: #9ca3af;
+     --color-gray-500: #6b7280;
+     --color-gray-600: #555555;
+     --color-gray-700: #374151;
+     --color-gray-900: #111827;
+     --color-red-50: #fef2f2;
+     --color-red-100: #fee2e2;
+     --color-red-200: #fecaca;
+     --color-red-300: #fca5a5;
+     --color-red-500: #ef4444;
+     --color-red-600: #dc2626;
+     --color-red-700: #E24B4A;
+     --color-amber-50: #FFF3E0;
+     --color-amber-500: #E5A000;
+     --color-amber-700: #E65100;
+     --color-brown: #BA7517;
+     --color-brown-dark: #854F0B;
+     --color-blue-50: #E6F1FB;
+     --color-blue-500: #185FA5;
+     --color-sidebar: #1a1a1a;
+     --color-sidebar-hover: rgba(255,255,255,0.05);
+     --color-sidebar-active: rgba(255,255,255,0.08);
+     --color-success-light: #E1F5EE;
+     --color-warning-light: #FEF3C7;
+     --color-danger-light: #FCEBEB;
+     --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+     --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+     --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+     --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1);
+   }
+   ```
+
+   O Codificador deve completar o arquivo `app.css` com **todas as classes semânticas necessárias**, mapeando cada classe Tailwind usada nos templates. O mapeamento segue os padrões abaixo (o Codificador deve criar TODAS — esta lista é um guia, não exaustiva):
+
+   **Sidebar:**
+   ```css
+   .sidebar { position: fixed; top: 0; left: 0; width: 220px; height: 100vh; background: var(--color-sidebar); display: flex; flex-direction: column; z-index: 5; overflow-y: auto; }
+   .sidebar-logo { padding: 20px 16px 12px; flex-shrink: 0; text-align: center; }
+   .sidebar-logo-text { font-size: 24px; font-weight: 500; letter-spacing: -0.5px; }
+   .sidebar-logo-accent { color: #5DCAA5; }
+   .sidebar-logo-white { color: white; }
+   .sidebar-version { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 4px; }
+   .sidebar-nav { flex: 1; padding: 4px 8px; overflow-y: auto; }
+   .sidebar-section-label { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: rgba(255,255,255,0.35); text-transform: uppercase; padding: 14px 12px 4px; display: block; }
+   .sidebar-link { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 6px; font-size: 13px; color: rgba(255,255,255,0.65); text-decoration: none; margin-bottom: 1px; cursor: pointer; transition: background 150ms, color 150ms; }
+   .sidebar-link:hover { background: var(--color-sidebar-hover); color: rgba(255,255,255,0.9); }
+   .sidebar-link.active { background: var(--color-sidebar-active); color: white; }
+   .sidebar-submenu-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border-radius: 6px; border: none; background: transparent; font-size: 13px; color: rgba(255,255,255,0.65); cursor: pointer; margin-bottom: 1px; transition: background 150ms, color 150ms; }
+   .sidebar-submenu-btn:hover { background: var(--color-sidebar-hover); color: rgba(255,255,255,0.9); }
+   .sidebar-submenu-label { display: flex; align-items: center; gap: 10px; }
+   .sidebar-sub-chevron { flex-shrink: 0; transition: transform 250ms ease; }
+   .sidebar-sub-chevron.open { transform: rotate(180deg); }
+   .sidebar-submenu { overflow: hidden; transition: max-height 250ms ease; }
+   .sidebar-submenu.open { max-height: 200px; }
+   .sidebar-submenu.closed { max-height: 0; }
+   .sidebar-sublink { display: block; padding: 7px 12px 7px 38px; font-size: 13px; color: rgba(255,255,255,0.55); text-decoration: none; border-radius: 6px; margin-bottom: 1px; transition: background 150ms, color 150ms; }
+   .sidebar-sublink:hover { background: var(--color-sidebar-hover); color: rgba(255,255,255,0.9); }
+   .sidebar-sublink.active { color: white; }
+   .sidebar-footer { flex-shrink: 0; padding: 8px; border-top: 1px solid rgba(255,255,255,0.07); position: relative; }
+   .sidebar-profile-btn { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; background: transparent; border: none; cursor: pointer; transition: background 150ms; }
+   .sidebar-profile-btn:hover { background: var(--color-sidebar-hover); }
+   .sidebar-profile-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--color-primary); color: white; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+   .sidebar-profile-info { flex: 1; min-width: 0; text-align: left; }
+   .sidebar-profile-name { font-size: 12px; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
+   .sidebar-profile-role { font-size: 11px; color: rgba(255,255,255,0.4); margin: 0; }
+   .sidebar-profile-chevron { flex-shrink: 0; transition: transform 250ms ease; }
+   .sidebar-profile-dropdown { position: absolute; bottom: calc(100% + 4px); left: 8px; right: 8px; background: #2a2a2a; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; }
+   .sidebar-dropdown-btn { width: 100%; text-align: left; padding: 9px 14px; font-size: 13px; color: rgba(255,255,255,0.75); background: transparent; border: none; cursor: pointer; transition: background 120ms, color 120ms; display: block; }
+   .sidebar-dropdown-btn:hover { background: rgba(255,255,255,0.06); color: white; }
+   .sidebar-dropdown-btn.danger { color: #f87171; }
+   .sidebar-dropdown-btn.danger:hover { background: rgba(239,68,68,0.12); }
+   .sidebar-dropdown-divider { border-top: 1px solid rgba(255,255,255,0.1); }
+   ```
+
+   **Main content:**
+   ```css
+   .main-content { margin-left: 220px; min-height: 100vh; overflow-y: auto; padding: 32px; background: #fafaf8; }
+   ```
+
+   **Typography:**
+   ```css
+   .text-heading { font-size: 22px; font-weight: 500; color: var(--color-text); }
+   .text-body { font-size: 13px; color: var(--color-text); }
+   .text-caption { font-size: 12px; color: var(--color-muted); }
+   .text-small { font-size: 11px; }
+   .text-tiny { font-size: 10px; }
+   .text-xxl { font-size: 24px; font-weight: 500; }
+   .text-3xl { font-size: 36px; font-weight: 500; letter-spacing: -0.5px; }
+   .text-mono { font-family: ui-monospace, SFMono-Regular, monospace; }
+   .text-white { color: white; }
+   .text-muted { color: var(--color-muted); }
+   .text-primary { color: var(--color-primary); }
+   .text-danger { color: var(--color-danger); }
+   .text-danger-light { color: #f87171; }
+   .text-gray-500 { color: var(--color-gray-500); }
+   .text-gray-700 { color: var(--color-gray-700); }
+   .text-gray-900 { color: var(--color-gray-900); }
+   .text-semibold { font-weight: 600; }
+   .text-medium { font-weight: 500; }
+   .text-center { text-align: center; }
+   .text-right { text-align: right; }
+   .uppercase { text-transform: uppercase; }
+   .whitespace-nowrap { white-space: nowrap; }
+   .text-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+   .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+   .tracking-wide { letter-spacing: 0.025em; }
+   .tracking-wider { letter-spacing: 0.05em; }
+   .leading-relaxed { line-height: 1.625; }
+   ```
+
+   **Layout utilities:**
+   ```css
+   .flex { display: flex; }
+   .flex-col { display: flex; flex-direction: column; }
+   .flex-wrap { flex-wrap: wrap; }
+   .flex-1 { flex: 1; }
+   .flex-shrink-0 { flex-shrink: 0; }
+   .grid { display: grid; }
+   .items-center { align-items: center; }
+   .items-start { align-items: flex-start; }
+   .items-end { align-items: flex-end; }
+   .items-baseline { align-items: baseline; }
+   .items-stretch { align-items: stretch; }
+   .justify-center { justify-content: center; }
+   .justify-between { justify-content: space-between; }
+   .justify-end { justify-content: flex-end; }
+   .relative { position: relative; }
+   .absolute { position: absolute; }
+   .fixed { position: fixed; }
+   .overflow-hidden { overflow: hidden; }
+   .overflow-x-auto { overflow-x: auto; }
+   .overflow-y-auto { overflow-y: auto; }
+   .hidden { display: none; }
+   .contents { display: contents; }
+   .pointer-events-none { pointer-events: none; }
+   .pointer-events-auto { pointer-events: auto; }
+   .select-none { user-select: none; }
+   .cursor-pointer { cursor: pointer; }
+   .cursor-default { cursor: default; }
+   .cursor-not-allowed { cursor: not-allowed; }
+   .no-underline { text-decoration: none; }
+   .shrink-0 { flex-shrink: 0; }
+   .inline-block { display: inline-block; }
+   .inline-flex { display: inline-flex; }
+   .block { display: block; }
+   ```
+
+   **Spacing (manter como classes utilitárias — são práticas demais para eliminar):**
+   ```css
+   /* Padding */
+   .p-0 { padding: 0; } .p-2 { padding: 8px; } .p-4 { padding: 16px; } .p-5 { padding: 20px; } .p-6 { padding: 24px; } .p-8 { padding: 32px; }
+   .px-2 { padding-left: 8px; padding-right: 8px; } .px-3 { padding-left: 12px; padding-right: 12px; } .px-4 { padding-left: 16px; padding-right: 16px; } .px-5 { padding-left: 20px; padding-right: 20px; } .px-8 { padding-left: 32px; padding-right: 32px; }
+   .py-1 { padding-top: 4px; padding-bottom: 4px; } .py-2 { padding-top: 8px; padding-bottom: 8px; } .py-3 { padding-top: 12px; padding-bottom: 12px; } .py-4 { padding-top: 16px; padding-bottom: 16px; }
+   /* ... o Codificador deve criar TODAS as variantes de p/px/py/pt/pb/pl/pr/m/mx/my/mt/mb/ml/mr/gap usadas nos templates, consultando cada arquivo .html ... */
+
+   /* Margin */
+   .m-0 { margin: 0; } .mb-1 { margin-bottom: 4px; } .mb-2 { margin-bottom: 8px; } .mb-3 { margin-bottom: 12px; } .mb-4 { margin-bottom: 16px; } .mb-5 { margin-bottom: 20px; } .mb-6 { margin-bottom: 24px; } .mb-7 { margin-bottom: 28px; } .mb-8 { margin-bottom: 32px; } .mb-px { margin-bottom: 1px; }
+   .mt-1 { margin-top: 4px; } .mt-2 { margin-top: 8px; } .mt-3 { margin-top: 12px; } .mt-4 { margin-top: 16px; }
+   .ml-1 { margin-left: 4px; }
+   .mr-auto { margin-right: auto; }
+
+   /* Gap */
+   .gap-1 { gap: 4px; } .gap-2 { gap: 8px; } .gap-3 { gap: 12px; } .gap-4 { gap: 16px; } .gap-8 { gap: 32px; }
+   ```
+
+   **Background, Border, Radius, Shadow:**
+   ```css
+   .bg-white { background: white; }
+   .bg-surface { background: var(--color-surface); }
+   .bg-primary { background: var(--color-primary); }
+   .bg-danger { background: var(--color-danger); }
+   .bg-danger-light { background: var(--color-danger-light); }
+   .bg-success-light { background: var(--color-success-light); }
+   .bg-warning-light { background: var(--color-warning-light); }
+   .bg-transparent { background: transparent; }
+   .bg-gray-50 { background: var(--color-gray-50); }
+   .bg-gray-100 { background: var(--color-gray-100); }
+   .border { border: 1px solid var(--color-border); }
+   .border-t { border-top: 1px solid; }
+   .border-b { border-bottom: 1px solid; }
+   .border-b-0 { border-bottom: none; }
+   .border-none { border: none; }
+   .border-collapse { border-collapse: collapse; }
+   .rounded { border-radius: 4px; }
+   .rounded-md { border-radius: 6px; }
+   .rounded-lg { border-radius: 8px; }
+   .rounded-xl { border-radius: 12px; }
+   .rounded-full { border-radius: 9999px; }
+   .shadow-sm { box-shadow: var(--shadow-sm); }
+   .shadow-md { box-shadow: var(--shadow-md); }
+   .shadow-lg { box-shadow: var(--shadow-lg); }
+   .shadow-xl { box-shadow: var(--shadow-xl); }
+   .outline-none { outline: none; }
+   ```
+
+   **Sizing:**
+   ```css
+   .w-full { width: 100%; }
+   .w-fit { width: fit-content; }
+   .w-1\/2 { width: 50%; }
+   .h-full { height: 100%; }
+   .h-screen { height: 100vh; }
+   .min-h-screen { min-height: 100vh; }
+   .min-w-0 { min-width: 0; }
+   .box-border { box-sizing: border-box; }
+   ```
+
+   **Interactivity (hover, transitions):**
+   ```css
+   .transition-all { transition: all 150ms; }
+   .transition-colors { transition: color 150ms, background 150ms, border-color 150ms; }
+   .transition-opacity { transition: opacity 150ms; }
+   .transition-shadow { transition: box-shadow 150ms; }
+   .transition-transform { transition: transform 150ms; }
+   .opacity-30 { opacity: 0.3; }
+   .opacity-25 { opacity: 0.25; }
+   .opacity-75 { opacity: 0.75; }
+   .animate-spin { animation: spin 1s linear infinite; }
+   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+   ```
+
+   O Codificador deve revisar **cada um dos 48 templates** e garantir que TODA classe Tailwind usada neles tem uma definição correspondente no `app.css`. Classes com valores arbitrários (ex.: `text-[13px]`, `bg-[#1D9E75]`, `w-[220px]`, `px-[14px]`) devem ser convertidas para classes semânticas nomeadas ou, quando extremamente específicas (1 uso), movidas para `style=""` inline no template.
+
+   **Princípio: classes genéricas (flex, items-center, gap-2, mb-4) podem permanecer como utilities no CSS puro. Classes de cor e tipografia com valores arbitrários Tailwind (ex.: `text-[13px]`, `bg-[#1a1a1a]`) DEVEM ser convertidas para classes nomeadas.**
+
+2. **Editar** `backend/src/main/resources/templates/layout/base.html`:
+   - Trocar `<link rel="stylesheet" th:href="@{/css/output.css}"/>` por `<link rel="stylesheet" th:href="@{/css/app.css}"/>`
+   - Converter as classes Tailwind no template para as novas classes semânticas:
+     - `<body class="font-sans">` → `<body>`
+     - `<aside class="fixed top-0 left-0 w-[220px] h-screen bg-[#1a1a1a] flex flex-col z-[5] overflow-y-auto">` → `<aside class="sidebar">`
+     - Substituir classes Tailwind do logo, nav, links, seções, footer — tudo para as classes semânticas correspondentes definidas no passo 1
+     - `<main class="ml-[220px] min-h-screen overflow-y-auto p-8 bg-stone-50">` → `<main class="main-content">`
+     - `<div id="toast-container" class="fixed bottom-4 right-4 z-[300] flex flex-col gap-2 pointer-events-none">` → `<div id="toast-container" class="toast-container">` (adicionar `.toast-container` no `app.css`)
+     - No JS inline, substituir `classList.toggle('max-h-0', ...)` / `classList.toggle('max-h-[200px]', ...)` por `classList.toggle('closed', ...)` / `classList.toggle('open', ...)` (ou adicionar/remover as classes `.sidebar-submenu.open` e `.sidebar-submenu.closed`)
+     - No JS inline, substituir `classList.toggle('rotate-180', ...)` por `classList.toggle('open', ...)` para os chevrons (correspondendo a `.sidebar-sub-chevron.open`)
+
+3. **Editar** `backend/src/main/resources/templates/layout/base-login.html`:
+   - Trocar `<link rel="stylesheet" th:href="@{/css/output.css}"/>` por `<link rel="stylesheet" th:href="@{/css/app.css}"/>`
+   - `<body class="font-sans bg-stone-50 min-h-screen flex items-center justify-center">` → `<body class="login-page">` (adicionar `.login-page { font-family: ...; background: #fafaf8; min-height: 100vh; display: flex; align-items: center; justify-content: center; }` no `app.css`)
+
+4. **Editar** cada template de página/fragmento para converter classes Tailwind:
+   
+   Converter os 48 templates seguindo o mapeamento abaixo. O Codificador deve converter **todos** — esta lista indica a prioridade e ordem recomendada, mas TODOS devem ser convertidos:
+
+   **Prioridade ALTA (layouts + páginas principais):**
+   - `layout/base.html` (passo 2 acima)
+   - `layout/base-login.html` (passo 3 acima)
+   - `pages/login/index.html`
+   - `pages/dashboard/index.html`
+   - `fragments/pagination.html`
+   - `fragments/toast.html`
+   - `fragments/search-select.html`
+   - `fragments/modal-close.html`
+   - `fragments/confirm-delete.html`
+   - `fragments/profile/modal.html`
+   - `fragments/profile/password-modal.html`
+   - `fragments/profile/response.html`
+
+   **Prioridade MÉDIA (páginas de CRUD):**
+   - `pages/circuits/list.html`
+   - `pages/circuits/table.html`
+   - `pages/circuits/modal.html`
+   - `pages/circuits/tab-detalhes.html`
+   - `pages/circuits/tab-dids.html`
+   - `pages/circuits/tab-history.html`
+   - `pages/customers/list.html`
+   - `pages/customers/table.html`
+   - `pages/customers/modal.html`
+   - `pages/customers/tab-circuits.html`
+   - `pages/customers/tab-history.html`
+   - `pages/plans/list.html`
+   - `pages/plans/table.html`
+   - `pages/plans/modal.html`
+   - `pages/plans/package-fields.html`
+   - `pages/dids/list.html`
+   - `pages/dids/table.html`
+   - `pages/dids/modal.html`
+   - `pages/trunks/list.html`
+   - `pages/trunks/table.html`
+   - `pages/trunks/modal.html`
+   - `pages/users/list.html`
+   - `pages/users/table.html`
+   - `pages/users/modal.html`
+   - `pages/cdrs/list.html`
+   - `pages/cdrs/table.html`
+   - `pages/cdrs/modal.html`
+
+   **Prioridade MÉDIA (relatórios):**
+   - `pages/reports/index.html`
+   - `pages/reports/audit.html`
+   - `pages/reports/audit-table.html`
+   - `pages/reports/cost-per-circuit.html`
+   - `pages/reports/cost-per-circuit-table.html`
+   - `pages/reports/orphan-calls.html`
+   - `pages/reports/orphan-calls-table.html`
+
+   **Para cada template, o Codificador deve:**
+   a. Identificar todas as classes Tailwind no `class=""` e no `th:classappend=""`
+   b. Substituir por classes semânticas ou utilitárias puras definidas no `app.css`
+   c. Classes `th:classappend` com condicionais Tailwind (ex.: `!bg-white/[0.08] !text-white`) devem ser substituídas por classes semânticas (ex.: `sidebar-link-active`)
+   d. Após converter, rodar `mvn compile` a cada 5–8 templates para garantir que o Thymeleaf resolve os templates
+
+5. **Remover** `backend/src/main/resources/static/css/output.css`
+
+6. **Remover** `backend/src/main/resources/static/css/input.css`
+
+7. **Remover** `backend/tools/tailwindcss`
+
+8. **Remover** `backend/tailwind.config.js`
+
+9. **Remover** `backend/tailwind-watch.sh`
+
+10. **Editar** `backend/pom.xml` — remover o plugin `exec-maven-plugin` inteiro (linhas 130–154):
+    ```xml
+    <!-- REMOVER este bloco inteiro -->
+    <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        ...
+    </plugin>
+    ```
+
+11. **Editar** `backend/Dockerfile` — remover as linhas de Tailwind:
+    - Remover linha 21: `COPY tailwind.config.js .`
+    - Remover linhas 22-23: `COPY tools/tailwindcss ...` e `RUN chmod +x ...`
+    - Remover linhas 26-29: `RUN ./tools/tailwindcss ... --minify`
+    - Atualizar comentário da linha 19 de "Copia código fonte, config Tailwind e binário" para "Copia código fonte"
+
+12. **Editar** `dev.sh` — remover a dica do Tailwind:
+    - Remover linha 85: `echo "  • Para recompilar o CSS: ./backend/tailwind-watch.sh"`
+
+13. **Editar** `README.md` — remover referência ao `tailwind-watch.sh`
+
+14. **Editar** `AGENTS.md`:
+    - Na seção "Projeto", alterar "UI: Thymeleaf + HTMX + Tailwind CSS (CLI standalone)." para "UI: Thymeleaf + HTMX + CSS puro."
+    - Na seção "Build", remover o bloco inteiro do Tailwind CSS:
+      ```
+      - **Tailwind CSS:** compilado por binário standalone (`backend/tools/tailwindcss`), não usa Node/npm.
+        - Modo watch: `./backend/tailwind-watch.sh`
+        - Build do CSS está acoplado ao Maven na fase `generate-resources` via `exec-maven-plugin`.
+      ```
+    - Na seção "Arquitetura", se houver referência a `tools/` ou `tailwind`, ajustar
+
+15. **Rodar `./mvnw test`** e garantir que a suíte passa (nenhum teste deve regredir — não há testes de CSS).
+
+#### Testes a criar/atualizar
+- Nenhum teste novo necessário — CSS puro não é testado por unit tests. A verificação é visual/funcional.
+- Se o `AsteraConnectApplicationTests.java` (ou `AsteraCommApplicationTests.java`) fizer assertion de conteúdo HTML, verificar que não quebra.
+
+#### Critérios de aceitação
+- [ ] Arquivos Tailwind removidos: `output.css`, `input.css`, `tailwind.config.js`, `tailwind-watch.sh`, `tools/tailwindcss`
+- [ ] `pom.xml` não contém `exec-maven-plugin` do Tailwind
+- [ ] `Dockerfile` não contém nenhum passo de Tailwind (COPY do config/binary, RUN tailwindcss)
+- [ ] `dev.sh` não menciona `tailwind-watch.sh`
+- [ ] `README.md` não menciona Tailwind
+- [ ] `AGENTS.md` descreve UI como "Thymeleaf + HTMX + CSS puro" sem referência a build de CSS
+- [ ] Templates referenciam `/css/app.css` (não `/css/output.css`)
+- [ ] Nenhum template contém classes `@tailwind`-specific (ex.: `@apply`, `bg-[#xxx]` em estilo Tailwind, `text-[13px]`, etc.) — todas convertidas para classes semânticas ou utilitárias CSS puro
+- [ ] Nenhum `output.css` é gerado durante o build Maven
+- [ ] `mvn clean package -DskipTests` compila sem erro (verificar que o `generate-resources` sem Tailwind não falha)
+- [ ] `mvn test` passa sem regressão
+- [ ] Visual da aplicação é identico ao anterior (sidebar, login, dashboard, listagens, modais, relatórios, paginação, toasts)
+- [ ] Commit no padrão `refactor(rf-104): remove tailwind css e migra para css puro`
+- [ ] Entrada no `doc/CHANGELOG.md` seção `[Unreleased]` e descrição detalhada em `doc/release-notes/unreleased.md`
+- [ ] Remoção da task do `doc/backlog.md` após conclusão
+
+#### Riscos e observações
+- **Escopo muito grande:** esta task toca 48 templates + infra. O Codificador deve ser metódico e converter template a template, compilando a cada lote. Se identificar que o escopo é insuficiente para uma única sessão do Codificador, o Arquiteto pode quebrar em RF-104a (infra + layouts) e RF-104b (templates de página). **Decisão:** manter como task única, mas o Codificador pode rodar `mvn compile` incrementalmente.
+- **Classes arbitrárias Tailwind:** classes como `text-[13px]`, `w-[220px]`, `bg-[#1D9E75]`, `hover:bg-white/[0.05]` são o maior volume de trabalho. Elas não podem ser utilities genéricas — devem virar classes nomeadas no `app.css`. O Codificador deve ser criterioso: nomes semânticos para componentes (`.sidebar-link`, `.btn-primary`), nomes genéricos para utilities reutilizáveis (`.gap-2`, `.mb-4`, `.text-center`).
+- **`th:classappend` com condicionais:** muitos templates usam `th:classappend` para adicionar classes condicionais (ex.: `active`, `row-selected`). O Codificador deve garantir que as classes condicionais existam no `app.css`.
+- **JS inline que manipula classes Tailwind:** o `base.html` tem JS que adiciona/remove `max-h-0`, `max-h-[200px]`, `rotate-180`, `hidden`. Esses DEVEM ser substituídos por classes nomeadas no `app.css` e o JS atualizado para usar os novos nomes.
+- **O Codificador NÃO deve alterar Java (controllers, services, repositories)** — esta task é exclusivamente de frontend (CSS + templates) e build infra.
+- **O Codificador NÃO deve criar migration Flyway** — nenhuma alteração de schema.
+- **O Codificador NÃO deve adicionar nenhuma dependência nova ao pom.xml.**
+- **O binário `tools/tailwindcss` tem 41 MB** — certeza de remover do git. Considerar `git rm` para que seja removido do histórico no próximo garbage collect.
 

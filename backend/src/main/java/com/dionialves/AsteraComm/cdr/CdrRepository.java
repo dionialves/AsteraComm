@@ -12,6 +12,8 @@ public interface CdrRepository extends JpaRepository<CdrRecord, Long>,
 
     Optional<CdrRecord> findFirstByUniqueId(String uniqueId);
 
+    List<CdrRecord> findByUniqueIdIn(List<String> uniqueIds);
+
     @Query("SELECT c FROM CdrRecord c WHERE c.uniqueId NOT IN (SELECT ca.uniqueId FROM Call ca)")
     List<CdrRecord> findUnprocessed();
 }

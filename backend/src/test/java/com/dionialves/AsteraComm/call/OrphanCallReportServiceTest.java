@@ -12,13 +12,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -66,8 +66,8 @@ class OrphanCallReportServiceTest {
         circuit.setNumber("123456");
 
         when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(List.of(orphan));
-        when(cdrRepository.findFirstByUniqueId("unique-001")).thenReturn(Optional.of(cdr));
-        when(circuitRepository.findByNumber("123456")).thenReturn(Optional.of(circuit));
+        when(cdrRepository.findByUniqueIdIn(List.of("unique-001"))).thenReturn(List.of(cdr));
+        when(circuitRepository.findByNumberIn(List.of("123456"))).thenReturn(List.of(circuit));
 
         List<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026);
 
@@ -89,8 +89,8 @@ class OrphanCallReportServiceTest {
         cdr.setChannel("PJSIP/999999-000045f0");
 
         when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(List.of(orphan));
-        when(cdrRepository.findFirstByUniqueId("unique-002")).thenReturn(Optional.of(cdr));
-        when(circuitRepository.findByNumber("999999")).thenReturn(Optional.empty());
+        when(cdrRepository.findByUniqueIdIn(List.of("unique-002"))).thenReturn(List.of(cdr));
+        when(circuitRepository.findByNumberIn(List.of("999999"))).thenReturn(List.of());
 
         List<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026);
 
@@ -108,7 +108,8 @@ class OrphanCallReportServiceTest {
         orphan.setDst("1133333333");
 
         when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(List.of(orphan));
-        when(cdrRepository.findFirstByUniqueId("unique-003")).thenReturn(Optional.empty());
+        when(cdrRepository.findByUniqueIdIn(List.of("unique-003"))).thenReturn(List.of());
+        when(circuitRepository.findByNumberIn(List.of())).thenReturn(List.of());
 
         List<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026);
 
@@ -153,10 +154,8 @@ class OrphanCallReportServiceTest {
         circuit.setNumber("123456");
 
         when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(List.of(orphan1, orphan2));
-        when(cdrRepository.findFirstByUniqueId("uid-001")).thenReturn(Optional.of(cdr1));
-        when(cdrRepository.findFirstByUniqueId("uid-002")).thenReturn(Optional.of(cdr2));
-        when(circuitRepository.findByNumber("123456")).thenReturn(Optional.of(circuit));
-        when(circuitRepository.findByNumber("999999")).thenReturn(Optional.empty());
+        when(cdrRepository.findByUniqueIdIn(List.of("uid-001", "uid-002"))).thenReturn(List.of(cdr1, cdr2));
+        when(circuitRepository.findByNumberIn(anyList())).thenReturn(List.of(circuit));
         when(callRepository.linkCircuitByUniqueId("uid-001", "123456")).thenReturn(1);
 
         int linked = service.linkOrphanCalls(3, 2026);
@@ -178,8 +177,8 @@ class OrphanCallReportServiceTest {
         cdr.setChannel("PJSIP/999999-000045f0");
 
         when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(List.of(orphan));
-        when(cdrRepository.findFirstByUniqueId("uid-001")).thenReturn(Optional.of(cdr));
-        when(circuitRepository.findByNumber("999999")).thenReturn(Optional.empty());
+        when(cdrRepository.findByUniqueIdIn(List.of("uid-001"))).thenReturn(List.of(cdr));
+        when(circuitRepository.findByNumberIn(List.of("999999"))).thenReturn(List.of());
 
         int linked = service.linkOrphanCalls(3, 2026);
 
@@ -212,10 +211,8 @@ class OrphanCallReportServiceTest {
         circuit.setNumber("123456");
 
         when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(List.of(orphan1, orphan2));
-        when(cdrRepository.findFirstByUniqueId("uid-001")).thenReturn(Optional.of(cdr1));
-        when(cdrRepository.findFirstByUniqueId("uid-002")).thenReturn(Optional.of(cdr2));
-        when(circuitRepository.findByNumber("123456")).thenReturn(Optional.of(circuit));
-        when(circuitRepository.findByNumber("999999")).thenReturn(Optional.empty());
+        when(cdrRepository.findByUniqueIdIn(List.of("uid-001", "uid-002"))).thenReturn(List.of(cdr1, cdr2));
+        when(circuitRepository.findByNumberIn(anyList())).thenReturn(List.of(circuit));
 
         long count = service.countResolvable(3, 2026);
 
@@ -230,21 +227,55 @@ class OrphanCallReportServiceTest {
         orphan.setCallDate(LocalDateTime.of(2026, 3, 13, 10, 0));
         orphan.setDst("4934000000");
 
-        CdrRecord cdr = new CdrRecord();
-        cdr.setUniqueId("unique-dup");
-        cdr.setChannel("PJSIP/123456-000045f0");
+        CdrRecord cdr1 = new CdrRecord();
+        cdr1.setUniqueId("unique-dup");
+        cdr1.setChannel("PJSIP/123456-000045f0");
+
+        CdrRecord cdr2 = new CdrRecord();
+        cdr2.setUniqueId("unique-dup");
+        cdr2.setChannel("PJSIP/123456-000045f1");
 
         Circuit circuit = new Circuit();
         circuit.setNumber("123456");
 
         when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(List.of(orphan));
-        when(cdrRepository.findFirstByUniqueId("unique-dup")).thenReturn(Optional.of(cdr));
-        when(circuitRepository.findByNumber("123456")).thenReturn(Optional.of(circuit));
+        when(cdrRepository.findByUniqueIdIn(List.of("unique-dup"))).thenReturn(List.of(cdr1, cdr2));
+        when(circuitRepository.findByNumberIn(List.of("123456"))).thenReturn(List.of(circuit));
 
         List<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).resolvable()).isTrue();
         assertThat(result.get(0).channel()).isEqualTo("PJSIP/123456-000045f0");
+    }
+
+    @Test
+    void findOrphanCalls_usesBatchQueries_evenWithLargeOrphanSet() {
+        List<Call> orphans = new ArrayList<>();
+        for (int i = 1; i <= 100; i++) {
+            Call orphan = new Call();
+            orphan.setId((long) i);
+            orphan.setUniqueId("uid-" + i);
+            orphan.setCallDate(LocalDateTime.of(2026, 3, 1, i % 24, 0));
+            orphan.setDst("493400" + String.format("%04d", i));
+            orphans.add(orphan);
+        }
+
+        CdrRecord cdr = new CdrRecord();
+        cdr.setUniqueId("uid-1");
+        cdr.setChannel("PJSIP/123456-000045f0");
+
+        Circuit circuit = new Circuit();
+        circuit.setNumber("123456");
+
+        when(callRepository.findOrphanCallsByPeriod(3, 2026)).thenReturn(orphans);
+        when(cdrRepository.findByUniqueIdIn(anyList())).thenReturn(List.of(cdr));
+        when(circuitRepository.findByNumberIn(anyList())).thenReturn(List.of(circuit));
+
+        List<OrphanCallReportDTO> result = service.findOrphanCalls(3, 2026);
+
+        verify(cdrRepository, times(1)).findByUniqueIdIn(anyList());
+        verify(circuitRepository, times(1)).findByNumberIn(anyList());
+        assertThat(result).hasSize(100);
     }
 }

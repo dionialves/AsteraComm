@@ -175,3 +175,26 @@
 - `process_shouldAssociateCircuitViaDstChannel_whenInboundCall` — vincula via dstChannel com direção INBOUND
 - `process_shouldLeaveCircuitNull_whenBothChannelsFail` — nenhuma tentativa resolve
 - `process_shouldLeaveCircuitNull_whenDstChannelIsEmpty` — dstChannel vazio não interfere
+
+---
+
+### RF-102: Eliminar N+1 queries no OrphanCallReportService
+
+**Problema:** O método `findOrphanCalls` executava 1 query por chamada órfã para buscar o CDR (`findFirstByUniqueId`) e até 2 queries para buscar o circuito (`findByNumber` via channel e dstChannel), resultando em 3N+1 queries para N chamadas órfãs. Com 12 chamadas órfãs, o relatório demorava 23,5 segundos. Com 10.000 chamadas (cenário real), era completamente inutilizável.
+
+**Solução:**
+- Substituídas as N queries individuais por **3 queries em lote**:
+  1. `findOrphanCallsByPeriod(month, year)` — busca todas as chamadas órfãs do período (1 query)
+  2. `findByUniqueIdIn(List<String>)` — busca todos os CDRs de uma vez via `IN` (1 query)
+  3. `findByNumberIn(List<String>)` — busca todos os circuitos de uma vez via `IN` (1 query)
+- Os resultados são mantidos em `Map<String, CdrRecord>` e `Map<String, Circuit>` para lookup O(1) por chamada.
+- Handles duplicatas de `uniqueid` com merge function `(first, second) -> first` (mesmo comportamento da FIX-101).
+
+**Arquivos alterados:**
+- `backend/src/main/java/com/dionialves/AsteraComm/cdr/CdrRepository.java` — novo método `findByUniqueIdIn(List<String>)`
+- `backend/src/main/java/com/dionialves/AsteraComm/circuit/CircuitRepository.java` — novo método `findByNumberIn(List<String>)`
+- `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` — reescrito para batch queries com Maps
+- `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` — 8 testes atualizados para batch methods, 1 novo teste de volume
+
+**Testes novos:**
+- `findOrphanCalls_usesBatchQueries_evenWithLargeOrphanSet` — verifica que `findByUniqueIdIn` e `findByNumberIn` são chamados exatamente 1 vez para 100 orphans
