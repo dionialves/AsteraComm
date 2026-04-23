@@ -36,9 +36,272 @@
 
 ---
 
-### RF-075
+### RF-099 · Refatorar relatório de chamadas órfãs: card na index, loader e vinculação de circuitos
 
-**Titulo:** Paridade de funcionalidades entre `dev.sh` e `prod.sh`
+- **Tipo:** Refactor
+- **Prioridade:** ALTA
+- **US relacionada:** —
+- **Sprint:** —
+- **Arquivos:**
+  - `backend/src/main/resources/templates/pages/reports/index.html` (editar)
+  - `backend/src/main/resources/templates/pages/reports/orphan-calls.html` (editar)
+  - `backend/src/main/resources/templates/pages/reports/orphan-calls-table.html` (editar)
+  - `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportController.java` (editar)
+  - `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` (editar)
+  - `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` (editar)
+- **Dependências:** —
+
+#### Contexto / Problema
+O relatório de chamadas órfãs (`/reports/orphan-calls`) tem três deficiências:
+
+1. **Não aparece na página de índice de relatórios** (`/reports/index.html`). O usuário só consegue acessar pelo menu lateral ou pelo dashboard. A página de índice (que apresenta os relatórios como cards) só exibe "Custo por circuito" e "Auditoria".
+
+2. **Sem feedback visual ao processar**. Ao clicar em "Processar", o botão não muda de estado, e a consulta pode demorar. O usuário pode clicar múltiplas vezes sem saber se está processando.
+
+3. **Sem ação de vinculação de circuitos**. O relatório identifica chamadas órfãs com campo `resolvable = true` (o circuito foi identificado via parsing do canal, mas o `Call.circuit` está null), mas não permite tomar ação. O usuário precisa ir manualmente ao banco para corrigir. É necessário um botão "Vincular circuitos" que, ao ser clicado, associe as chamadas resolvíveis ao circuito identificado, com loading no botão.
+
+#### Abordagem escolhida
+1. **Card na index**: Adicionar um terceiro card no grid da página `/reports/index.html` seguindo o padrão existente de "Custo por circuito" e "Auditoria" — ícone, título e descrição.
+2. **Loader no Processar**: Substituir o comportamento do botão "Processar" para que, ao clicar, o botão entre em estado disabled com spinner/texto "Processando..." e envie a requisição HTMX. Quando a resposta chegar, o botão volta ao estado normal. Isso será feito com Inline JS + `hx-on::before-request` / `hx-on::after-request` ou `htmx:configRequest`, sem necessidade de arquivo JS externo.
+3. **Botão "Vincular circuitos"**: Adicionar na página de resultado (fragmento `orphan-calls-table.html`) um botão no canto superior direito, visível apenas quando há chamadas resolvíveis (`orphans.any(o -> o.resolvable)`). Ao clicar, o botão faz um POST para `/reports/orphan-calls/link` com CSRF, entra em estado disabled com spinner "Vinculando..." e, ao completar, recarrega a tabela HTMX. O endpoint chama um novo método no `OrphanCallReportService` que itera sobre as chamadas resolvíveis e atualiza a FK `circuit_number` na tabela `asteracomm_calls`.
+4. **Loader no botão Vincular**: Mesmo padrão do Processar — disabled + texto de loading durante a requisição.
+
+**Alternativa descartada:** Fazer a vinculação via migration Flyway (como na RF-095). Motivo: a vinculação por período é uma ação de manutenção que o administrador executa pontualmente, não uma correção de schema. A action precisa ser idempotente e controlada pelo usuário.
+
+#### Passo-a-passo de implementação
+
+1. **Editar** `backend/src/main/resources/templates/pages/reports/index.html` — Adicionar um terceiro card no grid `grid-cols-3` para "Chamadas Órfãs", após o card de Auditoria.
+   ```html
+   <!-- Chamadas Órfãs -->
+   <a th:href="@{/reports/orphan-calls}"
+      class="bg-white rounded-xl border border-[#e0e0e0] p-5 flex flex-col gap-3 no-underline hover:border-[#E5A000] hover:shadow-sm transition-all">
+     <div class="w-9 h-9 rounded-lg flex items-center justify-center bg-[#FEF3C7] flex-shrink-0">
+       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+         <circle cx="12" cy="12" r="10"/>
+         <line x1="12" y1="8" x2="12" y2="12"/>
+         <line x1="12" y1="16" x2="12.01" y2="16"/>
+       </svg>
+     </div>
+     <div>
+       <div class="text-[14px] font-medium text-[#1a1a1a] mb-1">Chamadas Órfãs</div>
+       <p class="text-[13px] text-[#888] leading-relaxed">
+         Ligações sem circuito vinculado. Identifique e vincule circuitosautomaticamente.
+       </p>
+     </div>
+   </a>
+   ```
+
+2. **Editar** `backend/src/main/resources/templates/pages/reports/orphan-calls.html` — Adicionar loader no botão "Processar":
+   - Substituir o botão "Processar" atual (linha 62-67) por um botão com suporte a loading via HTMX:
+   ```html
+   <button type="button" id="btn-process-orphan"
+           class="flex items-center gap-1.5 bg-[#1D9E75] text-white text-[13px] font-medium px-4 py-[9px] rounded-md hover:opacity-90 transition-opacity"
+           th:attr="hx-get=@{/reports/orphan-calls/table}" hx-target="#orphan-calls-table" hx-swap="innerHTML"
+           hx-include="#orphan-form">
+       <svg id="spinner-process" class="hidden animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+       </svg>
+       <span id="label-process">Processar</span>
+   </button>
+   ```
+   - Adicionar script inline no final do `layout:fragment="content"` (antes do fechamento da div) para toggle de loading:
+   ```html
+   <script>
+     var btnProcess = document.getElementById('btn-process-orphan');
+     if (btnProcess) {
+       btnProcess.addEventListener('htmx:beforeRequest', function() {
+         btnProcess.disabled = true;
+         btnProcess.classList.add('opacity-50', 'cursor-not-allowed');
+         document.getElementById('spinner-process').classList.remove('hidden');
+         document.getElementById('label-process').textContent = 'Processando...';
+       });
+       btnProcess.addEventListener('htmx:afterRequest', function() {
+         btnProcess.disabled = false;
+         btnProcess.classList.remove('opacity-50', 'cursor-not-allowed');
+         document.getElementById('spinner-process').classList.add('hidden');
+         document.getElementById('label-process').textContent = 'Processar';
+       });
+     }
+   </script>
+   ```
+
+3. **Editar** `backend/src/main/resources/templates/pages/reports/orphan-calls-table.html` — Adicionar botão "Vincular circuitos" no canto superior direito e esconder o card de contexto se não houver dados:
+   - Após o comentário `<!-- Card de contexto -->` e antes da tabela, adicionar uma barra com o card à esquerda e botão à direita:
+   ```html
+   <!-- Card de contexto + botão Vincular -->
+   <div class="flex items-center justify-between mb-4">
+     <div class="bg-white rounded-xl p-4 border border-[#e0e0e0]">
+       <p class="text-[13px] text-[#1a1a1a]">
+         Período: <strong th:text="${month + '/' + year}">—</strong>
+         — <strong th:text="${#lists.size(orphans)}">0</strong> chamada(s) órfã(s) encontrada(s)
+       </p>
+     </div>
+     <th:block th:if="${resolvableCount != null and resolvableCount > 0}">
+       <form th:attr="hx-post=@{/reports/orphan-calls/link}" hx-target="#orphan-calls-table" hx-swap="innerHTML"
+             hx-include="#orphan-form" style="display:inline">
+         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+         <input type="hidden" name="month" th:value="${month}"/>
+         <input type="hidden" name="year" th:value="${year}"/>
+         <button type="submit" id="btn-link-orphans"
+                 class="flex items-center gap-1.5 bg-[#E5A000] text-white text-[13px] font-medium px-4 py-[9px] rounded-md hover:opacity-90 transition-opacity">
+           <svg id="spinner-link" class="hidden animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+           </svg>
+           <svg width="14" height="14" id="icon-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+           </svg>
+           <span id="label-link">Vincular circuitos (<span th:text="${resolvableCount}">0</span>)</span>
+         </button>
+       </form>
+     </th:block>
+   </div>
+   ```
+   - Substituir o bloco do card de contexto original (apenas o `<div class="bg-white rounded-xl p-4 mb-4...">`) pela barra acima.
+   - Remover o "Card de contexto" solto que existia antes.
+   - Adicionar o script de toggle de loading para o botão "Vincular":
+   ```html
+   <script>
+     var btnLink = document.getElementById('btn-link-orphans');
+     if (btnLink) {
+       btnLink.addEventListener('htmx:beforeRequest', function() {
+         btnLink.disabled = true;
+         btnLink.classList.add('opacity-50', 'cursor-not-allowed');
+         document.getElementById('spinner-link').classList.remove('hidden');
+         document.getElementById('icon-link').classList.add('hidden');
+         document.getElementById('label-link').textContent = 'Vinculando...';
+       });
+       btnLink.addEventListener('htmx:afterRequest', function() {
+         btnLink.disabled = false;
+         btnLink.classList.remove('opacity-50', 'cursor-not-allowed');
+         document.getElementById('spinner-link').classList.add('hidden');
+         document.getElementById('icon-link').classList.remove('hidden');
+         document.getElementById('label-link').textContent = 'Vincular circuitos';
+       });
+     }
+   </script>
+   ```
+
+4. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` — Adicionar método `linkOrphanCalls`:
+   - Adicionar o novo método após `countOrphanCallsCurrentMonth()`:
+   ```java
+   @Transactional
+   public int linkOrphanCalls(int month, int year) {
+       List<OrphanCallReportDTO> orphans = findOrphanCalls(month, year);
+       int linked = 0;
+       for (OrphanCallReportDTO dto : orphans) {
+           if (dto.resolvable() && dto.circuitCode() != null && !dto.circuitCode().isBlank()) {
+               callRepository.linkCircuitByUniqueId(dto.uniqueId(), dto.circuitCode());
+               linked++;
+           }
+       }
+       return linked;
+   }
+   ```
+   - O método deve ser anotado com `@Transactional` para garantir atomicidade operacional (cada vínculo individual é uma atualização simples; a transação garante que se o processo falhar no meio, nenhum vínculo parcial é persistido como estado consistente — ou tudo ou nada).
+
+5. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/CallRepository.java` — Adicionar query de update:
+   - Adicionar método:
+   ```java
+   @Modifying
+   @Query(value = "UPDATE asteracomm_calls SET circuit_number = :circuitNumber WHERE unique_id = :uniqueId", nativeQuery = true)
+   int linkCircuitByUniqueId(@Param("uniqueId") String uniqueId, @Param("circuitNumber") String circuitNumber);
+   ```
+
+6. **Editar** `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportController.java` — Adicionar endpoint POST `/link`:
+   - Adicionar import para `RedirectAttributes` (não necessário se usar HTMX).
+   - Adicionar o novo endpoint:
+   ```java
+   @PostMapping("/link")
+   public String linkOrphanCalls(@RequestParam int month, @RequestParam int year, Model model) {
+       int linked = reportService.linkOrphanCalls(month, year);
+       model.addAttribute("month", month);
+       model.addAttribute("year", year);
+       model.addAttribute("orphans", reportService.findOrphanCalls(month, year));
+       model.addAttribute("resolvableCount", reportService.countResolvable(month, year));
+       model.addAttribute("linkResult", linked);
+       return "pages/reports/orphan-calls-table :: table";
+   }
+   ```
+   - Adicionar import de `@Transactional` no service (não no controller — o controller apenas chama o service).
+   - Modificar o método `table` existente para incluir `resolvableCount` no model:
+   ```java
+   @GetMapping("/table")
+   public String table(@RequestParam int month, @RequestParam int year, Model model) {
+       model.addAttribute("month", month);
+       model.addAttribute("year", year);
+       List<OrphanCallReportDTO> orphans = reportService.findOrphanCalls(month, year);
+       model.addAttribute("orphans", orphans);
+       model.addAttribute("resolvableCount", orphans.stream().filter(OrphanCallReportDTO::resolvable).count());
+       return "pages/reports/orphan-calls-table :: table";
+   }
+   ```
+
+7. **Adicionar** método auxiliar `countResolvable` em `OrphanCallReportService.java`:
+   ```java
+   public long countResolvable(int month, int year) {
+       return findOrphanCalls(month, year).stream().filter(OrphanCallReportDTO::resolvable).count();
+   }
+   ```
+
+8. **Editar** `backend/src/main/resources/templates/pages/reports/orphan-calls-table.html` — Adicionar mensagem de feedback após vinculação:
+   - Após a barra de contexto/botão, adicionar bloco condicional:
+   ```html
+   <div th:if="${linkResult != null and linkResult > 0}" class="bg-[#E1F5EE] border border-[#085041] text-[#085041] text-[13px] font-medium rounded-lg px-4 py-3 mb-4">
+     <strong th:text="${linkResult}">0</strong> circuito(s) vinculado(s) com sucesso.
+   </div>
+   ```
+   - Adicionar também quando não há mais órfãos resolvíveis:
+   ```html
+   <div th:if="${resolvableCount != null and resolvableCount == 0}" class="bg-[#f5f5f5] border border-[#e0e0e0] text-[#888] text-[13px] rounded-lg px-4 py-3 mb-4">
+     Nenhuma chamada órfã resolvível para vincular neste período.
+   </div>
+   ```
+
+9. **Editar** `backend/src/main/resources/templates/pages/reports/orphan-calls-table.html` — Remover o card de contexto antigo (bloco `<div class="bg-white rounded-xl p-4 mb-4 border border-[#e0e0e0]">` das linhas 16-21 do arquivo atual) e substituí-lo pela barra de contexto + botão conforme passo 3. Reestruturar o fragment para que a barra fique antes da tabela, sem duplicar informação.
+
+10. **Rodar `./mvnw test`** e garantir que a suíte passa (incluindo os novos testes).
+
+#### Testes a criar/atualizar
+- `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` — cenário: `linkOrphanCalls_linksResolvableAndSkipsNonResolvable` — mock `callRepository.linkCircuitByUniqueId` chamado apenas para calls resolvable.
+- `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` — cenário: `linkOrphanCalls_returnsZero_whenNoResolvable` — nenhuma chamada de vínculo.
+- `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` — cenário: `countResolvable_returnsCorrectCount` — conta apenas chamadas resolvíveis.
+- `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportControllerTest.java` (novo) — cenário: `link_postReturnsTableFragment` e `link_postSetsModelAttributes`.
+- Atualizar teste existente de `OrphanCallReportController` se houver, para cobrir o novo atributo `resolvableCount` no model do método `table`.
+
+#### Critérios de aceitação
+- [ ] Página `/reports/index` exibe card "Chamadas Órfãs" no grid de 3 colunas, ao lado de "Custo por Circuito" e "Auditoria".
+- [ ] Clicar no card "Chamadas Órfãs" navega para `/reports/orphan-calls`.
+- [ ] Botão "Processar" entra em estado disabled + spinner + texto "Processando..." enquanto a requisição HTMX está em andamento, e volta ao normal após a resposta.
+- [ ] Após processar o relatório, se houver chamadas resolvíveis (`resolvable = true`), um botão "Vincular circuitos (N)" aparece no canto superior direito da área de resultado, com cor de destaque amarelo (`#E5A000`).
+- [ ] O número entre parênteses no botão "Vincular circuitos (N)" corresponde à quantidade de chamadas resolvíveis no período.
+- [ ] Clicar em "Vincular circuitos" faz POST para `/reports/orphan-calls/link`, o botão entra em estado disabled + spinner + texto "Vinculando...", e ao completar recarrega a tabela via HTMX.
+- [ ] Após a vinculação, uma mensagem verde indica quantos circuitos foram vinculados e a tabela atualiza para mostrar que as chamadas vinculadas não aparecem mais como órfãs.
+- [ ] Se não houver chamadas resolvíveis no período, o botão "Vincular circuitos" não aparece e é exibida a mensagem "Nenhuma chamada órfã resolvível para vincular neste período."
+- [ ] O método `OrphanCallReportService.linkOrphanCalls(month, year)` atualiza apenas chamadas resolvíveis e retorna o número de vínculos realizados.
+- [ ] `OrphanCallReportController` em `POST /reports/orphan-calls/link` requer `ROLE_ADMIN` (já coberto pela regra existente em `SecurityConfigurations`).
+- [ ] Todos os testes novos passam e nenhum teste existente regrediu.
+- [ ] `./mvnw test` passa sem warnings de compilação.
+- [ ] Commit no padrão `refactor(rf-099): adiciona card loader e vinculacao de circuitos em chamadas orfas`.
+- [ ] Entrada no `doc/changelog.md` seção `[Unreleased]` e descrição detalhada em `doc/release_notes/unreleased.md`.
+- [ ] Remoção da task do `doc/backlog.md` após conclusão.
+
+#### Riscos e observações
+- **Performance da vinculação:** O método `linkOrphanCalls` faz um `SELECT` de todas as chamadas órfãs do período, itera chamando `linkCircuitByUniqueId` uma a uma, e depois faz outro `SELECT` para recarregar a tabela. Em períodos com muitas órfãs (ex.: > 1.000), isso pode ser lento. Se necessário, futurível: batch update com `@Modifying` + `IN clause`. Por ora, a abordagem registro-a-registro é aceitável porque a operação é pontual e manual.
+- **Idempotência:** Avinculação é idempotente — se o administrador clicar "Vincular" duas vezes, a segunda execução não encontrará chamadas resolvíveis (pois já foram vinculadas) e retornará `linked = 0`. O botão não aparece quando `resolvableCount == 0`.
+- **Transação:** O `linkOrphanCalls` é `@Transactional`. Se uma das chamadas de `linkCircuitByUniqueId` falhar, toda a transação é revertida. Isso é aceitável: o administrador pode tentar novamente.
+- **CSRF:** O formulário POST do botão "Vincular" deve incluir o token CSRF (`_csrf`). já incluído no template via `<input type="hidden">`.
+- **Security:** O endpoint `POST /reports/orphan-calls/link` já está coberto pela regra `.requestMatchers("/reports/orphan-calls/**").hasRole("ADMIN")` em `SecurityConfigurations`.
+- **O Codificador NÃO deve** criar migration Flyway para esta task — nenhuma alteração de schema é necessária.
+- **O Codificador NÃO deve** alterar a entidade `Call` — apenas usar o repository para update direto na coluna `circuit_number`.
+- **O Codificador NÃO deve** remover o link "Chamadas Órfãs" do sidebar — manter o item no menu como está hoje, em adição ao card na index.
+
+---
+
+### RF-075
 
 **Descrição:**
 Como desenvolvedor, quero que os scripts `dev.sh` e `prod.sh` tenham as mesmas funcionalidades disponíveis, e que ambos suportem parada de serviço individual, para simplificar a operação do ambiente sem precisar lembrar qual comando existe em qual script.

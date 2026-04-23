@@ -136,4 +136,29 @@
 - `findOrphanCalls_returnsResolvable_whenChannelMatchesExistingCircuit`
 - `findOrphanCalls_returnsNotResolvable_whenCircuitMissing`
 - `findOrphanCalls_returnsNotResolvable_whenCdrMissing`
+- `findOrphanCalls_returnsNotResolvable_whenCdrMissing`
 - `countOrphanCallsCurrentMonth_returnsCountForCurrentMonth`
+
+---
+
+### RF-099: Refatorar relatório de chamadas órfãs — card na index, loader e vinculação de circuitos
+
+**Problema:** O relatório de chamadas órfãs (1) não aparecia na página de índice de relatórios, (2) não dava feedback visual ao processar, e (3) permitia identificar chamadas resolvíveis mas não oferecia ação para vincular os circuitos.
+
+**Solução:**
+- Adicionado card "Chamadas Órfãs" na página `/reports/index` com ícone amarelo de atenção.
+- Botão "Processar" com estado de loading (disabled + spinner + texto "Processando...").
+- Botão "Vincular circuitos (N)" no canto superior direito do resultado, visível apenas quando há chamadas resolvíveis. Faz POST para `/reports/orphan-calls/link` com CSRF, estado de loading (disabled + spinner + texto "Vinculando...") e recarrega a tabela via HTMX após conclusão.
+- `OrphanCallReportService.linkOrphanCalls(month, year)` atualiza a FK `circuit_number` apenas das chamadas resolvíveis via `CallRepository.linkCircuitByUniqueId`.
+- Mensagem de sucesso verde com contagem de vínculos após a operação e mensagem informativa quando não há resolvíveis.
+- `OrphanCallReportController` com novo endpoint `POST /link` e atributo `resolvableCount` no model do `GET /table`.
+
+**Arquivos alterados:**
+- `backend/src/main/resources/templates/pages/reports/index.html` — card Chamadas Órfãs
+- `backend/src/main/resources/templates/pages/reports/orphan-calls.html` — loader no Processar
+- `backend/src/main/resources/templates/pages/reports/orphan-calls-table.html` — botão Vincular + loader + mensagens
+- `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportController.java` — POST /link + resolvableCount
+- `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` — linkOrphanCalls + countResolvable
+- `backend/src/main/java/com/dionialves/AsteraComm/call/CallRepository.java` — linkCircuitByUniqueId
+- `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` — 3 novos cenários
+- `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportControllerTest.java` — novo arquivo com 2 cenários

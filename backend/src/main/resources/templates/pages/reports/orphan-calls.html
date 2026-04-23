@@ -59,11 +59,15 @@
                 </div>
 
                 <!-- Botão Processar -->
-                <button type="button"
+                <button type="button" id="btn-process-orphan"
                     class="flex items-center gap-1.5 bg-[#1D9E75] text-white text-[13px] font-medium px-4 py-[9px] rounded-md hover:opacity-90 transition-opacity"
                     th:attr="hx-get=@{/reports/orphan-calls/table}" hx-target="#orphan-calls-table" hx-swap="innerHTML"
                     hx-include="#orphan-form">
-                    Processar
+                    <svg id="spinner-process" class="hidden animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span id="label-process">Processar</span>
                 </button>
 
             </form>
@@ -73,5 +77,23 @@
         <div id="orphan-calls-table"></div>
 
     </div>
+
+    <script>
+      var btnProcess = document.getElementById('btn-process-orphan');
+      if (btnProcess) {
+        btnProcess.addEventListener('htmx:beforeRequest', function() {
+          btnProcess.disabled = true;
+          btnProcess.classList.add('opacity-50', 'cursor-not-allowed');
+          document.getElementById('spinner-process').classList.remove('hidden');
+          document.getElementById('label-process').textContent = 'Processando...';
+        });
+        btnProcess.addEventListener('htmx:afterRequest', function() {
+          btnProcess.disabled = false;
+          btnProcess.classList.remove('opacity-50', 'cursor-not-allowed');
+          document.getElementById('spinner-process').classList.add('hidden');
+          document.getElementById('label-process').textContent = 'Processar';
+        });
+      }
+    </script>
 </body>
 </html>

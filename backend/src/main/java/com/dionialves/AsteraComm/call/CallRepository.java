@@ -2,6 +2,7 @@ package com.dionialves.AsteraComm.call;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -166,9 +167,13 @@ public interface CallRepository extends JpaRepository<Call, Long>,
                 AND EXTRACT(MONTH FROM ca.call_date) = :month
                 AND EXTRACT(YEAR  FROM ca.call_date) = :year
             WHERE p.package_type = 'PER_CATEGORY'
-            GROUP BY c.number, cu.name, p.name,
-                p.package_fixed_local, p.package_fixed_long_distance,
-                p.package_mobile_local, p.package_mobile_long_distance
-            """, nativeQuery = true)
+             GROUP BY c.number, cu.name, p.name,
+                 p.package_fixed_local, p.package_fixed_long_distance,
+                 p.package_mobile_local, p.package_mobile_long_distance
+             """, nativeQuery = true)
     List<Object[]> findPerCategoryCircuitConsumption(@Param("month") int month, @Param("year") int year);
+
+    @Modifying
+    @Query(value = "UPDATE asteracomm_calls SET circuit_number = :circuitNumber WHERE unique_id = :uniqueId", nativeQuery = true)
+    int linkCircuitByUniqueId(@Param("uniqueId") String uniqueId, @Param("circuitNumber") String circuitNumber);
 }

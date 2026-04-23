@@ -11,6 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @RequiredArgsConstructor
 @Service
 public class OrphanCallReportService {
@@ -66,5 +68,22 @@ public class OrphanCallReportService {
     public long countOrphanCallsCurrentMonth() {
         LocalDate now = LocalDate.now();
         return callRepository.countOrphanCallsByPeriod(now.getMonthValue(), now.getYear());
+    }
+
+    public long countResolvable(int month, int year) {
+        return findOrphanCalls(month, year).stream().filter(OrphanCallReportDTO::resolvable).count();
+    }
+
+    @Transactional
+    public int linkOrphanCalls(int month, int year) {
+        List<OrphanCallReportDTO> orphans = findOrphanCalls(month, year);
+        int linked = 0;
+        for (OrphanCallReportDTO dto : orphans) {
+            if (dto.resolvable() && dto.circuitCode() != null && !dto.circuitCode().isBlank()) {
+                callRepository.linkCircuitByUniqueId(dto.uniqueId(), dto.circuitCode());
+                linked++;
+            }
+        }
+        return linked;
     }
 }
