@@ -94,6 +94,28 @@
 
 ---
 
+### FIX-106: Query de histórico de ligações não retorna ligações recebidas (INBOUND)
+
+**Problema:** A query `CallRepository.findByCircuitNumberAndPeriod` não possuía filtro de direção, fazendo com que o `AuditService` (que usa a mesma query) consumisse todas as ligações retornadas — incluindo INBOUND, que não deveriam participar do cálculo de custeio. O `CallHistoryService` precisava retornar tanto INBOUND quanto OUTBOUND, mas a ausência de filtro no repositório impedía o comportamento correto para ambos os consumidores.
+
+**Solução:** Adicionado parâmetro `direction` (nullable) à query `findByCircuitNumberAndPeriod`. A cláusula `AND (:direction IS NULL OR ca.direction = :direction)` garante que:
+- `direction = null` → todas as ligações (histórico completo)
+- `direction = 'OUTBOUND'` → apenas ligações efetuadas (auditoria de custeio)
+- `direction = 'INBOUND'` → apenas ligações recebidas
+
+**Arquivos alterados:**
+- `backend/src/main/java/com/dionialves/AsteraComm/call/CallRepository.java` — query com parâmetro `direction`
+- `backend/src/main/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryService.java` — passa `null` para trazer todas
+- `backend/src/main/java/com/dionialves/AsteraComm/report/audit/AuditService.java` — passa `"OUTBOUND"` para custeio
+- `backend/src/test/java/com/dionialves/AsteraComm/report/callhistory/CallHistoryServiceTest.java` — 7 mocks atualizados + novo teste `getHistory_returnsInboundAndOutboundCalls`
+- `backend/src/test/java/com/dionialves/AsteraComm/report/audit/AuditServiceTest.java` — 10 mocks atualizados + novo teste `simulate_requestsOnlyOutboundCalls`
+
+**Testes novos:**
+- `CallHistoryServiceTest.getHistory_returnsInboundAndOutboundCalls` — verifica que tanto INBOUND quanto OUTBOUND são retornados quando `direction = null`
+- `AuditServiceTest.simulate_requestsOnlyOutboundCalls` — verifica que `AuditService` solicita apenas chamadas OUTBOUND
+
+---
+
 ## Refactoring
 
 ### RF-095: Script de reconciliação de ligações sem circuito via canal CDR

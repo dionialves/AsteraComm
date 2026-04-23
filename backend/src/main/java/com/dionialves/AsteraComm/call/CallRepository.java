@@ -53,14 +53,15 @@ public interface CallRepository extends JpaRepository<Call, Long>,
     @Query(value = "SELECT ca.* FROM asteracomm_calls ca " +
             "LEFT JOIN asteracomm_dids d ON d.number = ca.dst " +
             "LEFT JOIN asteracomm_circuits c ON c.id = d.circuit_id AND c.number = :circuitNumber " +
-            "WHERE ca.call_status = 'PROCESSED' " +
-            "AND EXTRACT(MONTH FROM ca.call_date) = :month " +
+            "WHERE EXTRACT(MONTH FROM ca.call_date) = :month " +
             "AND EXTRACT(YEAR  FROM ca.call_date) = :year " +
             "AND (ca.circuit_number = :circuitNumber OR c.number = :circuitNumber) " +
+            "AND (:direction IS NULL OR ca.direction = :direction) " +
             "ORDER BY ca.call_date ASC", nativeQuery = true)
     List<Call> findByCircuitNumberAndPeriod(@Param("circuitNumber") String circuitNumber,
             @Param("month") int month,
-            @Param("year") int year);
+            @Param("year") int year,
+            @Param("direction") String direction);
 
     @Query(value = "SELECT COALESCE(SUM(minutes_from_quota), 0) FROM asteracomm_calls " +
             "WHERE circuit_number = :circuitNumber " +

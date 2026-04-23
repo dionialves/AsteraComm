@@ -15,6 +15,7 @@
 - FIX-078: Corrige testes de CircuitServiceTest com comportamento alterado
 - FIX-101: Corrige NonUniqueResultException em CdrRepository.findByUniqueId
 - FIX-102: Parâmetros não enviados ao simular auditoria
+- FIX-106: Query de histórico de ligações não retorna ligações recebidas (INBOUND)
 
 ### Refactoring
 - RF-094: Relatório de auditoria com direção de chamada (INBOUND/OUTBOUND) e filtro de ligações efetuadas
