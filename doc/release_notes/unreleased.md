@@ -78,6 +78,15 @@
 **Arquivos alterados:**
 - `backend/src/main/java/com/dionialves/AsteraComm/cdr/CdrRepository.java` — novo método `findFirstByUniqueId`
 - `backend/src/main/java/com/dionialves/AsteraComm/call/OrphanCallReportService.java` — chama `findFirstByUniqueId` em vez de `findByUniqueId`
+
+### FIX-102: Parâmetros não enviados ao simular auditoria
+
+**Problema:** O botão "Processar" na página de Auditoria (`audit.html`, linha 75) usava `hx-get="/reports/audit/simulation"` **sem** o atributo `hx-include`. Isso fazia o HTMX enviar a requisição GET sem serializar os campos do formulário (`circuitNumber`, `month`, `year`), resultando na URL `/reports/audit/simulation` sem nenhum query parameter. O controller recebia `circuitNumber = null`, `month = 0`, `year = 0`, retornando sempre "Selecione um circuito para simular."
+
+**Solução:** Adicionado `hx-include="#audit-form"` ao botão "Processar", seguindo o mesmo padrão já utilizado em `cost-per-circuit.html`. Isso instrui o HTMX a serializar todos os campos dentro do formulário `#audit-form` como query parameters na requisição GET.
+
+**Arquivos alterados:**
+- `backend/src/main/resources/templates/pages/reports/audit.html` — Added `hx-include="#audit-form"` ao botão "Processar"
 - `backend/src/test/java/com/dionialves/AsteraComm/call/OrphanCallReportServiceTest.java` — 8 mocks atualizados para `findFirstByUniqueId`, 1 novo teste de duplicatas
 
 **Testes novos:**

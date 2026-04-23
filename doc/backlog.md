@@ -34,6 +34,7 @@
 
 ### Bug Fixes (FIX)
 
+
 ---
 
 ### RF-075
@@ -557,73 +558,6 @@ Como administrador, quero que o menu lateral tenha uma seção "Operacional" que
 5. **Escopo:** template de layout (menu lateral) + remoção da página de índice — zero impacto nas páginas de relatório individuais.
 
 ---
-
-## Bug Fixes (FIX)
-
-1. [FIX-102 — Parâmetros não enviados ao simular auditoria](#fix-102)
-
-### FIX-102 · Parâmetros não enviados ao simular auditoria
-
-- **Tipo:** Bug Fix
-- **Prioridade:** ALTA
-- **US relacionada:** —
-- **Sprint:** —
-- **Arquivos:**
-  - `backend/src/main/resources/templates/pages/reports/audit.html` (editar)
-- **Dependências:** —
-
-#### Contexto / Problema
-
-O botão "Processar" na página de Auditoria (`audit.html`, linha 75) usa `hx-get="/reports/audit/simulation"` **sem** o atributo `hx-include`. Isso faz com que o HTMX envie a requisição GET sem serializar os campos do formulário (`circuitNumber`, `month`, `year`), resultando na URL `/reports/audit/simulation` sem nenhum query parameter. O controller `ReportViewController.auditSimulation()` recebe `circuitNumber = null`, `month = 0`, `year = 0`, e retorna a mensagem "Selecione um circuito para simular."
-
-**Comportamento observado:** Ao selecionar um circuito e clicar em "Processar", a resposta é sempre "Selecione um circuito para simular."
-
-**Comportamento esperado:** Ao selecionar um circuito, mês e ano e clicar em "Processar", a simulação de auditoria deve executar com os parâmetros informados e exibir o resultado.
-
-**Causa raiz:** A RF-097 removeu o atributo `hx-include` do botão "Processar" em `audit.html` junto com a remoção do parâmetro `onlyOutgoing`. A remoção foi documentada como "não precisava mais", mas isso era verdade apenas para o parâmetro `onlyOutgoing` — os demais parâmetros (`circuitNumber`, `month`, `year`) continuam necessários e dependem do `hx-include` para serem incluídos na requisição HTMX.
-
-Comparação com a página funcional `cost-per-circuit.html`:
-- ✅ `cost-per-circuit.html` (linha 67): `hx-include="#cpc-form"` — funciona corretamente
-- ❌ `audit.html` (linha 75): sem `hx-include` — envia requisição sem parâmetros
-
-#### Abordagem escolhida
-
-Adicionar `hx-include="#audit-form"` ao botão "Processar" em `audit.html`, seguindo o mesmo padrão já utilizado em `cost-per-circuit.html`. Isso instrui o HTMX a serializar todos os campos dentro do formulário `#audit-form` (o `<input type="hidden" name="circuitNumber">` do SearchSelect e os `<select>` de mês e ano) como query parameters na requisição GET.
-
-Alternativa descartada: usar `hx-include` listando campos individuais (ex.: `hx-include="[name=circuitNumber], [name=month], [name=year]"`). Motivo: o formulário já tem `id="audit-form"` e o padrão do projeto é incluir por ID de formulário, como em `cost-per-circuit.html`.
-
-#### Passo-a-passo de implementação
-
-1. **Editar** `backend/src/main/resources/templates/pages/reports/audit.html` — adicionar `hx-include="#audit-form"` ao botão "Processar"
-   - Localização: linha 75, no `<button type="button">`
-   - Antes:
-     ```html
-     hx-get="/reports/audit/simulation" hx-target="#table-container" hx-swap="innerHTML">
-     ```
-   - Depois:
-     ```html
-     hx-get="/reports/audit/simulation" hx-target="#table-container" hx-swap="innerHTML" hx-include="#audit-form">
-     ```
-
-#### Testes a criar/atualizar
-
-- Não há testes automatizados de template Thymeleaf no projeto. A verificação é funcional: selecionar um circuito, mês e ano na página de Auditoria e clicar em "Processar" deve exibir o resultado da simulação em vez da mensagem de erro.
-
-#### Critérios de aceitação
-
-- [ ] Ao selecionar um circuito (via SearchSelect), mês e ano na tela de Auditoria e clicar em "Processar", a requisição GET `/reports/audit/simulation` é enviada com os query parameters `circuitNumber`, `month` e `year` preenchidos.
-- [ ] A simulação exibe o resultado (tabela de chamadas + totalizadores) em vez da mensagem "Selecione um circuito para simular."
-- [ ] `./mvnw test` passa sem regressão.
-- [ ] Commit no padrão `fix(fix-102): corrige parametros nao enviados na simulacao de auditoria`.
-- [ ] Entrada no `doc/changelog.md` seção `[Unreleased]` e descrição detalhada em `doc/release-notes/unreleased.md`.
-- [ ] Remoção da task do `doc/backlog.md` após conclusão.
-
-#### Riscos e observações
-
-- **Apenas uma linha alterada** — risco mínimo de regressão.
-- O HTML do SearchSelect gera um `<input type="hidden" name="circuitNumber">` cujo valor é atualizado via JavaScript. Ao usar `hx-include="#audit-form"`, o HTMX serializa esse hidden input normalmente, pois ele está dentro do formulário.
-- O Codificador NÃO deve alterar o controller, service ou qualquer arquivo Java — o bug é exclusivamente no template HTML.
-- O Codificador NÃO deve remover ou alterar o atributo `onsubmit="return false;"` do formulário — ele impede o comportamento padrão de submit, e o botão usa `type="button"` para evitar submit implícito.
 
 ### FIX-073
 

@@ -14,6 +14,7 @@
 - FIX-076: Calls sem circuito associado para ligações entrantes
 - FIX-078: Corrige testes de CircuitServiceTest com comportamento alterado
 - FIX-101: Corrige NonUniqueResultException em CdrRepository.findByUniqueId
+- FIX-102: Parâmetros não enviados ao simular auditoria
 
 ### Refactoring
 - RF-094: Relatório de auditoria com direção de chamada (INBOUND/OUTBOUND) e filtro de ligações efetuadas
