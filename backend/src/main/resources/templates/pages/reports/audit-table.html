@@ -68,20 +68,10 @@
           </button>
           <span class="text-[13px] text-[#1a1a1a] select-none">Apenas chamadas relevantes</span>
         </div>
-        <!-- Toggle: apenas ligações efetuadas -->
-        <div class="flex items-center gap-2">
-          <button id="toggle-outgoing-table" role="switch" aria-checked="false"
-                  class="relative shrink-0 w-9 h-5 rounded-[99px] bg-[#e0e0e0] border-none cursor-pointer p-0 outline-none transition-colors duration-200">
-            <span id="toggle-thumb-outgoing-table"
-                  class="absolute top-[2px] left-[2px] w-4 h-4 rounded-full bg-white block transition-transform duration-200">
-            </span>
-          </button>
-          <span class="text-[13px] text-[#1a1a1a] select-none">Apenas ligações efetuadas</span>
-        </div>
       </div>
       <!-- PDF -->
       <a id="btn-pdf-audit"
-         th:href="@{/reports/audit/pdf(circuitNumber=${result.circuitNumber}, month=${month}, year=${year}, onlyRelevant=false, onlyOutgoing=${onlyOutgoing ?: false})}"
+         th:href="@{/reports/audit/pdf(circuitNumber=${result.circuitNumber}, month=${month}, year=${year}, onlyRelevant=false)}"
          class="flex items-center gap-1.5 bg-white border border-[#e0e0e0] text-[#1a1a1a] text-[13px] font-medium px-3 py-[9px] rounded-md hover:bg-[#f5f5f5] transition-colors no-underline">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round">
@@ -101,7 +91,6 @@
         <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Data/hora</span>
         <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Destino</span>
         <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Tipo</span>
-        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Direção</span>
         <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Duração</span>
         <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Tarifa R$/min</span>
         <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Min. pacote</span>
@@ -116,7 +105,7 @@
 
       <!-- Linhas -->
       <div th:each="line, stat : ${result.lines}"
-           th:attr="data-relevant=${line.quotaUsedThisCall > 0 or line.cost.signum() > 0}, data-outgoing=${line.direction.name()}"
+           th:attr="data-relevant=${line.quotaUsedThisCall > 0 or line.cost.signum() > 0}"
            th:class="|audit-row bg-white ${stat.last ? '' : 'border-b border-[#f0f0f0]'}|">
 
         <span class="text-[13px] font-mono text-[#1a1a1a]"
@@ -133,12 +122,6 @@
                          line.callType?.name() == 'MOBILE_LOCAL'         ? 'Móvel Local' :
                          line.callType?.name() == 'FIXED_LONG_DISTANCE'  ? 'Fixo LD'     :
                          line.callType?.name() == 'MOBILE_LONG_DISTANCE' ? 'Móvel LD'    : '—'}">
-        </span>
-
-        <!-- Direção: badge Recebida (INBOUND) ou Efetuada (OUTBOUND) -->
-        <span th:class="|rounded-[99px] text-[11px] px-[8px] py-[2px] font-medium whitespace-nowrap
-                         ${line.direction?.name() == 'INBOUND' ? 'bg-[#FAECE7] text-[#712B13]' : 'bg-[#E6F1FB] text-[#0C447C]'}|"
-              th:text="${line.direction?.name() == 'INBOUND' ? 'Recebida' : 'Efetuada'}">
         </span>
 
         <span class="text-[13px] font-mono text-[#1a1a1a]"
@@ -204,29 +187,6 @@
         var href = pdfBtn.getAttribute('href');
         pdfBtn.setAttribute('href', setParam(href, 'onlyRelevant', relevantActive));
       });
-
-      // Toggle: apenas ligações efetuadas
-      var btnOutgoing = document.getElementById('toggle-outgoing-table');
-      var thumbOutgoing = document.getElementById('toggle-thumb-outgoing-table');
-      if (btnOutgoing) {
-        var outgoingActive = false;
-        btnOutgoing.addEventListener('click', function () {
-          outgoingActive = !outgoingActive;
-          btnOutgoing.setAttribute('aria-checked', String(outgoingActive));
-          if (outgoingActive) {
-            btnOutgoing.style.backgroundColor = '#1D9E75';
-            thumbOutgoing.style.transform = 'translateX(16px)';
-          } else {
-            btnOutgoing.style.backgroundColor = '#e0e0e0';
-            thumbOutgoing.style.transform = 'translateX(0)';
-          }
-          document.querySelectorAll('.audit-row[data-outgoing]').forEach(function (row) {
-            row.style.display = (outgoingActive && row.dataset.outgoing === 'INBOUND') ? 'none' : '';
-          });
-          var href = pdfBtn.getAttribute('href');
-          pdfBtn.setAttribute('href', setParam(href, 'onlyOutgoing', outgoingActive));
-        });
-      }
     })();
   </script>
 

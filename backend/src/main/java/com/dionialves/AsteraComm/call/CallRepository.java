@@ -127,14 +127,6 @@ public interface CallRepository extends JpaRepository<Call, Long>,
     Page<Call> findOrphanCallsByPeriod(@Param("month") int month, @Param("year") int year, Pageable pageable);
 
     @Query(value = """
-        SELECT COUNT(*) FROM asteracomm_calls
-        WHERE circuit_number IS NULL
-        AND EXTRACT(MONTH FROM call_date) = :month
-        AND EXTRACT(YEAR  FROM call_date) = :year
-        """, nativeQuery = true)
-    long countOrphanCallsByPeriod(@Param("month") int month, @Param("year") int year);
-
-    @Query(value = """
             SELECT
                 c.number                                        AS circuit_number,
                 cu.name                                         AS customer_name,

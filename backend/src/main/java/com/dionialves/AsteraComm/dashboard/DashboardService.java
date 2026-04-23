@@ -1,7 +1,6 @@
 package com.dionialves.AsteraComm.dashboard;
 
 import com.dionialves.AsteraComm.call.CallRepository;
-import com.dionialves.AsteraComm.call.OrphanCallReportService;
 import com.dionialves.AsteraComm.circuit.CircuitRepository;
 import com.dionialves.AsteraComm.trunk.TrunkRepository;
 import org.springframework.stereotype.Service;
@@ -18,16 +17,13 @@ public class DashboardService {
     private final CircuitRepository circuitRepository;
     private final TrunkRepository trunkRepository;
     private final CallRepository callRepository;
-    private final OrphanCallReportService orphanCallReportService;
 
     public DashboardService(CircuitRepository circuitRepository,
                             TrunkRepository trunkRepository,
-                            CallRepository callRepository,
-                            OrphanCallReportService orphanCallReportService) {
+                            CallRepository callRepository) {
         this.circuitRepository = circuitRepository;
         this.trunkRepository = trunkRepository;
         this.callRepository = callRepository;
-        this.orphanCallReportService = orphanCallReportService;
     }
 
     public DashboardDTO getDashboard() {
@@ -109,8 +105,7 @@ public class DashboardService {
                 monthlyBilling,
                 nearLimitCircuits,
                 topCircuits,
-                circuitOverage,
-                orphanCallReportService.countOrphanCallsCurrentMonth()
+                circuitOverage
         );
     }
 

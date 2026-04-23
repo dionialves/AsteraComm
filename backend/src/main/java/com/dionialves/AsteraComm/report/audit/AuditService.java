@@ -2,7 +2,6 @@ package com.dionialves.AsteraComm.report.audit;
 
 import com.dionialves.AsteraComm.call.Call;
 import com.dionialves.AsteraComm.call.CallCostingService;
-import com.dionialves.AsteraComm.call.CallDirection;
 import com.dionialves.AsteraComm.call.CallRepository;
 import com.dionialves.AsteraComm.call.CallType;
 import com.dionialves.AsteraComm.circuit.Circuit;
@@ -37,10 +36,6 @@ public class AuditService {
     private final CallRepository    callRepository;
 
     public AuditResultDTO simulate(String circuitNumber, int month, int year) {
-        return simulate(circuitNumber, month, year, false);
-    }
-
-    public AuditResultDTO simulate(String circuitNumber, int month, int year, boolean onlyOutgoing) {
         Circuit circuit = circuitRepository.findByNumber(circuitNumber)
                 .orElseThrow(() -> new NotFoundException("Circuito não encontrado: " + circuitNumber));
 
@@ -51,10 +46,10 @@ public class AuditService {
 
         List<Call> calls = callRepository.findByCircuitNumberAndPeriod(circuitNumber, month, year);
 
-        return buildResult(circuit, plan, month, year, calls, onlyOutgoing);
+        return buildResult(circuit, plan, month, year, calls);
     }
 
-    private AuditResultDTO buildResult(Circuit circuit, Plan plan, int month, int year, List<Call> calls, boolean onlyOutgoing) {
+    private AuditResultDTO buildResult(Circuit circuit, Plan plan, int month, int year, List<Call> calls) {
         List<AuditCallLineDTO> lines = new ArrayList<>();
 
         // Acumuladores de quota (independentes por tipo em PER_CATEGORY)
@@ -109,42 +104,27 @@ public class AuditService {
                     rate,
                     quotaUsedThisCall,
                     quotaAccumulated,
-                    cost,
-                    call.getDirection()
+                    cost
             ));
         }
 
-        // Filter outgoing only if requested
-        List<AuditCallLineDTO> filteredLines;
-        if (onlyOutgoing) {
-            filteredLines = lines.stream()
-                    .filter(l -> l.direction() == CallDirection.OUTBOUND)
-                    .toList();
-        } else {
-            filteredLines = lines;
-        }
-
-        // Recalcular summary a partir das linhas filtradas
-        int totalBillSec = filteredLines.stream().mapToInt(AuditCallLineDTO::billSeconds).sum();
-        BigDecimal filteredTotalMinutes = BigDecimal.valueOf(Math.ceil(totalBillSec / 30.0))
+        int totalBillSec = lines.stream().mapToInt(AuditCallLineDTO::billSeconds).sum();
+        BigDecimal totalMinutesResult = BigDecimal.valueOf(Math.ceil(totalBillSec / 30.0))
                 .divide(BigDecimal.valueOf(2), 1, RoundingMode.UNNECESSARY);
-        BigDecimal filteredQuotaUsed = filteredLines.stream()
+        BigDecimal quotaUsed = lines.stream()
                 .map(AuditCallLineDTO::quotaUsedThisCall)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal filteredCost = filteredLines.stream()
-                .map(AuditCallLineDTO::cost)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal filteredExcess = filteredTotalMinutes.subtract(filteredQuotaUsed);
+        BigDecimal excess = totalMinutesResult.subtract(quotaUsed);
 
         AuditSummaryDTO summary = new AuditSummaryDTO(
-                filteredLines.size(),
-                filteredTotalMinutes,
-                filteredQuotaUsed,
-                filteredExcess,
-                filteredCost
+                lines.size(),
+                totalMinutesResult,
+                quotaUsed,
+                excess,
+                totalCost
         );
 
-        return new AuditResultDTO(circuit.getNumber(), plan.getName(), month, year, filteredLines, summary);
+        return new AuditResultDTO(circuit.getNumber(), plan.getName(), month, year, lines, summary);
     }
 
     private static BigDecimal decodeCost(int billSeconds, BigDecimal rate,
@@ -187,11 +167,7 @@ public class AuditService {
     }
 
     public byte[] generatePdf(String circuitNumber, int month, int year, boolean onlyRelevant) {
-        return generatePdf(circuitNumber, month, year, onlyRelevant, false);
-    }
-
-    public byte[] generatePdf(String circuitNumber, int month, int year, boolean onlyRelevant, boolean onlyOutgoing) {
-        AuditResultDTO result = simulate(circuitNumber, month, year, onlyOutgoing);
+        AuditResultDTO result = simulate(circuitNumber, month, year);
         String[] meses = {"Janeiro","Fevereiro","Março","Abril","Maio","Junho",
                           "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"};
         String mesNome = (month >= 1 && month <= 12) ? meses[month - 1] : String.valueOf(month);

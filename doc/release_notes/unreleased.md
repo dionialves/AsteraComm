@@ -117,6 +117,44 @@
 
 ---
 
+### RF-097: Remove direção e filtro de ligações efetuadas da Auditoria (reverte parcialmente RF-094)
+
+**Problema:** A RF-094 introduziu elementos desconexos na ferramenta de Auditoria — coluna "Direção", toggle "Apenas ligações efetuadas" e totalizadores de chamadas recebidas com custo. O propósito da Auditoria é exclusivamente de **custeio de chamadas efetuadas** (OUTBOUND). A direção e filtro poluíam a interface e distorciam o resumo para o usuário final.
+
+**Solução:**
+- Removido campo `direction` de `AuditCallLineDTO` e seu import de `CallDirection`.
+- Removido overload `simulate(circuitNumber, month, year, boolean onlyOutgoing)` de `AuditService` — método agora aceita apenas 3 parâmetros.
+- Removida filtragem por `onlyOutgoing` em `buildResult` — todas as chamadas retornam (o repository já filtra OUTBOUND).
+- Removido overload `generatePdf` com parâmetro `onlyOutgoing`.
+- Removido parâmetro `onlyOutgoing` de `ReportViewController` nos endpoints de simulação e PDF.
+- Removido `hx-include` do botão Processar em `audit.html` (não precisava mais).
+- Removida coluna "Direção" do template `audit-table.html` (header e badge das linhas).
+- Removido toggle "Apenas ligações efetuadas" da barra de controles.
+- Removido `data-outgoing` dos atributos das linhas.
+- Removido bloco JavaScript do toggle `toggle-outgoing-table` e função `setParam(href, 'onlyOutgoing', ...)`.
+- Removido parâmetro `onlyOutgoing` do link PDF.
+- CSS `grid-template-columns` de `.audit-row` ajustado de 9 para 8 colunas.
+- Removidos 3 testes de filtragem por direção em `AuditServiceTest`.
+- Helper `buildCall` simplificado para不接受 parâmetro de direção (sempre OUTBOUND).
+
+**Nota:** A entidade `Call.direction` permanece no banco e no processamento de CDR. A US-080 (Histórico de Ligações) usará esses dados.
+
+**Arquivos alterados:**
+- `backend/src/main/java/com/dionialves/AsteraComm/report/audit/AuditCallLineDTO.java` — removido campo `direction`
+- `backend/src/main/java/com/dionialves/AsteraComm/report/audit/AuditService.java` — removidos overloads e filtragem
+- `backend/src/main/java/com/dionialves/AsteraComm/report/ReportViewController.java` — removido parâmetro `onlyOutgoing`
+- `backend/src/main/resources/templates/pages/reports/audit.html` — removido `hx-include`
+- `backend/src/main/resources/templates/pages/reports/audit-table.html` — removida coluna direção, toggle e JS
+- `backend/src/main/resources/static/css/input.css` — 8 colunas em vez de 9
+- `backend/src/test/java/com/dionialves/AsteraComm/report/audit/AuditServiceTest.java` — 3 testes removidos, helper simplificado
+
+**Testes removidos:**
+- `simulate_returnsOnlyOutbound_whenOnlyOutgoingTrue`
+- `simulate_returnsAll_whenOnlyOutgoingFalse`
+- `simulate_inboundCallsAppearInResult`
+
+---
+
 ### RF-098: Refatorar relatório de chamadas órfãs com filtro por período e card no dashboard
 
 **Problema:** O relatório antigo em `/admin/reconcile-calls` carregava 100% das chamadas órfãs sem filtro de período, causando tela em branco/timeout com alto volume. O acesso estava escondido sem link direto no dashboard.

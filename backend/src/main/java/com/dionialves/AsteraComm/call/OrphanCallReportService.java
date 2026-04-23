@@ -10,7 +10,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -122,10 +121,5 @@ public class OrphanCallReportService {
             ));
         }
         return result;
-    }
-
-    public long countOrphanCallsCurrentMonth() {
-        LocalDate now = LocalDate.now();
-        return callRepository.countOrphanCallsByPeriod(now.getMonthValue(), now.getYear());
     }
 }

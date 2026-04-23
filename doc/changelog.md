@@ -15,6 +15,7 @@
 ### Refactoring
 - RF-094: Relatório de auditoria com direção de chamada (INBOUND/OUTBOUND) e filtro de ligações efetuadas
 - RF-095: Script de reconciliação de ligações sem circuito via canal CDR
+- RF-097: Remove direção e filtro de ligações efetuadas da Auditoria (reverte parcialmente RF-094)
 - RF-098: Refatorar relatório de chamadas órfãs com filtro por período e card no dashboard
 - RF-102: Eliminar N+1 queries no OrphanCallReportService
 - RF-103: Relatório de chamadas órfãs: paginação, loader funcional e vinculação

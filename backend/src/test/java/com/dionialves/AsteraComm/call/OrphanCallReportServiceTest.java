@@ -14,7 +14,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -159,16 +158,6 @@ class OrphanCallReportServiceTest {
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).resolvable()).isFalse();
         assertThat(result.getContent().get(0).channel()).isNull();
-    }
-
-    @Test
-    void countOrphanCallsCurrentMonth_returnsCountForCurrentMonth() {
-        LocalDate now = LocalDate.now();
-        when(callRepository.countOrphanCallsByPeriod(now.getMonthValue(), now.getYear())).thenReturn(3L);
-
-        long count = service.countOrphanCallsCurrentMonth();
-
-        assertThat(count).isEqualTo(3L);
     }
 
     @Test
