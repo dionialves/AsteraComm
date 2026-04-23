@@ -24,14 +24,14 @@
     <div class="rounded-xl border border-[#e0e0e0] overflow-x-auto mb-4">
 
       <!-- Header -->
-      <div class="orphan-row bg-white border-b border-[#e0e0e0]">
-        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Unique ID</span>
-        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Data</span>
-        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Destino</span>
-        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Canal</span>
-        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Canal Destino</span>
-        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide">Código Canal</span>
-        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide text-center">Status</span>
+      <div class="orphan-row bg-white border-b border-[#e0e0e0] min-w-[900px]">
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[130px] shrink-0">Unique ID</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[110px] shrink-0">Data</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[100px] shrink-0">Destino</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[200px] shrink-0 overflow-hidden text-ellipsis">Canal</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[200px] shrink-0 overflow-hidden text-ellipsis">Canal Destino</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide w-[100px] shrink-0">Código Canal</span>
+        <span class="text-[11px] font-medium text-[#888] uppercase tracking-wide text-center w-[110px] shrink-0">Status</span>
       </div>
 
       <!-- Vazio -->
@@ -41,28 +41,28 @@
 
       <!-- Linhas -->
       <div th:each="orphan : ${orphans}"
-           class="orphan-row bg-white border-b border-[#f0f0f0]">
+           class="orphan-row bg-white border-b border-[#f0f0f0] min-w-[900px]">
 
-        <span class="text-[13px] font-mono text-[#1a1a1a]"
+        <span class="text-[13px] font-mono text-[#1a1a1a] w-[130px] shrink-0 overflow-hidden text-ellipsis"
               th:text="${orphan.uniqueId}"></span>
 
-        <span class="text-[13px] font-mono text-[#1a1a1a]"
+        <span class="text-[13px] font-mono text-[#1a1a1a] w-[110px] shrink-0"
               th:text="${#temporals.format(orphan.callDate, 'dd/MM/yy HH:mm')}"></span>
 
-        <span class="text-[13px] font-mono text-[#1a1a1a]"
+        <span class="text-[13px] font-mono text-[#1a1a1a] w-[100px] shrink-0 overflow-hidden text-ellipsis"
               th:text="${orphan.dst != null ? orphan.dst : '—'}"></span>
 
-        <span class="text-[13px] font-mono text-[#555]"
+        <span class="text-[13px] font-mono text-[#555] w-[200px] shrink-0 overflow-hidden text-ellipsis"
               th:text="${orphan.channel != null ? orphan.channel : '—'}"></span>
 
-        <span class="text-[13px] font-mono text-[#555]"
+        <span class="text-[13px] font-mono text-[#555] w-[200px] shrink-0 overflow-hidden text-ellipsis"
               th:text="${orphan.dstChannel != null ? orphan.dstChannel : '—'}"></span>
 
-        <span class="text-[13px] font-mono text-[#1a1a1a]"
+        <span class="text-[13px] font-mono text-[#1a1a1a] w-[100px] shrink-0"
               th:text="${orphan.circuitCode != null ? orphan.circuitCode : '—'}"></span>
 
         <!-- Badge Resolvível / Não resolvível -->
-        <span class="flex justify-center">
+        <span class="flex justify-center w-[110px] shrink-0">
           <span th:class="|rounded-[99px] text-[11px] px-[8px] py-[2px] font-medium whitespace-nowrap
                            ${orphan.resolvable ? 'bg-[#E1F5EE] text-[#085041]' : 'bg-[#FEE2E2] text-[#dc2626]'}|"
                 th:text="${orphan.resolvable ? 'Resolvível' : 'Não resolvível'}">
