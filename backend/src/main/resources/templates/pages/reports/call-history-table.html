@@ -26,30 +26,36 @@
                th:text="${#temporals.monthName(T(java.time.LocalDate).of(result.year, result.month, 1))} + ' / ' + ${result.year}">—</p>
           </div>
         </div>
-        <a id="btn-pdf-call-history" th:href="${'/reports/call-history/pdf?circuitNumber=' + result.circuitNumber + '&month=' + result.month + '&year=' + result.year}"
-           class="flex items-center gap-1.5 bg-white border border-[#e0e0e0] text-[#1a1a1a] text-[13px] font-medium px-3 py-[9px] rounded-md hover:bg-[#f5f5f5] transition-colors no-underline">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          Baixar PDF
-        </a>
+
       </div>
     </div>
 
     <!-- 2 Totalizadores (acima da tabela) -->
-    <div class="grid grid-cols-2 gap-3 mb-4" style="max-width: 400px;">
-      <div class="bg-[#f5f5f5] rounded-lg px-4 py-[14px]">
-        <p class="text-[12px] text-[#888] mb-1">Total ligações</p>
-        <p class="text-[20px] font-medium text-[#1a1a1a]" th:text="${result.totalCalls}">0</p>
-      </div>
-      <div class="bg-[#E6F1FB] rounded-lg px-4 py-[14px]">
-        <p class="text-[12px] text-[#0C447C] mb-1">Minutos totais</p>
-        <p class="text-[20px] font-medium text-[#0C447C]" th:text="${result.totalMinutes + ' min'}">0</p>
-      </div>
-    </div>
+
+         <div class="grid grid-cols-2 gap-3 mb-4" style="max-width: 400px;">
+             <div class="bg-[#f5f5f5] rounded-lg px-4 py-[14px]">
+                 <p class="text-[12px] text-[#888] mb-1">Total ligações</p>
+                 <p class="text-[20px] font-medium text-[#1a1a1a]" th:text="${result.totalCalls}">0</p>
+             </div>
+             <div class="bg-[#E6F1FB] rounded-lg px-4 py-[14px]">
+                 <p class="text-[12px] text-[#0C447C] mb-1">Minutos totais</p>
+                 <p class="text-[20px] font-medium text-[#0C447C]" th:text="${result.totalMinutes + ' min'}">0</p>
+             </div>
+         </div>
+
+      <div class="flex items-center justify-end mb-3">
+         <a id="btn-pdf-call-history" th:href="${'/reports/call-history/pdf?circuitNumber=' + result.circuitNumber + '&month=' + result.month + '&year=' + result.year}"
+            class="flex items-center gap-1.5 bg-white border border-[#e0e0e0] text-[#1a1a1a] text-[13px] font-medium px-3 py-[9px] rounded-md hover:bg-[#f5f5f5] transition-colors no-underline">
+             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                 <polyline points="7 10 12 15 17 10"/>
+                 <line x1="12" y1="15" x2="12" y2="3"/>
+             </svg>
+             Baixar PDF
+         </a>
+     </div>
+
 
     <!-- Tabela de chamadas -->
     <div class="rounded-xl border border-[#e0e0e0] overflow-x-auto mb-4">
